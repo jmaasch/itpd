@@ -208,6 +208,7 @@ class ITPD:
         # x_name = x.split("_")[0]
         # x_time_index = int(x.split("_")[-1])
         get_de = lambda x : self.autocorrelated[x.split("_")[0]][int(x.split("_")[-1])+1:]
+        # [item for sublist in nested_list for item in sublist]
         flatten = lambda list_of_lists : [i for sublist in list_of_lists for i in sublist]
         
         # Update irrelevant variables to test in the future.
@@ -215,13 +216,12 @@ class ITPD:
         for var in [outcome] + self.autocorrelated[outcome.split("_")[0]]:
 
             # Add all descendants.
-            # [item for sublist in nested_list for item in sublist]
-            z1_parents_de = [x for x in padl.z1_z3] + flatten([get_de(x) for x in padl.z1_z3])
+            z1_de = [x for x in padl.z1_z3] + flatten([get_de(x) for x in padl.z1_z3])
             z7_de = [x for x in padl.z7] + flatten([get_de(x) for x in padl.z7])
             z4_de = [x for x in padl.z4] + flatten([get_de(x) for x in padl.z4])
 
-            self.irrelevant_dict[var]["Z4"] |= set(z1_parents_de)
-            self.irrelevant_dict[var]["Z8"] |= set(z1_parents_de)
+            self.irrelevant_dict[var]["Z4"] |= set(z1_de)
+            self.irrelevant_dict[var]["Z8"] |= set(z1_de)
             
             self.irrelevant_dict[var]["Z4"] |= set(z7_de)
             self.irrelevant_dict[var]["Z8"] |= set(z7_de)
