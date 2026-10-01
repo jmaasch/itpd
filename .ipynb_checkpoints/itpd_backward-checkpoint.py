@@ -30,10 +30,10 @@ from cdt.metrics import SHD
 from cdt.metrics import SID
 
 # Custom scripts.
-from padl_itpd import PaDL
+from padl_itpd_backward import PaDL
 
 
-class ITPD:
+class ITPDBackward:
 
     def __init__(self,
                  df: pd.DataFrame,
@@ -80,7 +80,7 @@ class ITPD:
 
         # Track eliminated candidates per partition.
         #partition_names = ["Z1", "Z4", "Z5", "Z7", "Z8"]
-        partition_names = ["Z4", "Z8"]
+        partition_names = ["Z1", "Z4", "Z5"]
         self.irrelevant_dict = {
             v : {z : set() for z in partition_names} for v in self.df.columns
         }
@@ -95,8 +95,8 @@ class ITPD:
 
         if self.pairs is None:
             self.pairs = []
-            for var in self.var_names:
-                for t in range(self.T-1):
+            for t in range(self.T-1):
+                for var in self.var_names:
                     self.pairs.append((var+"_"+str(t), var+"_"+str(t+1)))
 
         # Result storage.
@@ -126,9 +126,9 @@ class ITPD:
 
             # Update irrelevant variables to test in the future.
             # Per Theorem 3.4 (adjacency lemma):
-            if pair[0] in self.c2p_pred.keys():
-                self.irrelevant_dict[pair[1]]["Z4"] |= set(self.c2p_pred[pair[0]])
-                self.irrelevant_dict[pair[1]]["Z8"] |= set(self.c2p_pred[pair[0]])
+            #if pair[0] in self.c2p_pred.keys():
+            #    self.irrelevant_dict[pair[1]]["Z4"] |= set(self.c2p_pred[pair[0]])
+            #    self.irrelevant_dict[pair[1]]["Z8"] |= set(self.c2p_pred[pair[0]])
 
             # Run PaDL to get parents and partition labels.
             pa, labels, total_tests, cond_sizes = self.run_padl(
@@ -163,7 +163,7 @@ class ITPD:
         
         # Score.
         if self.true_adj is not None:
-            aupr, shd = self.u.score_arrays(self.true_adj, self.itpd_adj)
+            accuracy, aupr, shd = self.u.score_arrays(self.true_adj, self.itpd_adj)
 
             if verbose:
                 # Sanity check on total edges.
@@ -171,9 +171,10 @@ class ITPD:
                 print("Total predicted edges:", np.sum(self.itpd_adj))
     
                 # Scores.
-                print(f"Area under precision-recall curve: {aupr[0]}")
+                print(f"\nAccuracy: {accuracy}")
+                print(f"Area under precision/recall curve: {aupr[0]}")
                 print(f"SHD: {shd}")
-            return aupr[0], shd
+            return accuracy, aupr[0], shd
 
 
     def run_padl(self,
@@ -203,29 +204,27 @@ class ITPD:
             print("Total independence tests performed:", padl.total_tests)
             print("Predicted parents of outcome =", sorted(pa))
 
-        # Helper function: get descendants from autocorrelated dict.
+        # Helper function: get ancestors from autocorrelated dict.
         # x_name = x.split("_")[0]
         # x_time_index = int(x.split("_")[-1])
-        get_de = lambda x : self.autocorrelated[x.split("_")[0]][int(x.split("_")[-1])+1:]
+        get_an = lambda x : self.autocorrelated[x.split("_")[0]][:int(x.split("_")[-1])]
         # [item for sublist in nested_list for item in sublist]
         flatten = lambda list_of_lists : [i for sublist in list_of_lists for i in sublist]
         
         # Update irrelevant variables to test in the future.
-        # Per Theorems 3.5–3.7 (descendancy lemmas).
+        # Per ancestry lemmas.
         for var in [outcome] + self.autocorrelated[outcome.split("_")[0]]:
 
-            # Add all descendants.
-            z1_de = [x for x in padl.z1_z3] + flatten([get_de(x) for x in padl.z1_z3])
-            z7_de = [x for x in padl.z7] + flatten([get_de(x) for x in padl.z7])
-            z4_de = [x for x in padl.z4] + flatten([get_de(x) for x in padl.z4])
+            # Add all ancestors.
+            z8_an = [x for x in padl.z8] + flatten([get_an(x) for x in padl.z8])
+            z4_an = [x for x in padl.z4] + flatten([get_an(x) for x in padl.z4])
 
-            self.irrelevant_dict[var]["Z4"] |= set(z1_de)
-            self.irrelevant_dict[var]["Z8"] |= set(z1_de)
+            self.irrelevant_dict[var]["Z1"] |= set(z4_an)
+            self.irrelevant_dict[var]["Z5"] |= set(z4_an)
             
-            self.irrelevant_dict[var]["Z4"] |= set(z7_de)
-            self.irrelevant_dict[var]["Z8"] |= set(z7_de)
-            
-            self.irrelevant_dict[var]["Z8"] |= set(z4_de)
+            self.irrelevant_dict[var]["Z1"] |= set(z8_an)
+            self.irrelevant_dict[var]["Z4"] |= set(z8_an)
+            self.irrelevant_dict[var]["Z5"] |= set(z8_an)
 
         return pa, padl.pred_label_dict, padl.total_tests, padl.conditioning_set_sizes
 
@@ -389,24 +388,37 @@ class Utils:
         for i in range(adj.shape[0]):
             parents[i] = np.nonzero(adj[i,:])[0].tolist()
         return parents
+
+
+    def score_dicts(self,
+                    true_parents: dict, 
+                    pred_parents: dict) -> float:
+        
+        incorrect = 0
+        total_true_edges = 0
+        total_pred_edges = 0
+        for parent,true_children in true_parents.items():
+            pred_children = pred_parents[parent]
+            # Count incorrect by taking bitwise xor.
+            total_true_edges += len(true_children)
+            total_pred_edges += len(pred_children)
+            incorrect += len(set(true_children) ^ set(pred_children))
+        # Correct / total.
+        accuracy = (total_pred_edges - incorrect) / total_pred_edges
+        return accuracy
         
 
     def score_arrays(self,
                      true_adj: np.array, 
                      pred_adj: np.array) -> tuple: 
-
-        '''
-        Score area under the precision-recall curve (AUPRC) and 
-        structural hamming distance for the predicted adjacency 
-        matrix relative to ground truth.
-
-        AUPRC from: 
-        https://fentechsolutions.github.io/CausalDiscoveryToolbox/html/metrics.html
-        '''
     
         pr = precision_recall(true_adj, pred_adj)
         shd = SHD(true_adj, pred_adj)
+    
+        true_parents = self.get_parents(true_adj)
+        pred_parents = self.get_parents(pred_adj)
+        accuracy = self.score_dicts(true_parents, pred_parents)
         
-        return pr, shd
+        return accuracy, pr, shd
 
 

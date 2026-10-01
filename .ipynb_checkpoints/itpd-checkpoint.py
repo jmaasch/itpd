@@ -163,7 +163,7 @@ class ITPD:
         
         # Score.
         if self.true_adj is not None:
-            accuracy, aupr, shd = self.u.score_arrays(self.true_adj, self.itpd_adj)
+            aupr, shd = self.u.score_arrays(self.true_adj, self.itpd_adj)
 
             if verbose:
                 # Sanity check on total edges.
@@ -171,10 +171,9 @@ class ITPD:
                 print("Total predicted edges:", np.sum(self.itpd_adj))
     
                 # Scores.
-                print(f"\nAccuracy: {accuracy}")
-                print(f"Area under precision/recall curve: {aupr[0]}")
+                print(f"Area under precision-recall curve: {aupr[0]}")
                 print(f"SHD: {shd}")
-            return accuracy, aupr[0], shd
+            return aupr[0], shd
 
 
     def run_padl(self,
@@ -390,37 +389,24 @@ class Utils:
         for i in range(adj.shape[0]):
             parents[i] = np.nonzero(adj[i,:])[0].tolist()
         return parents
-
-
-    def score_dicts(self,
-                    true_parents: dict, 
-                    pred_parents: dict) -> float:
-        
-        incorrect = 0
-        total_true_edges = 0
-        total_pred_edges = 0
-        for parent,true_children in true_parents.items():
-            pred_children = pred_parents[parent]
-            # Count incorrect by taking bitwise xor.
-            total_true_edges += len(true_children)
-            total_pred_edges += len(pred_children)
-            incorrect += len(set(true_children) ^ set(pred_children))
-        # Correct / total.
-        accuracy = (total_pred_edges - incorrect) / total_pred_edges
-        return accuracy
         
 
     def score_arrays(self,
                      true_adj: np.array, 
                      pred_adj: np.array) -> tuple: 
+
+        '''
+        Score area under the precision-recall curve (AUPRC) and 
+        structural hamming distance for the predicted adjacency 
+        matrix relative to ground truth.
+
+        AUPRC from: 
+        https://fentechsolutions.github.io/CausalDiscoveryToolbox/html/metrics.html
+        '''
     
         pr = precision_recall(true_adj, pred_adj)
         shd = SHD(true_adj, pred_adj)
-    
-        true_parents = self.get_parents(true_adj)
-        pred_parents = self.get_parents(pred_adj)
-        accuracy = self.score_dicts(true_parents, pred_parents)
         
-        return accuracy, pr, shd
+        return pr, shd
 
 
