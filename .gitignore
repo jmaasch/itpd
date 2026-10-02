@@ -12,11 +12,13 @@ dist/
 .venv/
 venv/
 
-# Experiment output (written by the run_* drivers and the job scripts)
+# Experiment output (written by the run_* drivers)
 results/
-slurm-*.out
 *.pkl
 *.npz
+
+# local job scripts stay untracked
+jobs/
 
 # macOS
 .DS_Store
