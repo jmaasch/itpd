@@ -1,0 +1,22 @@
+# Python caches and build output
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+*.egg-info/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+
+# Experiment output (written by the run_* drivers and the job scripts)
+results/
+slurm-*.out
+*.pkl
+*.npz
+
+# macOS
+.DS_Store
