@@ -30,14 +30,14 @@ from cdt.metrics import SHD
 from cdt.metrics import SID
 
 # Custom scripts.
-from padl_naive import PaDL
+from padl_itpd import PaDL
 
 
-class ITPDNaive:
+class ITPD:
 
     def __init__(self,
                  df: pd.DataFrame,
-                 var_names: list,
+                 var_names: list, # Variable names, excluding time index.
                  pairs: list[tuple] = None,
                  independence_test: str = "fisherz",
                  alpha: float = 0.01,
@@ -72,30 +72,36 @@ class ITPDNaive:
             self.test = "oracle"
         self.alpha = alpha
 
+        # Store autocorrelations.
+        # Autocorrelated dictionary of form: {var_name: [autocorrelated_vars]}.
+        self.autocorrelated = {
+            var : [var[0]+"_"+str(i) for i in range(self.T)] for var in self.var_names
+        }
 
-    def itpd_naive(self,
-                   verbose: bool = False):
+        # Track eliminated candidates per partition.
+        #partition_names = ["Z1", "Z4", "Z5", "Z7", "Z8"]
+        partition_names = ["Z4", "Z8"]
+        self.irrelevant_dict = {
+            v : {z : set() for z in partition_names} for v in self.df.columns
+        }
+
+
+    def itpd(self,
+             verbose: bool = False):
 
         '''
-        Run vanilla PaDL iteratively.
+        Remove unnecessary CI tests.
         '''
 
-        #print("var names:", self.var_names)
-        #print(f"M x T x N = {self.M} x {self.T} x {self.N}: ")
-        
         if self.pairs is None:
             self.pairs = []
-            for t in range(self.T-1):
-                for var in self.var_names:
+            for var in self.var_names:
+                for t in range(self.T-1):
                     self.pairs.append((var+"_"+str(t), var+"_"+str(t+1)))
-
-        #print("self.pairs", self.pairs)
 
         # Result storage.
         self.c2p_pred = dict() # child : parents
         self.p2c_pred = {pair[0] : [pair[1]] for pair in self.pairs} # parent : children
-
-        #display(self.p2c_pred)
         
         start = time.time()
         for pair in self.pairs:
@@ -117,7 +123,14 @@ class ITPDNaive:
                 true_adj_dropped = self.true_adj[adj_idx][:,adj_idx]
             else:
                 true_adj_dropped = None
-        
+
+            # Update irrelevant variables to test in the future.
+            # Per Theorem 3.4 (adjacency lemma):
+            if pair[0] in self.c2p_pred.keys():
+                self.irrelevant_dict[pair[1]]["Z4"] |= set(self.c2p_pred[pair[0]])
+                self.irrelevant_dict[pair[1]]["Z8"] |= set(self.c2p_pred[pair[0]])
+
+            # Run PaDL to get parents and partition labels.
             pa, labels, total_tests, cond_sizes = self.run_padl(
                 df = df_drop,
                 exposure = pair[0],
@@ -158,7 +171,7 @@ class ITPDNaive:
                 print("Total predicted edges:", np.sum(self.itpd_adj))
     
                 # Scores.
-                print(f"Area under precision/recall curve: {aupr[0]}")
+                print(f"Area under precision-recall curve: {aupr[0]}")
                 print(f"SHD: {shd}")
             return aupr[0], shd
 
@@ -168,12 +181,15 @@ class ITPDNaive:
                  exposure: str = "X",
                  outcome: str = "Y",
                  true_adj: np.array = None,
-                 verbose: bool = False) -> tuple(list,dict,int,list):
+                 verbose: bool = False) -> tuple[list, dict, int, list]:
 
         if df is None:
             df = self.df
+
+        # Run PaDL while removing unnecessary tests.
         padl = PaDL(data = df, 
-                    independence_test = self.test_name)
+                    independence_test = self.test_name,
+                    irrelevant_dict = self.irrelevant_dict)
         if true_adj is not None:
             padl.dag = true_adj
             padl.var_names = list(df.columns)
@@ -187,6 +203,30 @@ class ITPDNaive:
             print("Total independence tests performed:", padl.total_tests)
             print("Predicted parents of outcome =", sorted(pa))
 
+        # Helper function: get descendants from autocorrelated dict.
+        # x_name = x.split("_")[0]
+        # x_time_index = int(x.split("_")[-1])
+        get_de = lambda x : self.autocorrelated[x.split("_")[0]][int(x.split("_")[-1])+1:]
+        # [item for sublist in nested_list for item in sublist]
+        flatten = lambda list_of_lists : [i for sublist in list_of_lists for i in sublist]
+        
+        # Update irrelevant variables to test in the future.
+        # Per Theorems 3.5–3.7 (descendancy lemmas).
+        for var in [outcome] + self.autocorrelated[outcome.split("_")[0]]:
+
+            # Add all descendants.
+            z1_de = [x for x in padl.z1_z3] + flatten([get_de(x) for x in padl.z1_z3])
+            z7_de = [x for x in padl.z7] + flatten([get_de(x) for x in padl.z7])
+            z4_de = [x for x in padl.z4] + flatten([get_de(x) for x in padl.z4])
+
+            self.irrelevant_dict[var]["Z4"] |= set(z1_de)
+            self.irrelevant_dict[var]["Z8"] |= set(z1_de)
+            
+            self.irrelevant_dict[var]["Z4"] |= set(z7_de)
+            self.irrelevant_dict[var]["Z8"] |= set(z7_de)
+            
+            self.irrelevant_dict[var]["Z8"] |= set(z4_de)
+
         return pa, padl.pred_label_dict, padl.total_tests, padl.conditioning_set_sizes
 
 
@@ -198,7 +238,7 @@ class Utils:
                  T: int = 10,
                  N: int = 5, 
                  max_children: int = 3,
-                 plot: bool = True) -> tuple(pd.DataFrame, dict, dict, nx.DiGraph, np.array):
+                 plot: bool = True) -> tuple[pd.DataFrame, dict, dict, nx.DiGraph, np.ndarray]:
     
         '''
         Generate a random nonstationary time series. Data will ultimately be M x T x N.
@@ -237,8 +277,8 @@ class Utils:
         n_children = lambda : np.random.choice(range(max_children+1), size = 1)[0]
         for v in var_names:
             for t in range(T-1):
-                candidates = [x+"_"+str(i) for x in var_names for i in range(t+1,T) if x+"_"+str(i) not in (v+str(t),v+str(t+1))]
-                p2c[v+str(t)] += np.random.choice(candidates, size = n_children()).tolist()
+                candidates = [x+"_"+str(i) for x in var_names for i in range(t+1,T) if x+"_"+str(i) not in (v+"_"+str(t),v+"_"+str(t+1))]
+                p2c[v+"_"+str(t)] += np.random.choice(candidates, size = n_children()).tolist()
     
         # Child : parents dictionary.
         c2p = {p : [] for p in p2c.keys()}
@@ -266,7 +306,7 @@ class Utils:
 
     def format_tigramite(self,
                          df: pd.DataFrame,
-                         var_names: list[str]) -> tupe(pd.DataFrame,np.array):
+                         var_names: list[str]) -> tuple[pd.DataFrame, np.ndarray]:
 
         mxt = []
         m_dict = dict()
