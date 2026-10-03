@@ -29,7 +29,7 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from itpd.methods_registry import OLD_TO_NEW  # noqa: E402
 
-METHODS = ["itpd_naive", "itpd", "itpd_repo_variant", "order_based", "itpd_naive_nonlazy", "itpd_nonlazy"]
+METHODS = ["itpd_naive", "itpd", "itpd_repo_variant", "full_conditioning", "itpd_naive_nonlazy", "itpd_nonlazy"]
 
 
 def load(d):
@@ -44,7 +44,7 @@ def load(d):
     for key, by in cells.items():
         gs = sorted(by)
         out[key] = {"uniq": {m: np.array([by[g][m][0] for g in gs], float) for m in METHODS},
-                    "cand": np.array([by[g]["order_based"][1] for g in gs], float),
+                    "cand": np.array([by[g]["full_conditioning"][1] for g in gs], float),
                     "share": {m: np.array([by[g][m][2] for g in gs], float) for m in METHODS}}
     return out
 
@@ -162,7 +162,7 @@ def main():
     cols = [f"N={N}, T={T}" for N in Ns for T in Ts]
     L.append("| method | " + " | ".join(cols) + " |\n|---|" + "---|" * len(cols))
     rngb = np.random.default_rng(1)
-    for m in ("itpd_naive", "itpd", "itpd_repo_variant", "order_based"):
+    for m in ("itpd_naive", "itpd", "itpd_repo_variant", "full_conditioning"):
         row = []
         for N in Ns:
             for T in Ts:

@@ -1,9 +1,9 @@
-"""Tables of the HPV runs: the oracle runs against the stored oracle-run rows of ITPD, ITPD_naive and the order-based baseline, and
+"""Tables of the blanket-screened shrink runs: the oracle runs against the stored oracle-run rows of ITPD, ITPD_naive and the full-conditioning baseline, and
 the finite-data runs against the stored finite-data rows. Reads, under the results directory R (`--results`, default $ITPD_RESULTS
-or ./results): R/hpv/oracle (itpd.run_hpv oracle), R/hpv/single_pass (itpd.run_hpv finite), R/oracle and R/finite/window (the
-earlier runs). Writes tables_oracle.md, tables_finite.md and aggregates.json in `--out` (default R/hpv).
+or ./results): R/blanket_screened_shrink/oracle (itpd.run_blanket_screened_shrink oracle), R/blanket_screened_shrink/single_pass (itpd.run_blanket_screened_shrink finite), R/oracle and R/finite/window (the
+earlier runs). Writes tables_oracle.md, tables_finite.md and aggregates.json in `--out` (default R/blanket_screened_shrink).
 
-    python scripts/hpv_collect.py [--results DIR] [--out DIR] [--only oracle,finite]
+    python scripts/blanket_screened_shrink_collect.py [--results DIR] [--out DIR] [--only oracle,finite]
 """
 from __future__ import annotations
 
@@ -21,13 +21,15 @@ from itpd.dataset_eval import common_tmax
 from itpd.instances import load_instance
 
 RES = os.environ.get("ITPD_RESULTS", "results")
-ORACLE_STORED = ("itpd_naive", "itpd", "order_based")
-FINITE_STORED = ("itpd_naive", "itpd", "order_based")
-FINITE_HPV = ("hpv_single_pass", "hpv_single_pass_lenient", "hpv_single_pass_oracle_blanket", "hpv_single_pass_oracle_blanket_lenient",
-         "hpv_safe_lenient")
-LABEL = {"hpv_single_pass": "HPV single-pass eq", "hpv_single_pass_lenient": "HPV single-pass len", "hpv_single_pass_oracle_blanket": "HPV oracle-blanket eq",
-         "hpv_single_pass_oracle_blanket_lenient": "HPV oracle-blanket len", "hpv_safe_lenient": "HPV-safe len", "itpd": "ITPD",
-         "itpd_naive": "ITPD_naive", "order_based": "order"}
+ORACLE_STORED = ("itpd_naive", "itpd", "full_conditioning")
+FINITE_STORED = ("itpd_naive", "itpd", "full_conditioning")
+FINITE_SHRINK = ("blanket_screened_shrink", "blanket_screened_shrink_lenient", "blanket_screened_shrink_oracle_blanket", "blanket_screened_shrink_oracle_blanket_lenient",
+         "blanket_screened_shrink_recheck_lenient")
+LABEL = {"blanket_screened_shrink": "blanket-screened shrink", "blanket_screened_shrink_lenient": "blanket-screened shrink lenient",
+         "blanket_screened_shrink_oracle_blanket": "blanket-screened shrink oracle blanket",
+         "blanket_screened_shrink_oracle_blanket_lenient": "blanket-screened shrink oracle blanket lenient",
+         "blanket_screened_shrink_recheck_lenient": "blanket-screened shrink re-check lenient", "itpd": "ITPD",
+         "itpd_naive": "ITPD_naive", "full_conditioning": "full conditioning"}
 new_name = lambda n: OLD_TO_NEW.get(n, n)          # result files written before the method-name rename carry old names
 PRIMARY = 0.01
 BINS = (0.0, 0.05, 0.1, 0.2, 0.3, np.inf)
@@ -55,11 +57,11 @@ def table(head, rows):
 # ============================================================================================ oracle runs
 
 def collect_oracle(res, out):
-    lines = ["# HPV oracle runs: tables", "",
+    lines = ["# Blanket-screened shrink oracle runs: tables", "",
              "Conditions: S2, instances of the oracle runs (sha1 checked per graph), exact d-separation oracle on the full graph, full "
              "history, F = {X}, d = 2, 20 graphs per cell. tpc = unique tests / Sum|C| (whole graph); per-target tpc = mean "
              "over targets of new unique tests / |C|; share = mean over targets of (largest set / |C|). Stored methods: "
-             "lazy headline rows of the oracle runs (order is one test per candidate). Medians [min, max] over graphs.", ""]
+             "lazy headline rows of the oracle runs (full conditioning is one test per candidate). Medians [min, max] over graphs.", ""]
     agg = {}
     rows = []
     tflat = defaultdict(dict)
@@ -68,7 +70,7 @@ def collect_oracle(res, out):
             for T in (8, 16):
                 for tau in (1, 2):
                     cell = f"N{N}_T{T}_tau{tau}_d2"
-                    files = sorted(glob.glob(os.path.join(res, "hpv", "oracle", arm, cell, "g*.json")))
+                    files = sorted(glob.glob(os.path.join(res, "blanket_screened_shrink", "oracle", arm, cell, "g*.json")))
                     if not files:
                         continue
                     D = [json.load(open(f)) for f in files]
@@ -90,7 +92,7 @@ def collect_oracle(res, out):
                         else:
                             row += [f"{sum(r['calls_identity'] for r in rr)}/{len(rr)}",
                                     f"{sum(r['n_bound_b_viol'] for r in rr)} / {sum(r['n_bound_glob_viol'] for r in rr)}",
-                                    sum(r["hpv_stats"]["excess"] for r in rr), sum(r["hpv_stats"]["sum_Aprime"] for r in rr),
+                                    sum(r["shrink_stats"]["excess"] for r in rr), sum(r["shrink_stats"]["sum_Aprime"] for r in rr),
                                     " ".join(f"{k}:{np.median([r['by_label_unique'].get(k, 0) / r['n_cand'] for r in rr]):.3f}"
                                              for k in ("A", "B", "C") if any(k in r["by_label_unique"] for r in rr))]
                         rows.append(row)
@@ -101,20 +103,20 @@ def collect_oracle(res, out):
                                                      "exact": int(sum(r["exact"] for r in rr)), "n": len(rr)}
                         tflat[(arm, N, tau, nm)][T] = float(np.median([r["max_size"] for r in rr]))
                     # shift excess by target time (window)
-                    if arm == "window" and "hpv_single_pass_shifted_parents" in by:
+                    if arm == "window" and "blanket_screened_shrink_shifted_parents" in by:
                         ex = defaultdict(int)
-                        for r in by["hpv_single_pass_shifted_parents"]:
+                        for r in by["blanket_screened_shrink_shifted_parents"]:
                             for k, v in r["excess_by_t"].items():
                                 ex[int(k)] += v
                         agg[f"{arm}|{cell}|shift_excess_by_t"] = {str(k): v for k, v in sorted(ex.items())}
                     # per-candidate overhead bound check for the single-pass variant
-                    if "hpv_single_pass" in by:
+                    if "blanket_screened_shrink" in by:
                         agg[f"{arm}|{cell}|overhead_bound_ok"] = int(sum((r["raw"] - r["n_cand"]) / r["n_cand"] <= r["overhead_bound"] - 1 + 1e-12
-                                                                for r in by["hpv_single_pass"]))
+                                                                for r in by["blanket_screened_shrink"]))
     lines.append(table(["arm", "N", "T", "tau", "method", "exact", "tpc", "raw/cand", "per-target tpc", "largest set",
                         "share", "calls = Sum|C| + |E| - |E_F|", "bound viol. (b, global)", "excess survivors",
-                        "A' (re-check adds)", "unique tpc by phase"], rows))
-    lines += ["", "#### Shift hint (window arm): excess survivors (non-parents surviving phase A) summed over graphs, by target time", ""]
+                        "A' (re-check adds)", "unique tpc by step (A, B, C)"], rows))
+    lines += ["", "#### Shifted-parents screening set (window arm): excess survivors (non-parents surviving the screening step) summed over graphs, by target time", ""]
     srows = [[k.split("|")[1], json.dumps(v)] for k, v in agg.items() if k.endswith("shift_excess_by_t")]
     lines.append(table(["cell", "excess by target time"], srows))
     lines += ["", "#### Largest set per graph: median at T = 16 / median at T = 8 (same arm, N, tau)", ""]
@@ -123,7 +125,7 @@ def collect_oracle(res, out):
         if 8 in v and 16 in v:
             trows.append([arm, N, tau, nm, f"{v[16]:.0f} / {v[8]:.0f} = {v[16] / v[8]:.2f}"])
     lines.append(table(["arm", "N", "tau", "method", "ratio"], trows))
-    lines += ["", "#### Per-candidate overhead bound 1 + 2(d_in - 1)/(NT - 2), single-pass HPV: graphs within bound", ""]
+    lines += ["", "#### Per-candidate overhead bound 1 + 2(d_in - 1)/(NT - 2), single-pass blanket-screened shrink: graphs within bound", ""]
     lines.append(table(["cell", "graphs within"], [[k.rsplit("|", 1)[0], v] for k, v in agg.items() if k.endswith("overhead_bound_ok")]))
     open(os.path.join(out, "tables_oracle.md"), "w").write("\n".join(lines) + "\n")
     return agg
@@ -161,11 +163,11 @@ def _interp(points, target):
 
 def collect_finite(res, out):
     fin = os.path.join(res, "finite", "window")
-    lines = ["# HPV finite-data runs: tables", "",
+    lines = ["# Blanket-screened shrink finite-data runs: tables", "",
              "Conditions: S2 window arm (stationary lag weights, spectral radius <= 0.9), tau = 1, d = 2, linear-Gaussian, "
              "Fisher-z, full history, the instances g00-g19 per (N, T) of the finite-data runs (sha1, data_seed and data_sha1 checked), data = "
-             "first M rows (paired across M and methods). HPV: eq = alpha_A = alpha_B; len = alpha_A 0.10; alpha_B = 0.01 "
-             "unless stated. Stored rows (ITPD paper variant, ITPD_naive, order) at alpha 0.01, lazy. Common targets: "
+             "first M rows (paired across M and methods). Blanket-screened shrink: equal = alpha_A = alpha_B; lenient = alpha_A 0.10; alpha_B = 0.01 "
+             "unless stated. Stored rows (ITPD paper variant, ITPD_naive, full conditioning) at alpha 0.01, lazy. Common targets: "
              "t <= (M - 3)/N. Medians [Q1, Q3] over 20 graphs; totals are sums over the 20 graphs.", ""]
     edge_cache = {}
     A_rows, B_rows, C_rows, D_rows, E_rows, H_rows = [], [], [], [], [], []
@@ -185,7 +187,7 @@ def collect_finite(res, out):
                 rows_by = defaultdict(list)      # method -> list of rows at alpha_B = 0.01 (one per graph)
                 sweep = defaultdict(lambda: defaultdict(lambda: np.zeros(3)))   # method -> alpha -> [tp, fp, fn] pooled
                 for g in range(20):
-                    fh = os.path.join(res, "hpv", "single_pass", cell, f"g{g:02d}_M{M}.json")
+                    fh = os.path.join(res, "blanket_screened_shrink", "single_pass", cell, f"g{g:02d}_M{M}.json")
                     fs = os.path.join(fin, cell, f"g{g:02d}_M{M}.json")
                     if not os.path.exists(fh):
                         continue
@@ -202,21 +204,21 @@ def collect_finite(res, out):
                             rows_by[nm].append(r)
                 if not rows_by:
                     continue
-                order_fp = sweep["order_based"][PRIMARY][1]
-                order_rec = sweep["order_based"][PRIMARY][0] / max(1, sweep["order_based"][PRIMARY][0] + sweep["order_based"][PRIMARY][2])
-                for nm in FINITE_HPV + FINITE_STORED:
+                full_cond_fp = sweep["full_conditioning"][PRIMARY][1]
+                full_cond_rec = sweep["full_conditioning"][PRIMARY][0] / max(1, sweep["full_conditioning"][PRIMARY][0] + sweep["full_conditioning"][PRIMARY][2])
+                for nm in FINITE_SHRINK + FINITE_STORED:
                     rr = rows_by.get(nm, [])
                     if not rr:
                         continue
                     key = f"{cell}|M{M}|{nm}"
                     tpc = [r["unique"] / nc for r in rr]
                     lab = rr[0].get("by_label_unique")
-                    phase = " ".join(f"{k}:{np.median([r['by_label_unique'].get(k, 0) / nc for r in rr]):.3f}"
+                    by_step = " ".join(f"{k}:{np.median([r['by_label_unique'].get(k, 0) / nc for r in rr]):.3f}"
                                      for k in ("A", "B", "C") if lab and k in lab) if lab else "-"
                     tmaxs = [max(r["target_max"]) for r in rr]
                     shares = [_share(r["target_max"], N, T, r["target_inf"]) for r in rr]
                     inf = [r["n_inf_targets"] / r["n_targets"] for r in rr]
-                    A_rows.append([N, T, M, LABEL[nm], mq(tpc, "{:.3f}"), mq([r["raw"] / nc for r in rr], "{:.3f}"), phase,
+                    A_rows.append([N, T, M, LABEL[nm], mq(tpc, "{:.3f}"), mq([r["raw"] / nc for r in rr], "{:.3f}"), by_step,
                                    mq(tmaxs, "{:.0f}"), mq(shares), f"{np.mean(inf):.2f} ({sum(1 for x in inf if x > 0)}/20)"])
                     mcs = [r["metrics_common"] for r in rr if r.get("metrics_common")]
                     tot = np.sum([[m["tp"], m["fp"], m["fn"]] for m in mcs], axis=0) if mcs else np.zeros(3)
@@ -228,9 +230,9 @@ def collect_finite(res, out):
                     # matched FP (oracle-tuned diagnostic): methods with a sweep
                     if len(sweep[nm]) > 1:
                         pts = [(v[1], v[0] / max(1, v[0] + v[2])) for a, v in sorted(sweep[nm].items())]
-                        rec_at = _interp(pts, order_fp)
+                        rec_at = _interp(pts, full_cond_fp)
                         fps = [p[0] for p in pts]
-                        D_rows.append([N, T, M, LABEL[nm], int(order_fp), f"{order_rec:.3f}",
+                        D_rows.append([N, T, M, LABEL[nm], int(full_cond_fp), f"{full_cond_rec:.3f}",
                                        "not reached" if rec_at is None else f"{rec_at:.3f}",
                                        f"{int(min(fps))}-{int(max(fps))}",
                                        " ".join(f"{a:g}:{int(v[1])}/{v[0] / max(1, v[0] + v[2]):.2f}"
@@ -244,9 +246,9 @@ def collect_finite(res, out):
                         fn = np.zeros(len(E), bool)
                         fn[r.get("fn_idx", [])] = True
                         meas = {"marg": st["marg"], "cond_x": st["cond_x"], "cond_pa": st["cond_pa"]}
-                        if r.get("hpv_rhoA"):
+                        if r.get("screening_rho"):
                             ra = np.full(len(E), np.nan)
-                            for k, _, rho, _ in r["hpv_rhoA"]:
+                            for k, _, rho, _ in r["screening_rho"]:
                                 ra[k] = rho
                             meas["rho_A"] = ra
                         for mname, vals in meas.items():
@@ -263,49 +265,49 @@ def collect_finite(res, out):
                                 "fp_tot": int(tot[1]), "fn_tot": int(tot[2]), "tp_tot": int(tot[0]),
                                 "f1_by_g": {int(r["_g"]): r["metrics_common"]["f1"] for r in rr if r.get("metrics_common")},
                                 "tpc_by_g": {int(r["_g"]): r["unique"] / nc for r in rr}}
-                    if nm.startswith("hpv"):
-                        hs = [r["hpv_stats"] for r in rr]
+                    if nm.startswith("blanket_screened_shrink"):
+                        hs = [r["shrink_stats"] for r in rr]
                         agg[key].update({k: int(sum(h[k] for h in hs)) for k in
                                          ("excess", "lost", "sum_R", "sum_Aprime", "targets_Aprime", "shortcut_diff", "a_inf", "n_capped")})
                         H_rows.append([N, T, M, LABEL[nm], agg[key]["excess"], agg[key]["lost"], agg[key]["sum_Aprime"],
                                        agg[key]["targets_Aprime"], agg[key]["shortcut_diff"], agg[key]["a_inf"]])
                 # error propagation: learned blanket vs true blanket
-                for a, b in (("hpv_single_pass", "hpv_single_pass_oracle_blanket"), ("hpv_single_pass_lenient", "hpv_single_pass_oracle_blanket_lenient")):
+                for a, b in (("blanket_screened_shrink", "blanket_screened_shrink_oracle_blanket"), ("blanket_screened_shrink_lenient", "blanket_screened_shrink_oracle_blanket_lenient")):
                     ka, kb = f"{cell}|M{M}|{a}", f"{cell}|M{M}|{b}"
                     if ka in agg and kb in agg:
                         gs = sorted(set(agg[ka]["f1_by_g"]) & set(agg[kb]["f1_by_g"]))
                         df = [agg[kb]["f1_by_g"][g] - agg[ka]["f1_by_g"][g] for g in gs]
                         dt = [agg[ka]["tpc_by_g"][g] - agg[kb]["tpc_by_g"][g] for g in gs]
-                        E_rows.append([N, T, M, "len" if a.endswith("lenient") else "eq",
+                        E_rows.append([N, T, M, "lenient" if a.endswith("lenient") else "equal",
                                        f"{np.mean(df):+.3f} [{np.min(df):+.3f}, {np.max(df):+.3f}]" if df else "-",
                                        f"{np.mean(dt):+.3f}", agg[ka]["excess"], agg[kb]["excess"], agg[ka]["lost"], agg[kb]["lost"],
                                        agg[ka]["fn_tot"], agg[kb]["fn_tot"], agg[ka]["fp_tot"], agg[kb]["fp_tot"]])
     lines += ["#### Tests and conditioning sets (all targets; a method with infeasible targets includes the tests issued before "
               "it abandoned them). tpc = unique / Sum|C|; share = mean over feasible targets of largest set / |C|", ""]
-    lines.append(table(["N", "T", "M", "method", "unique tpc", "raw tpc", "unique tpc by phase (A, B, C)", "largest set per graph",
+    lines.append(table(["N", "T", "M", "method", "unique tpc", "raw tpc", "unique tpc by step (A, B, C)", "largest set per graph",
                         "largest-set share", "infeasible-target share (graphs with any)"], A_rows))
     lines += ["", "#### Common targets (t <= (M-3)/N; comparable across methods), alpha (alpha_B) 0.01", ""]
     lines.append(table(["N", "T", "M", "common t", "method", "recall", "precision", "F1", "FP total", "FN total"], B_rows))
     lines += ["", "#### Own-feasible targets (each method on the targets it could decide; NOT comparable across methods)", ""]
     lines.append(table(["N", "T", "M", "method", "recall", "precision", "F1", "infeasible share"], C_rows))
     lines += ["", "#### Matched FP, oracle-tuned diagnostic (needs the truth; not a usable procedure). Common targets, pooled over "
-              "the 20 graphs. Recall of each swept method interpolated linearly in log(FP) at order's pooled FP at alpha 0.01; "
-              "'not reached' if that FP lies outside the method's swept FP range (no extrapolation). Sweeps: HPV single-pass eq "
-              "alpha in 13 values 0.2-1e-6; HPV single-pass len alpha_B in 12 values 0.1-1e-6 (alpha_A 0.1); ITPD, ITPD_naive 13 values. "
+              "the 20 graphs. Recall of each swept method interpolated linearly in log(FP) at full conditioning's pooled FP at alpha 0.01; "
+              "'not reached' if that FP lies outside the method's swept FP range (no extrapolation). Sweeps: blanket-screened shrink "
+              "alpha in 13 values 0.2-1e-6; blanket-screened shrink lenient alpha_B in 12 values 0.1-1e-6 (alpha_A 0.1); ITPD, ITPD_naive 13 values. "
               "Last column: alpha:FP/recall.", ""]
-    lines.append(table(["N", "T", "M", "method", "order FP", "order recall", "recall at order FP", "swept FP range", "curve"], D_rows))
-    lines += ["", "#### Error propagation: learned-graph hint (learned_blanket) vs true-blanket hint (oracle_blanket), same alphas. "
+    lines.append(table(["N", "T", "M", "method", "full conditioning FP", "full conditioning recall", "recall at full conditioning FP", "swept FP range", "curve"], D_rows))
+    lines += ["", "#### Error propagation: learned-graph screening set (learned_blanket) vs true-blanket screening set (oracle_blanket), same alphas. "
               "dF1 = F1(oracle_blanket) - F1(learned_blanket), mean [min, max] over graphs (common targets); dtpc = tpc(learned_blanket) - tpc(oracle_blanket); "
-              "excess = non-parents surviving phase A; lost = true parents removed in phase A (all targets)", ""]
+              "excess = non-parents surviving the screening step; lost = true parents removed in the screening step (all targets)", ""]
     lines.append(table(["N", "T", "M", "alphas", "dF1", "dtpc", "excess learned", "excess oracle", "lost learned", "lost oracle",
                         "FN learned", "FN oracle", "FP learned", "FP oracle"], E_rows))
-    lines += ["", "#### HPV internals (totals over 20 graphs, all targets): excess survivors, lost parents, re-check adds "
-              "(A' members, targets with A' non-empty), always-verify vs shortcut output differences, phase-A tests that were "
+    lines += ["", "#### Blanket-screened shrink internals (totals over 20 graphs, all targets): excess survivors, lost parents, re-check adds "
+              "(A' members, targets with A' non-empty), always-verify vs shortcut output differences, screening-step tests that were "
               "infeasible (candidate kept)", ""]
-    lines.append(table(["N", "T", "M", "method", "excess", "lost", "A' total", "targets with A'", "shortcut diff", "phase-A infeasible"], H_rows))
+    lines.append(table(["N", "T", "M", "method", "excess", "lost", "A' total", "targets with A'", "shortcut diff", "screening-step infeasible"], H_rows))
     lines += ["", "#### False negatives by population |rho| (common targets, alpha 0.01, pooled over the 4 (N, T) cells): FN / true "
               "edges in the bin. marg = |corr(Z, Y)|, cond_x = |pcorr(Z, Y | X)|, cond_pa = |pcorr(Z, Y | other parents)|, "
-              "rho_A = |pcorr(Z, Y | phase-A set actually used)| (HPV only)", ""]
+              "rho_A = |pcorr(Z, Y | screening set actually used)| (blanket-screened shrink only)", ""]
     bl = [f"[{BINS[i]:g}, {BINS[i + 1]:g})" for i in range(len(BINS) - 1)]
     G_rows = []
     for (M, nm), d in sorted(fnbins.items(), key=lambda x: (x[0][0], x[0][1])):
@@ -320,10 +322,10 @@ def collect_finite(res, out):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--results", default=RES)
-    ap.add_argument("--out", default=None, help="output directory (default: <results>/hpv)")
+    ap.add_argument("--out", default=None, help="output directory (default: <results>/blanket_screened_shrink)")
     ap.add_argument("--only", default="oracle,finite")
     a = ap.parse_args()
-    out = a.out or os.path.join(a.results, "hpv")
+    out = a.out or os.path.join(a.results, "blanket_screened_shrink")
     os.makedirs(out, exist_ok=True)
     agg = {}
     if "oracle" in a.only:

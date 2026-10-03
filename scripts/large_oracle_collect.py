@@ -18,7 +18,7 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from itpd.methods_registry import OLD_TO_NEW  # noqa: E402
 
-M3 = ["itpd_naive", "itpd", "order_based"]
+M3 = ["itpd_naive", "itpd", "full_conditioning"]
 BINS = [(0, 0, "0"), (1, 1, "1"), (2, 4, "2-4"), (5, 19, "5-19"), (20, 99, "20-99"), (100, 499, "100-499"), (500, 10 ** 9, ">=500")]
 
 
@@ -77,7 +77,7 @@ def main():
             cells[k].update(v)
     keys = sorted(cells)
     L = [f"Conditions: exact d-separation oracle on the full graph (fastdsep), S2, arm = {a.arm}, tau = 1, d = 2, process starts at t = 0, "
-         f"candidates = full history, one run-wide cache, processing order = time, lazy headline; methods itpd_naive, itpd (paper variant), order. "
+         f"candidates = full history, one run-wide cache, processing order = time, lazy headline; methods itpd_naive, itpd (paper variant), full conditioning. "
          f"Cells N x T with N T <= 2,000. Median [Q1, Q3] over graphs of the cell; ratios paired per graph (graphs with all three methods)."]
     rows, per_cell = [], {}
     for (N, T) in keys:
@@ -85,25 +85,25 @@ def main():
         if not gs:
             continue
         G = list(gs.values())
-        cand = np.median([g["order_based"]["n_cand"] for g in G])
+        cand = np.median([g["full_conditioning"]["n_cand"] for g in G])
         u = {m: [g[m]["unique"] for g in G] for m in M3}
         per_cell[(N, T)] = {"cand": cand, "u": {m: float(np.median(u[m])) for m in M3}, "n": len(G)}
         rows.append([N, T, N * T, len(G), f"{cand:.0f}"] + [q(u[m]) for m in M3] +
                     [q([g[m]["unique"] / g[m]["n_cand"] for g in G]) for m in M3] +
-                    [q([g["itpd"]["unique"] / g["itpd_naive"]["unique"] for g in G]), q([g["order_based"]["unique"] / g["itpd_naive"]["unique"] for g in G])] +
+                    [q([g["itpd"]["unique"] / g["itpd_naive"]["unique"] for g in G]), q([g["full_conditioning"]["unique"] / g["itpd_naive"]["unique"] for g in G])] +
                     [f"{sum(g[m]['exact'] for g in G)}/{len(G)}" for m in M3])
     L += ["\n### Unique tests and tests per candidate by (N, T)\n",
           md(["N", "T", "nodes", "graphs", "candidates"] + [f"unique {m}" for m in M3] + [f"per candidate {m}" for m in M3] +
-             ["itpd / naive", "order / naive"] + [f"exact {m}" for m in M3], rows)]
+             ["itpd / naive", "full conditioning / naive"] + [f"exact {m}" for m in M3], rows)]
     rows = []
     for (N, T) in keys:
         gs = [d for d in cells[(N, T)].values() if all(m in d for m in M3)]
         if not gs:
             continue
-        rows.append([N, T, len(gs)] + [q([g[m]["mean_target_max_frac"] for g in gs]) for m in ("itpd_naive", "itpd", "order_based")] +
-                    [q([g[m]["max_size"] for g in gs]) for m in ("itpd_naive", "itpd", "order_based")] + [q([g["order_based"]["n_cand"] / (N * (T - 1)) for g in gs])])
+        rows.append([N, T, len(gs)] + [q([g[m]["mean_target_max_frac"] for g in gs]) for m in ("itpd_naive", "itpd", "full_conditioning")] +
+                    [q([g[m]["max_size"] for g in gs]) for m in ("itpd_naive", "itpd", "full_conditioning")] + [q([g["full_conditioning"]["n_cand"] / (N * (T - 1)) for g in gs])])
     L += ["\n### Largest conditioning set per target as a share of its candidates (mean over the targets of a graph), and the largest set of the graph\n",
-          md(["N", "T", "graphs", "share naive", "share itpd", "share order", "largest naive", "largest itpd", "largest order", "mean candidates per target"], rows)]
+          md(["N", "T", "graphs", "share naive", "share itpd", "share full conditioning", "largest naive", "largest itpd", "largest full conditioning", "mean candidates per target"], rows)]
     rows = []
     for (N, T) in keys:
         gs = [d for d in cells[(N, T)].values() if all(m in d for m in M3)]

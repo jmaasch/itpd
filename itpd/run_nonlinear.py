@@ -7,7 +7,7 @@ Cell = (N, T, tau, d); the graph of index g is the stationary window graph of th
 sha1), the data are nonlinear (`itpd.nonlinear`: per-edge tanh / sine mixtures, noise sd 1, first M of 2,000 rows).
 Test: `itpd.ci.GCM` (generalized covariance measure, HistGradientBoostingRegressor, 2-fold cross-fitting); one GCM object and one
 p-value memo per dataset, shared by the methods and the alpha levels (a distinct test is computed once). Methods:
-itpd_naive, itpd (paper variant), order_based, lazy headline (`specs_for`); full history, process order = time. The GCM has no
+itpd_naive, itpd (paper variant), full_conditioning, lazy headline (`specs_for`); full history, process order = time. The GCM has no
 hard feasibility rule (only n < 8), so every target is a common target.
 Resume: a task file is never recomputed; the p-value memo of an unfinished task is checkpointed after every (method, alpha) run
 (DIR/memo/<task>.pkl, written every 90 s and after every run), so a job killed at the wall-clock limit resumes with the tests it already computed.
@@ -33,7 +33,7 @@ PRIMARY = dataset_eval.PRIMARY
 
 
 def specs_for(alphas):
-    return (spec("itpd_naive", alphas), spec("itpd", alphas), spec("order_based", alphas))
+    return (spec("itpd_naive", alphas), spec("itpd", alphas), spec("full_conditioning", alphas))
 
 
 def cell_name(N, T, tau, d):

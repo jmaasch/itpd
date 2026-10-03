@@ -45,7 +45,7 @@ def test_nonlinear_driver_tiny_cell(tmp_path):
     assert len(fs) == 2
     r = json.load(open(os.path.join(out, "nonlinear_N3_T4_tau1_d2", fs[0])))
     names = {(x["name"], x["alpha"]) for x in r["runs"]}
-    assert names == {(m, a) for m in ("itpd_naive", "itpd", "order_based") for a in (0.01, 0.05)}
+    assert names == {(m, a) for m in ("itpd_naive", "itpd", "full_conditioning") for a in (0.01, 0.05)}
     assert r["common_tmax"] == 3 and all(x["status"] == "ok" for x in r["runs"])
     assert sum(r["gcm_calls_by_size"].values()) > 0
     driver.main(["--out-dir", out, "--N", "3", "--T", "4", "--M", "150", "--graphs", "2", "--alphas", "0.01,0.05"])

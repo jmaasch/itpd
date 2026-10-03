@@ -118,9 +118,9 @@ def test_infeasible_method_cell_is_reported_not_scored():
     from itpd import method_runner as runlib, sim
     rng = np.random.default_rng(0)
     r = sim.simulate_s2(4, 6, 12, 2, 2, rng)               # M = 12 < largest conditioning set + 3
-    o = runlib.run_s2_method("order", r, ci_kind="fisherz")
+    o = runlib.run_s2_method("full_conditioning", r, ci_kind="fisherz")
     assert o["status"] == "infeasible" and o["metrics"] is None
-    o = runlib.run_s2_method("order", r, ci_kind="fisherz", infeasible="flag")
+    o = runlib.run_s2_method("full_conditioning", r, ci_kind="fisherz", infeasible="flag")
     assert o["status"] == "infeasible" and o["metrics"] is None and o["tests"]["p_nan"] > 0
 
 
@@ -233,12 +233,12 @@ def test_fast_oracle_parity_with_old_on_time_graphs(monkeypatch):
 
 
 def test_method_outputs_and_counts_identical_under_both_oracles(monkeypatch):
-    """Unique counts, raw counts, by-size histograms and graphs of ITPD_naive, ITPD and the order-based run do not
+    """Unique counts, raw counts, by-size histograms and graphs of ITPD_naive, ITPD and the full-conditioning run do not
     depend on the oracle."""
     from itpd import method_runner as runlib
     rng = np.random.default_rng(3)
     g = sim.simulate_s2(5, 7, 0, 2, 2, rng, graph="time").graph
-    for method in ("itpd_naive", "itpd", "order"):
+    for method in ("itpd_naive", "itpd", "full_conditioning"):
         outs = []
         for mode in ("old", "fast"):
             monkeypatch.setenv("ITPD_ORACLE", mode)

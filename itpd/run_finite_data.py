@@ -1,4 +1,4 @@
-"""Finite-data driver: Fisher-z runs of the ITPD family and the order-based baseline on S2 instances, one JSON per (cell, graph, M), resumable.
+"""Finite-data driver: Fisher-z runs of the ITPD family and the full-conditioning baseline on S2 instances, one JSON per (cell, graph, M), resumable.
 
     python -m itpd.run_finite_data --out-dir DIR --arm window --N 10,20 --T 8,16 --M 50,100,200,500,2000 --graphs 20 --workers 16
         [--tau 1 --d 2 --seed 0 --budget-sec 780 --small]

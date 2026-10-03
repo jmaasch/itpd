@@ -1,25 +1,25 @@
-"""HPV drivers: oracle runs on the instances of earlier oracle runs (`oracle`) and finite-data runs on the window instances of earlier
+"""Blanket-screened shrink drivers: oracle runs on the instances of earlier oracle runs (`oracle`) and finite-data runs on the window instances of earlier
 finite-data runs (`finite`). Nothing is regenerated except the data of a finite-data instance, which is checked against its stored
 data_sha1. One JSON per task, resumable (an existing file is skipped). The earlier runs are read from the results directory R
 (`--results`, default $ITPD_RESULTS or ./results): `python -m itpd.run_oracle_counts ... --out R/oracle/<arm>/N<N>_T<T>_tau<tau>_d2.json
 --instances-dir R/instances/<arm> --with-weights` and `python -m itpd.run_finite_data --arm window --out-dir R/finite/window ...`.
 
-    python -m itpd.run_hpv oracle --out-dir OUT/oracle --workers 12 [--arm time,window --N 10,20 --T 8,16 --tau 1,2 --graphs 20]
-    python -m itpd.run_hpv finite --out-dir OUT/finite --workers 12 [--N 10,20 --T 8,16 --M 50,100,200,500,2000 --graphs 20]
+    python -m itpd.run_blanket_screened_shrink oracle --out-dir OUT/oracle --workers 12 [--arm time,window --N 10,20 --T 8,16 --tau 1,2 --graphs 20]
+    python -m itpd.run_blanket_screened_shrink finite --out-dir OUT/finite --workers 12 [--N 10,20 --T 8,16 --M 50,100,200,500,2000 --graphs 20]
         [--budget-sec S]   (start no new task after S seconds)
-        [--specs hpv_safe,hpv_safe_lenient]   (run only these entries of HPV_FINITE_SPECS; default all; use a new --out-dir)
+        [--specs blanket_screened_shrink_recheck,blanket_screened_shrink_recheck_lenient]   (run only these entries of SHRINK_FINITE_SPECS; default all; use a new --out-dir)
         [--shard K/NSH]    (this process runs tasks K, K + NSH, ... of the cost-sorted list; one shard per batch job)
         [--summary FILE]   (one-line summary written at the end)
 
 oracle: instances R/instances/<arm>/N<N>_T<T>_tau<tau>_d2_<arm>_g<g>.npz, sha1 checked against the stored oracle-run row of the same
-graph (R/oracle/<arm>/N<N>_T<T>_tau<tau>_d2.json, graph_stats.sha1) and Sum|C| against its n_cand. HPV variants (`HPV_ORACLE_VARIANTS`):
-hints learned_blanket, oracle_blanket, none, union, learned_blanket + re-check (hpv_safe), and shifted_parents (window arm only); exact
+graph (R/oracle/<arm>/N<N>_T<T>_tau<tau>_d2.json, graph_stats.sha1) and Sum|C| against its n_cand. blanket-screened shrink variants (`SHRINK_ORACLE_VARIANTS`):
+screening sets learned_blanket, oracle_blanket, none, union, learned_blanket + re-check (blanket_screened_shrink_recheck), and shifted_parents (window arm only); exact
 d-separation oracle on the full graph.
 finite: instances R/finite/window/instances/window_N<N>_T<T>_tau1_d2/g<g>.npz, sha1 and data_seed checked against the stored finite-data task
 JSON, data regenerated and checked against data_sha1 (M = 2000), the first M rows used (paired across M).
-Methods `HPV_FINITE_SPECS` through dataset_eval.run_dataset (Fisher-z, one shared p-value memo per dataset, per-target infeasibility,
-common targets t <= (M - 3) / N). For the true parents, the population partial correlation given the phase-A set actually
-used is computed from the exact covariance (rows "hpv_rhoA": [edge index, |S_A|, |rho|, p-value]).
+Methods `SHRINK_FINITE_SPECS` through dataset_eval.run_dataset (Fisher-z, one shared p-value memo per dataset, per-target infeasibility,
+common targets t <= (M - 3) / N). For the true parents, the population partial correlation given the screening set actually
+used is computed from the exact covariance (rows "screening_rho": [edge index, |S_A|, |rho|, p-value]).
 """
 from __future__ import annotations
 
@@ -34,26 +34,26 @@ import numpy as np
 
 from . import dataset_eval, method_runner, observed_data
 from .instances import load_instance
-from .methods_registry import OLD_TO_NEW, hpv_options, spec
+from .methods_registry import OLD_TO_NEW, shrink_options, spec
 
 R_DEFAULT = os.environ.get("ITPD_RESULTS", "results")
 
 ALPHAS = dataset_eval.ALPHAS
 ALPHAS_LEN = tuple(a for a in ALPHAS if a <= 0.1 + 1e-12)
-HPV_FINITE_SPECS = (                      # built from methods_registry.spec; set by main(--specs); forked workers inherit it
-    spec("hpv_single_pass", ALPHAS, keep_parent_tests=True),
-    spec("hpv_single_pass_lenient", ALPHAS_LEN, keep_parent_tests=True),
-    spec("hpv_single_pass_oracle_blanket", (dataset_eval.PRIMARY,), keep_parent_tests=True),
-    spec("hpv_single_pass_oracle_blanket_lenient", (dataset_eval.PRIMARY,), keep_parent_tests=True),
-    # the re-check (always-verify, HPV-safe) at equal alpha with the full 13-point sweep (matched-false-positive curves); the lenient
+SHRINK_FINITE_SPECS = (                      # built from methods_registry.spec; set by main(--specs); forked workers inherit it
+    spec("blanket_screened_shrink", ALPHAS, keep_parent_tests=True),
+    spec("blanket_screened_shrink_lenient", ALPHAS_LEN, keep_parent_tests=True),
+    spec("blanket_screened_shrink_oracle_blanket", (dataset_eval.PRIMARY,), keep_parent_tests=True),
+    spec("blanket_screened_shrink_oracle_blanket_lenient", (dataset_eval.PRIMARY,), keep_parent_tests=True),
+    # the re-check (always-verify) at equal alpha with the full 13-point sweep (matched-false-positive curves); the lenient
     # row sweeps alpha_B with alpha_A = 0.1
-    spec("hpv_safe", ALPHAS),
-    spec("hpv_safe_lenient", ALPHAS_LEN),
+    spec("blanket_screened_shrink_recheck", ALPHAS),
+    spec("blanket_screened_shrink_recheck_lenient", ALPHAS_LEN),
 )
-ACTIVE_SPECS = HPV_FINITE_SPECS
-HPV_ORACLE_VARIANTS = tuple((n, hpv_options(n)) for n in (
-    "hpv_single_pass", "hpv_single_pass_oracle_blanket", "hpv_single_pass_no_hint", "hpv_single_pass_union", "hpv_safe",
-    "hpv_single_pass_shifted_parents"))
+ACTIVE_SPECS = SHRINK_FINITE_SPECS
+SHRINK_ORACLE_VARIANTS = tuple((n, shrink_options(n)) for n in (
+    "blanket_screened_shrink", "blanket_screened_shrink_oracle_blanket", "blanket_screened_shrink_x_only", "blanket_screened_shrink_union", "blanket_screened_shrink_recheck",
+    "blanket_screened_shrink_shifted_parents"))
 
 
 def _dump(path, obj):
@@ -71,7 +71,7 @@ def _oracle_rows(oracle_dir, arm, N, T, tau):
     d = json.load(open(os.path.join(oracle_dir, arm, f"N{N}_T{T}_tau{tau}_d2.json")))
     out = {}
     for r in d["rows"]:
-        if OLD_TO_NEW.get(r["name"], r["name"]) == "order_based":
+        if OLD_TO_NEW.get(r["name"], r["name"]) == "full_conditioning":
             out[r["graph"]] = (r["graph_stats"]["sha1"], r["n_cand"])
     return out
 
@@ -90,10 +90,10 @@ def oracle_task(a):
     din, dout = int(A.sum(0).max()), int(A.sum(1).max())
     e_nonself = int(A.sum()) - N * (T - 1)
     rows = []
-    for name, kw in HPV_ORACLE_VARIANTS:
-        if name == "hpv_single_pass_shifted_parents" and arm != "window":
+    for name, kw in SHRINK_ORACLE_VARIANTS:
+        if name == "blanket_screened_shrink_shifted_parents" and arm != "window":
             continue
-        o = method_runner.run_s2_method("hpv", None, graph=gr, ci_kind="oracle", alpha=0.01, per_target=True, hpv=kw)
+        o = method_runner.run_s2_method("blanket_screened_shrink", None, graph=gr, ci_kind="oracle", alpha=0.01, per_target=True, shrink=kw)
         pp, t = o["per_pair"], o["tests"]
         sum_c = sum(p["n_cand"] for p in pp)
         assert sum_c == ncand_stored
@@ -115,11 +115,11 @@ def oracle_task(a):
             "overhead_bound": 1 + 2 * (din - 1) / (N * T - 2),
             # learned_blanket / oracle_blanket: |S_A| <= b(Z) + |F|; union adds |pa_hat(X)| (= true in-degree of X here)
             "n_bound_b_viol": int(sum(1 for p in pp if "b_max" in p and p["max_SA"] > p["b_max"] + 1
-                                      + (int(A[:, p["pair"][0]].sum()) if name == "hpv_single_pass_union" else 0))),
+                                      + (int(A[:, p["pair"][0]].sum()) if name == "blanket_screened_shrink_union" else 0))),
             "n_bound_glob_viol": int(sum(1 for p in pp if p["max_SA"] > din * (1 + dout) + 1)),
             "glob_bound": din * (1 + dout) + 1,
             "excess_by_t": {str(k): v[0] for k, v in sorted(by_t.items())},
-            "hpv_stats": o["hpv_stats"], "seconds": o["seconds"]})
+            "shrink_stats": o["shrink_stats"], "seconds": o["seconds"]})
     _dump(path, {"arm": arm, "N": N, "T": T, "tau": tau, "d": 2, "graph": g, "sha1": inst["sha1"], "d_in": din,
                  "d_out": dout, "edges_nonself": e_nonself, "rows": rows, "seconds": time.time() - t0})
     return path, "done", time.time() - t0
@@ -153,9 +153,9 @@ def finite_task(a):
     res = dataset_eval.run_dataset(A, X, inst["tau"], ACTIVE_SPECS, order="time", edges=edges)
     Sig = observed_data.sigma_from_W(inst["W"])
     for r in res["runs"]:
-        pt = r.pop("hpv_ptests", None)
+        pt = r.pop("screening_parent_tests", None)
         if pt:
-            r["hpv_rhoA"] = [[eidx[(z, y)], len(S), float(_pcorr(Sig, z, y, S)), p]
+            r["screening_rho"] = [[eidx[(z, y)], len(S), float(_pcorr(Sig, z, y, S)), p]
                              for y, lst in pt for z, S, p in lst]
     res.update({"cell": cell, "arm": "window", "N": N, "T": T, "tau": inst["tau"], "d": inst["d"], "graph": g,
                 "sha1": inst["sha1"], "data_sha1_ok": True, "n_true_edges_nonself": int(len(edges)),
@@ -189,15 +189,15 @@ def main(argv=None):
     ap.add_argument("--graphs", type=int, default=20)
     ap.add_argument("--workers", type=int, default=1)
     ap.add_argument("--budget-sec", type=float, default=1e9)
-    ap.add_argument("--specs", default=None, help="comma list of HPV_FINITE_SPECS names (finite mode); default all")
+    ap.add_argument("--specs", default=None, help="comma list of SHRINK_FINITE_SPECS names (finite mode); default all")
     ap.add_argument("--shard", default=None, help="K/NSH: run only tasks K, K+NSH, ... of the cost-sorted list")
     ap.add_argument("--summary", default=None, help="file for a one-line summary at the end")
     a = ap.parse_args(argv)
     global ACTIVE_SPECS
     if a.specs:
         want = [OLD_TO_NEW.get(n, n) for n in a.specs.split(",")]
-        ACTIVE_SPECS = tuple(sp for sp in HPV_FINITE_SPECS if sp[0] in want)
-        assert len(ACTIVE_SPECS) == len(want), (want, [sp[0] for sp in HPV_FINITE_SPECS])
+        ACTIVE_SPECS = tuple(sp for sp in SHRINK_FINITE_SPECS if sp[0] in want)
+        assert len(ACTIVE_SPECS) == len(want), (want, [sp[0] for sp in SHRINK_FINITE_SPECS])
     ints = lambda s: [int(x) for x in s.split(",")]
     if a.mode == "oracle":
         fn = oracle_task

@@ -6,7 +6,7 @@ time (`--exp violations`).
 Nonstationary settings: frac in 0, 0.25, 0.5 (n_changes = 2 shared change times, lag weights fixed in t; frac = 0 is the stationary
 control). Violation settings: none, hidden k=1,2,3, contemp p=0.05,0.1,0.2, self_missing k=1,3, self_lag2 k=1,3, heavy laplace /
 student3, measurement r=0.1,0.5 (how each enters the simulator: itpd/observed_data.py docstring). Methods: itpd_naive, itpd (paper
-variant), order_based, plus the non-lazy rows of the first two (`ROBUSTNESS_SPECS`), all at alpha = 0.01, Fisher-z, full history, linear data, one
+variant), full_conditioning, plus the non-lazy rows of the first two (`ROBUSTNESS_SPECS`), all at alpha = 0.01, Fisher-z, full history, linear data, one
 shared p-value memo per dataset; scored with `dataset_eval.run_dataset` (own-feasible targets, common targets, self edges
 included in `metrics_self`). One file per (setting, graph, M): DIR/<exp>/<setting>/g<idx>_M<M>.json, instances in
 DIR/instances/<setting>/g<idx>.npz (format: itpd/instances.py; read them with

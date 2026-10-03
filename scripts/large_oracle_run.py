@@ -1,6 +1,6 @@
 """Run large oracle-cell tasks, one process per (arm, N, T, graph, method), 16 at a time (resumable, time-boxed).
 
-    python scripts/large_oracle_run.py OUT_DIR --cells "80x25,40x50" --graphs 0-4 --arms window [--methods itpd_naive,itpd,order_based]
+    python scripts/large_oracle_run.py OUT_DIR --cells "80x25,40x50" --graphs 0-4 --arms window [--methods itpd_naive,itpd,full_conditioning]
         [--workers 16] [--start-by-sec 480] [--task-timeout 780] [--oracle fast]
 A cell is NxT (tau 1, d 2, full history, lazy headline). Task output: OUT_DIR/<arm>/N<N>_T<T>_g<g>_<method>.json (one graph per file
 via `itpd.run_oracle_counts --graphs 1 --offset g`; instance: OUT_DIR/instances/<arm>/...). Existing files are skipped; no task is started after
@@ -31,7 +31,7 @@ def main():
     ap.add_argument("--cells", required=True)
     ap.add_argument("--graphs", default="0-4")
     ap.add_argument("--arms", default="window")
-    ap.add_argument("--methods", default="itpd_naive,itpd,order_based")
+    ap.add_argument("--methods", default="itpd_naive,itpd,full_conditioning")
     ap.add_argument("--workers", type=int, default=16)
     ap.add_argument("--start-by-sec", type=float, default=480)
     ap.add_argument("--task-timeout", type=float, default=780)

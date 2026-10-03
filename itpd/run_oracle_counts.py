@@ -1,4 +1,4 @@
-"""Oracle runs: exactness and test counts of the ITPD family and the order-based baseline on random S2 graphs, one cell (N, T, tau, d)
+"""Oracle runs: exactness and test counts of the ITPD family and the full-conditioning baseline on random S2 graphs, one cell (N, T, tau, d)
 per job, one summary JSON per job.
 
     python -m itpd.run_oracle_counts --N 20 --T 16 --tau 2 --d 2 --graphs 20 --seed 0 --out results/oracle/N20_T16_tau2_d2.json
@@ -8,7 +8,7 @@ Per graph: a random graph (process starts at t = 0 with roots, self edge V^n_t -
 then the methods below, each with the exact d-separation oracle on the FULL graph and one run-wide cache:
   itpd_naive, itpd (paper variant), itpd_repo_variant (step 4 of the original code: extra marginal conjunct)   headline: LAZY evaluation
   itpd_naive_nonlazy, itpd_nonlazy, itpd_repo_variant_nonlazy                                  non-lazy (as in the original code) beside it
-  order_based                                                                                  one test per candidate
+  full_conditioning                                                                                  one test per candidate
 Lazy = a test is issued only when its result can change the label (a step's second test is skipped when the first
 already decides it); non-lazy = both tests of every step, as in the original code. Both give the same graphs.
 Candidates: full history (--tau-max none), the DGP lag (--tau-max tau) or an integer.
@@ -35,7 +35,7 @@ from .methods_registry import OLD_TO_NEW, spec
 
 # (row name, method, PaDL variant, lazy), built from methods_registry.spec. Headline = lazy; the non-lazy count is always beside it.
 ORACLE_SPECS = tuple(spec(n, ())[:4] for n in ("itpd_naive", "itpd", "itpd_repo_variant", "itpd_naive_nonlazy", "itpd_nonlazy",
-                                                 "itpd_repo_variant_nonlazy", "order_based"))
+                                                 "itpd_repo_variant_nonlazy", "full_conditioning"))
 # selectable with --methods, not part of the default set
 EXTRA_ORACLE_SPECS = tuple(spec(n, ())[:4] for n in ("itpd_adjacency_self", "itpd_adjacency_self_nonlazy"))
 

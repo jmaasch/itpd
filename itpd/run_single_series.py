@@ -10,13 +10,13 @@ edge into the last slice >= 0.02). The base lag graph and weights of a graph ind
 Windows: row s of `sim.windows(X, tau)` = V_{s..s+tau}, n = T - tau rows, column l * N + n (slice l); the Fisher-z test uses
 n = T - tau as sample size although the rows overlap (dependent samples: a violation of the test's iid assumption).
 Methods (alpha = 0.01, Fisher-z, lazy, one memoised test per dataset):
-  last-slice: itpd (= itpd_naive by construction: with one pair per series no cross-pair rule can fire) and order_based,
+  last-slice: itpd (= itpd_naive by construction: with one pair per series no cross-pair rule can fire) and full_conditioning,
               one PaDL / one test per candidate for each series N at the last slice; truth B (lag graph, self and lag 0 excluded).
   every-slice: PaDL for every series at every window slice 1..tau (S2 on the window, T' = tau + 1, candidates = earlier window
               nodes), itpd_naive and itpd; per target slice k the output is compared with the in-window true parents
               (lags <= k; parents before the window are latent): wrong-target share, precision / recall / F1; `union` = OR of the
               estimates over slices, scored against B.
-Rows are named itpd_last_slice, order_based_last_slice, itpd_naive_every_slice, itpd_every_slice (earlier results: itpd_last,
+Rows are named itpd_last_slice, full_conditioning_last_slice, itpd_naive_every_slice, itpd_every_slice (earlier results: itpd_last,
 order_last, naive_every, itpd_every; methods_registry.OLD_TO_NEW).
 """
 from __future__ import annotations
@@ -32,7 +32,7 @@ from scipy.linalg import solve_discrete_lyapunov
 
 from . import sim
 from . import itpd as _itpd
-from .baselines import order_based as _order
+from .baselines import full_conditioning as _order
 from .ci import FisherZ, InfeasibleTest, Recorder
 from .graphs import unroll
 from .metrics import lag_metrics
@@ -146,7 +146,7 @@ def run_one(inst):
 
     # last slice
     for name, fn in (("itpd_last_slice", lambda r: _itpd.run_s1(r, N, tau, ALPHA, lazy=True)),
-                     ("order_based_last_slice", lambda r: _order.run_s1(r, N, tau, ALPHA))):
+                     ("full_conditioning_last_slice", lambda r: _order.run_s1(r, N, tau, ALPHA))):
         r = rec_()
         try:
             res = fn(r)

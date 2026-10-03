@@ -1,15 +1,15 @@
-"""Tables for the HPV runs: pooled recall-false-positive curves and recall at matched false positives, next to ITPD, ITPD_naive and
-the order-based baseline. Reads, under the results directory R (`--results`, default $ITPD_RESULTS or ./results):
-  R/finite/window/<cell>/g<g>_M<M>.json (+ instances)   itpd.run_finite_data rows of ITPD, ITPD_naive and order_based
-  R/hpv/single_pass/<cell>/g<g>_M<M>.json               itpd.run_hpv finite: hpv_single_pass, hpv_single_pass_lenient
-  R/hpv/safe/<cell>/g<g>_M<M>.json                      itpd.run_hpv finite --specs hpv_safe,hpv_safe_lenient
-Writes in `--out` (default R/hpv):
+"""Tables for the blanket-screened shrink runs: pooled recall-false-positive curves and recall at matched false positives, next to ITPD, ITPD_naive and
+the full-conditioning baseline. Reads, under the results directory R (`--results`, default $ITPD_RESULTS or ./results):
+  R/finite/window/<cell>/g<g>_M<M>.json (+ instances)           itpd.run_finite_data rows of ITPD, ITPD_naive and full_conditioning
+  R/blanket_screened_shrink/single_pass/<cell>/g<g>_M<M>.json   itpd.run_blanket_screened_shrink finite: blanket_screened_shrink, blanket_screened_shrink_lenient
+  R/blanket_screened_shrink/recheck/<cell>/g<g>_M<M>.json       itpd.run_blanket_screened_shrink finite --specs blanket_screened_shrink_recheck,blanket_screened_shrink_recheck_lenient
+Writes in `--out` (default R/blanket_screened_shrink):
   curves.csv        pooled recall-FP curves, one row per (cell, M, method, alpha)
   matched_fp.csv    recall and F1 interpolated in log FP at the declared FP levels (oracle-tuned diagnostic)
   tables.md         the tables
   aggregates_curves.json   numbers behind the tables
 
-    python scripts/hpv_tables.py [--results DIR] [--out DIR]
+    python scripts/blanket_screened_shrink_tables.py [--results DIR] [--out DIR]
 
 Pooled = sums of tp, fp, fn over the 20 graphs of a cell, common targets (t <= (M - 3)/N). Interpolation: recall linear in log FP
 (FP clamped at 0.5) between the two neighbouring alphas of the grid, sorted by FP; no extrapolation (a level outside the swept FP
@@ -35,17 +35,17 @@ NG = 20
 PRIMARY = 0.01
 # key -> (source, name in the JSON, display label)
 METH = {
-    "eq": ("single_pass", "hpv_single_pass", "HPV-eq"),
-    "rc_eq": ("safe", "hpv_safe", "HPV-safe eq"),
-    "len": ("single_pass", "hpv_single_pass_lenient", "HPV-len"),
-    "rc_len": ("safe", "hpv_safe_lenient", "HPV-safe len"),
+    "eq": ("single_pass", "blanket_screened_shrink", "blanket-screened shrink"),
+    "rc_eq": ("recheck", "blanket_screened_shrink_recheck", "blanket-screened shrink re-check"),
+    "len": ("single_pass", "blanket_screened_shrink_lenient", "blanket-screened shrink lenient"),
+    "rc_len": ("recheck", "blanket_screened_shrink_recheck_lenient", "blanket-screened shrink re-check lenient"),
     "itpd": ("finite", "itpd", "ITPD"),
     "naive": ("finite", "itpd_naive", "ITPD_naive"),
-    "order": ("finite", "order_based", "order"),
+    "full_conditioning": ("finite", "full_conditioning", "full conditioning"),
 }
 KEYS = list(METH)
-LEVELS = {"a": ("order", "order's FP at alpha 0.01"), "b": ("eq", "HPV-eq's own FP (alpha 0.01)"),
-          "c": ("itpd", "ITPD's own FP (alpha 0.01)"), "d": ("rc_eq", "HPV-safe eq's own FP (alpha 0.01)")}
+LEVELS = {"a": ("full_conditioning", "full conditioning's FP at alpha 0.01"), "b": ("eq", "blanket-screened shrink's own FP (alpha 0.01)"),
+          "c": ("itpd", "ITPD's own FP (alpha 0.01)"), "d": ("rc_eq", "blanket-screened shrink re-check's own FP (alpha 0.01)")}
 
 
 def table(head, rows):
@@ -59,7 +59,7 @@ def ncand(N, T):
 
 
 def load_all(res):
-    """data[(N, T, M)][g] = {"single_pass": json, "safe": json, "finite": json}"""
+    """data[(N, T, M)][g] = {"single_pass": json, "recheck": json, "finite": json}"""
     fin = os.path.join(res, "finite", "window")
     data = {}
     for N, T in CELLS:
@@ -68,9 +68,9 @@ def load_all(res):
             per = {}
             for g in range(NG):
                 d = {"finite": json.load(open(f"{fin}/{cell}/g{g:02d}_M{M}.json")),
-                     "single_pass": json.load(open(f"{res}/hpv/single_pass/{cell}/g{g:02d}_M{M}.json")),
-                     "safe": json.load(open(f"{res}/hpv/safe/{cell}/g{g:02d}_M{M}.json"))}
-                for k in ("single_pass", "safe"):
+                     "single_pass": json.load(open(f"{res}/blanket_screened_shrink/single_pass/{cell}/g{g:02d}_M{M}.json")),
+                     "recheck": json.load(open(f"{res}/blanket_screened_shrink/recheck/{cell}/g{g:02d}_M{M}.json"))}
+                for k in ("single_pass", "recheck"):
                     assert d[k]["sha1"] == d["finite"]["sha1"] and d[k]["common_tmax"] == d["finite"]["common_tmax"], (cell, g, M, k)
                     assert d[k]["n_true_edges_nonself"] == d["finite"]["n_true_edges_nonself"]
                 per[g] = d
@@ -197,7 +197,7 @@ def matched_tables(agg):
                 row.append(" / ".join(ds))
             rows.append(row)
         lines += [f"##### Recall minus ITPD's recall, both at level ({lv}) ({LEVELS[lv][1]}); cells N10T8 / N10T16 / N20T8 / N20T16", "",
-                  table(["M", "HPV-eq", "HPV-safe eq", "HPV-len", "HPV-safe len", "ITPD_naive"], rows), ""]
+                  table(["M"] + [METH[k][2] for k in ("eq", "rc_eq", "len", "rc_len", "naive")], rows), ""]
     return lines
 
 
@@ -261,7 +261,7 @@ def undecidable_tables(data, agg):
             for k in KEYS:
                 C = pooled_curves(per, k)
                 rows.append([METH[k][2]] + [("-" if a not in C else f"{C[a][3]}/{C[a][4]}") for a in alphas])
-            lines += [f"##### Undecidable targets / targets, N{N} T{Tt} M{M} (pooled over 20 graphs; alpha, or alpha_B for the len family)", "",
+            lines += [f"##### Undecidable targets / targets, N{N} T{Tt} M{M} (pooled over 20 graphs; alpha, or alpha_B for the lenient variants)", "",
                       table(["method"] + [f"{a:g}" for a in alphas], rows), ""]
     return lines
 
@@ -277,16 +277,16 @@ def recheck_table(data):
                 fn = sum(x["metrics_common"]["fn"] for x in rr)
                 fp = sum(x["metrics_common"]["fp"] for x in rr)
                 r.append((fn, fp, rr))
-            hs = [x["hpv_stats"] for x in r[1][2]]
-            hl = [x["hpv_stats"] for x in r[3][2]]
+            hs = [x["shrink_stats"] for x in r[1][2]]
+            hl = [x["shrink_stats"] for x in r[3][2]]
             rows.append([N, Tt, M, f"{r[0][0]} -> {r[1][0]}", f"{r[0][1]} -> {r[1][1]}",
                          f"{sum(h['sum_Aprime'] for h in hs)} ({sum(h['targets_Aprime'] for h in hs)})", sum(h["shortcut_diff"] for h in hs),
                          f"{r[2][0]} -> {r[3][0]}", f"{r[2][1]} -> {r[3][1]}",
                          f"{sum(h['sum_Aprime'] for h in hl)} ({sum(h['targets_Aprime'] for h in hl)})", sum(h["shortcut_diff"] for h in hl)])
-    return ["##### Re-check (always-verify) against single-pass HPV, same alpha: FN and FP totals (common targets), A' members (targets with A' non-empty), "
+    return ["##### Re-check (always-verify) against single-pass blanket-screened shrink, same alpha: FN and FP totals (common targets), A' members (targets with A' non-empty), "
             "always-verify vs shortcut output differences (all targets), pooled over 20 graphs", "",
-            table(["N", "T", "M", "FN eq -> safe eq", "FP eq -> safe eq", "A' (targets) safe eq", "shortcut diff", "FN len -> safe len",
-                   "FP len -> safe len", "A' (targets) safe len", "shortcut diff len"], rows), ""]
+            table(["N", "T", "M", "FN equal -> re-check", "FP equal -> re-check", "A' (targets) re-check equal", "shortcut diff equal", "FN lenient -> re-check",
+                   "FP lenient -> re-check", "A' (targets) re-check lenient", "shortcut diff lenient"], rows), ""]
 
 
 def near_cancelled(res, data):
@@ -320,17 +320,17 @@ def near_cancelled(res, data):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--results", default=RES)
-    ap.add_argument("--out", default=None, help="output directory (default: <results>/hpv)")
+    ap.add_argument("--out", default=None, help="output directory (default: <results>/blanket_screened_shrink)")
     a = ap.parse_args()
-    out = a.out or os.path.join(a.results, "hpv")
+    out = a.out or os.path.join(a.results, "blanket_screened_shrink")
     os.makedirs(out, exist_ok=True)
     data, agg = build(a.results, out)
-    L = ["# HPV tables", "",
+    L = ["# Blanket-screened shrink tables", "",
          "Conditions: S2 window arm, tau = 1, d = 2, linear-Gaussian, Fisher-z, full history, instances g00-g19 per (N, T) of the finite-data runs, data = first M rows "
-         "(sha1, data_seed, data_sha1 checked; the HPV runs join the same tasks; common_tmax and true-edge counts equal). Pooled = sums over the 20 "
-         "graphs, common targets t <= (M - 3)/N. HPV-eq = single pass, learned-blanket hint, alpha_A = alpha_B; HPV-safe eq = the same plus the "
-         "always-verify re-check (alpha 0.01 in both phases unless a sweep is stated); HPV-len = alpha_A 0.1 with alpha_B swept; HPV-safe len = the same "
-         "with the re-check. Sweeps: 13 alphas (0.2 to 1e-6) for eq, safe eq, ITPD, ITPD_naive, order; 12 alpha_B (0.1 to 1e-6) for the len family. "
+         "(sha1, data_seed, data_sha1 checked; the blanket-screened shrink runs join the same tasks; common_tmax and true-edge counts equal). Pooled = sums over the 20 "
+         "graphs, common targets t <= (M - 3)/N. Blanket-screened shrink = single pass, learned-blanket screening set, alpha_A = alpha_B; blanket-screened shrink re-check = the same plus the "
+         "always-verify re-check (alpha 0.01 in both steps unless a sweep is stated); blanket-screened shrink lenient = alpha_A 0.1 with alpha_B swept; blanket-screened shrink re-check lenient = the same "
+         "with the re-check. Sweeps: 13 alphas (0.2 to 1e-6) for the equal-alpha variants, ITPD, ITPD_naive and full conditioning; 12 alpha_B (0.1 to 1e-6) for the lenient variants. "
          "Matched-FP tables are an oracle-tuned diagnostic (the level is chosen with the truth).", ""]
     L += ["#### Matched FP (oracle-tuned diagnostic): recall interpolated in log FP", ""] + matched_tables(agg)
     L += ["#### Alpha = 0.01 operating point", ""] + summary_tables(data, agg)

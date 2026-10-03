@@ -1,4 +1,4 @@
-"""Finite-data harness shared by the finite-data, robustness, nonlinear, baseline and HPV drivers: run the methods of a spec list on
+"""Finite-data harness shared by the finite-data, robustness, nonlinear, baseline and blanket-screened shrink drivers: run the methods of a spec list on
 one dataset (one test object, one shared p-value memo), per target feasibility, scoring on own-feasible and on common-feasible targets.
 Spec lists (name, method, variant, lazy, alphas) are built from methods_registry.py.
 
@@ -25,13 +25,13 @@ from .metrics import edge_metrics
 ALPHAS = (0.2, 0.1, 0.05, 0.02, 0.01, 0.005, 0.002, 0.001, 5e-4, 2e-4, 1e-4, 1e-5, 1e-6)
 PRIMARY = 0.01
 
-# Spec = (row name, method, PaDL variant or HPV options, lazy, alphas); built from methods_registry.spec (names in methods_registry.py).
+# Spec = (row name, method, PaDL variant or shrink options, lazy, alphas); built from methods_registry.spec (names in methods_registry.py).
 # Lazy headline for the whole alpha grid, non-lazy counting beside it at PRIMARY only.
 ITPD_AND_ORDER_SPECS = (
     spec("itpd_naive", ALPHAS),
     spec("itpd", ALPHAS),
     spec("itpd_repo_variant", ALPHAS),
-    spec("order_based", ALPHAS),
+    spec("full_conditioning", ALPHAS),
     spec("itpd_naive_nonlazy", (PRIMARY,)),
     spec("itpd_nonlazy", (PRIMARY,)),
     spec("itpd_repo_variant_nonlazy", (PRIMARY,)),
@@ -46,11 +46,11 @@ IAMB_MARGINAL_FIRST_SPECS = (
 )
 # The five rows of ITPD_AND_ORDER_SPECS that the robustness and quick runs repeat, at PRIMARY only.
 PRIMARY_ALPHA_SPECS = tuple(s[:4] + ((PRIMARY,),) for s in ITPD_AND_ORDER_SPECS
-                            if s[0] in ("itpd_naive", "itpd", "order_based", "itpd_naive_nonlazy", "itpd_nonlazy"))
+                            if s[0] in ("itpd_naive", "itpd", "full_conditioning", "itpd_naive_nonlazy", "itpd_nonlazy"))
 
 
 def common_tmax(N: int, T: int, M: int) -> int:
-    """Largest time index whose order-based conditioning set (N t - 1 variables) is feasible: M >= N t + 3."""
+    """Largest time index whose full-conditioning set (N t - 1 variables) is feasible: M >= N t + 3."""
     return int(max(0, min(T - 1, (M - 3) // N)))
 
 
@@ -79,10 +79,10 @@ def run_dataset(A_truth: np.ndarray, X: np.ndarray, tau: int, specs=ITPD_AND_ORD
     for name, method, variant, lazy, alphas in specs:
         for alpha in alphas:
             detail = abs(alpha - PRIMARY) < 1e-12
-            hk = variant if method == "hpv" else None          # HPV: `variant` is the dict of HPV options, alpha = alpha_B
+            hk = variant if method == "blanket_screened_shrink" else None   # `variant` is the dict of shrink options, alpha = alpha_B
             o = method_runner.run_s2_method(method, None, graph=tg, ci=ci, alpha=alpha,
                                      variant="paper" if hk is not None else (variant or "paper"), order=order,
-                                     lazy=lazy, infeasible="raise", shared=shared, keep_graph=True, per_target=True, hpv=hk)
+                                     lazy=lazy, infeasible="raise", shared=shared, keep_graph=True, per_target=True, shrink=hk)
             pp = o["per_pair"]
             A_hat = o["A_hat"]
             t = o["tests"]
@@ -91,8 +91,8 @@ def run_dataset(A_truth: np.ndarray, X: np.ndarray, tau: int, specs=ITPD_AND_ORD
                    "p_nan_unique": t["p_nan_unique"], "seconds": o["seconds"], "metrics": o["metrics"]}
             if hk is not None:
                 row["alpha_A"] = alpha if hk.get("alpha_A") is None else hk["alpha_A"]
-                row["hpv"] = {k: v for k, v in hk.items() if k != "keep_parent_tests"}
-                row["hpv_stats"] = o["hpv_stats"]
+                row["shrink"] = {k: v for k, v in hk.items() if k != "keep_parent_tests"}
+                row["shrink_stats"] = o["shrink_stats"]
                 row["by_label_unique"] = t["by_label_unique"]
                 row["by_label_raw"] = t["by_label_raw"]
             if method == "iamb_known_order":
@@ -128,7 +128,7 @@ def run_dataset(A_truth: np.ndarray, X: np.ndarray, tau: int, specs=ITPD_AND_ORD
                         row["target_" + k] = [p.get(k) for p in pp]
                     pt = [[int(p["pair"][1]), p["ptests"]] for p in pp if p.get("ptests")]
                     if pt:
-                        row["hpv_ptests"] = pt
+                        row["screening_parent_tests"] = pt
                 if edges is not None and ct >= 1:
                     u, v = edges[:, 0], edges[:, 1]
                     inc = (v // N) <= ct

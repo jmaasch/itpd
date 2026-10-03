@@ -16,7 +16,7 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from finite_common import q, md, run_of, boot_ci, fmt_ci, size_bins, BIN_LABELS, f, rename_rows  # noqa
 
-METHODS = ["itpd_naive", "itpd", "order_based"]
+METHODS = ["itpd_naive", "itpd", "full_conditioning"]
 
 
 def main():
@@ -47,11 +47,11 @@ def main():
                 rs = [run_of(t, m) for t in ts]
                 x = [r["metrics_common"] for r in rs]
                 rows.append([k[0], k[1], k[2], m, len(ts), q([r["unique"] for r in rs]), q([r["raw"] for r in rs]),
-                             q([r["unique"] / run_of(t, "order_based")["unique"] for r, t in zip(rs, ts)]),
+                             q([r["unique"] / run_of(t, "full_conditioning")["unique"] for r, t in zip(rs, ts)]),
                              q([y["recall"] for y in x]), q([y["precision"] for y in x]), q([y["f1"] for y in x]), q([y["fp"] for y in x]), q([y["fn"] for y in x]),
                              q([max(r["target_max"]) for r in rs]), q([np.mean(r["target_max"]) for r in rs])])
-        L += ["\n### Unique tests, accuracy and conditioning sizes (alpha 0.01; `unique / order` = unique tests relative to the order-based run of the same graph)\n",
-              md(["N", "T", "M", "method", "graphs", "unique tests", "raw calls", "unique / order", "recall", "precision", "F1", "FP", "FN",
+        L += ["\n### Unique tests, accuracy and conditioning sizes (alpha 0.01; `unique / full conditioning` = unique tests relative to the full-conditioning run of the same graph)\n",
+              md(["N", "T", "M", "method", "graphs", "unique tests", "raw calls", "unique / full conditioning", "recall", "precision", "F1", "FP", "FN",
                   "largest set", "mean target-max set"], rows)]
         rows = []
         for k in keys:
@@ -63,16 +63,16 @@ def main():
         for k in keys:
             ts = by[k]
             r_ = lambda m1, m2: q([run_of(t, m1)["unique"] / run_of(t, m2)["unique"] for t in ts])
-            rows.append([k[0], k[1], k[2], r_("itpd", "itpd_naive"), r_("order_based", "itpd_naive")])
-        L += ["\n### Unique-test ratios, paired per graph\n", md(["N", "T", "M", "itpd / naive", "order / naive"], rows)]
+            rows.append([k[0], k[1], k[2], r_("itpd", "itpd_naive"), r_("full_conditioning", "itpd_naive")])
+        L += ["\n### Unique-test ratios, paired per graph\n", md(["N", "T", "M", "itpd / naive", "full conditioning / naive"], rows)]
         # matched FP
         alphas = sorted({r["alpha"] for t in tasks for r in t["runs"]})
         rows = []
         for k in keys:
             ts = by[k]
-            target = sum(run_of(t, "order_based")["metrics_common"]["fp"] for t in ts)
-            o = [run_of(t, "order_based")["metrics_common"] for t in ts]
-            rows.append([k[0], k[1], k[2], "order (alpha 0.01)", "0.01", target, q([x["recall"] for x in o]), q([x["precision"] for x in o]), q([x["f1"] for x in o])])
+            target = sum(run_of(t, "full_conditioning")["metrics_common"]["fp"] for t in ts)
+            o = [run_of(t, "full_conditioning")["metrics_common"] for t in ts]
+            rows.append([k[0], k[1], k[2], "full conditioning (alpha 0.01)", "0.01", target, q([x["recall"] for x in o]), q([x["precision"] for x in o]), q([x["f1"] for x in o])])
             for m in ("itpd_naive", "itpd"):
                 best = None
                 for al in alphas:
@@ -84,13 +84,13 @@ def main():
                 _, al, fp, rs = best
                 x = [r["metrics_common"] for r in rs]
                 rows.append([k[0], k[1], k[2], m, f"{al:g}", fp, q([y["recall"] for y in x]), q([y["precision"] for y in x]), q([y["f1"] for y in x])])
-        L += ["\n### Matched false positives: each ITPD variant at the alpha whose total FP over the cell's graphs is closest to the order-based total at alpha 0.01\n",
+        L += ["\n### Matched false positives: each ITPD variant at the alpha whose total FP over the cell's graphs is closest to the full-conditioning total at alpha 0.01\n",
               f"alpha grid: {', '.join(f'{x:g}' for x in alphas)}\n", md(["N", "T", "M", "method", "alpha", "FP total", "recall", "precision", "F1"], rows)]
         rows = []
         for k in keys:
             ts = by[k]
             for m in ("itpd", "itpd_naive"):
-                rows.append([k[0], k[1], k[2], f"{m} - order"] + [fmt_ci(boot_ci([run_of(t, m)["metrics_common"][key] - run_of(t, "order_based")["metrics_common"][key] for t in ts]))
+                rows.append([k[0], k[1], k[2], f"{m} - full conditioning"] + [fmt_ci(boot_ci([run_of(t, m)["metrics_common"][key] - run_of(t, "full_conditioning")["metrics_common"][key] for t in ts]))
                                                                   for key in ("f1", "recall", "precision")])
         L += ["\n### Paired differences per graph (alpha 0.01): mean [95% bootstrap CI over graphs]\n", md(["N", "T", "M", "pair", "F1", "recall", "precision"], rows)]
         # cost per test

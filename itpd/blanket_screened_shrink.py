@@ -1,42 +1,43 @@
-"""Hint-pruned verification (HPV) on the unrolled time graph (S2), time-major.
+"""Blanket-screened shrink on the unrolled time graph (S2), time-major.
 
-For each target Y = V^n_t (t >= 1), with X = V^n_{t-1} (self edge assumed, never tested, as in ITPD and the order-based
+For each target Y = V^n_t (t >= 1), with X = V^n_{t-1} (self edge assumed, never tested, as in ITPD and the full-conditioning
 baseline), candidates C = every earlier node except X (full history), forced set F = {X}:
-  phase A (prune)   R = {Z in C : not (Z _||_ Y | S_A(Z))} at alpha_A,  S_A(Z) = (H(Z) | {X}) - {Z};
-  phase B (verify)  O = {Z in R : not (Z _||_ Y | (R - {Z}) | {X})} at alpha_B; O are the parents of Y besides X.
-Re-check (`recheck=True`, the always-verify safe variant): A' = {Z in C - R : not (Z _||_ Y | (O | {X}) - {Z})}
-at alpha_B, then the output is verify(R | A') at alpha_B, issued even when A' is empty. With one dataset and a deterministic
-(memoised) test, verify(R) for A' = {} re-issues exactly the phase-B tests and returns O, so the always-verify output equals
-the shortcut's ("return O if A' is empty"); only raw calls differ (by |R|). `stats["shortcut_diff"]` counts targets where
-they would differ (expected 0).
+  screening step  R = {Z in C : not (Z _||_ Y | S_A(Z))} at alpha_A,  S_A(Z) = (B(Z) | {X}) - {Z};
+  shrink step     O = {Z in R : not (Z _||_ Y | (R - {Z}) | {X})} at alpha_B; O are the parents of Y besides X.
+The shrink step is the shrink phase of Grow-Shrink and IAMB (Margaritis and Thrun 2000; Tsamardinos et al. 2003).
+Re-check (`recheck=True`): A' = {Z in C - R : not (Z _||_ Y | (O | {X}) - {Z})} at alpha_B, then the output is
+shrink(R | A') at alpha_B, issued even when A' is empty. With one dataset and a deterministic (memoised) test, shrink(R) for
+A' = {} re-issues exactly the shrink-step tests and returns O, so the output equals the shortcut's ("return O if A' is empty");
+only raw calls differ (by |R|). `stats["shortcut_diff"]` counts targets where they would differ (expected 0).
 
-All targets at time t are decided before any target at t + 1; the hints for time t come from G_hat, the graph learned over
-the nodes at times < t (outputs of earlier slices plus the assumed self edges; an infeasible earlier target contributes its
-self edge only). Hints H(Z):
+All targets at time t are decided before any target at t + 1; the blanket B(Z) for time t comes from G_hat, the graph learned
+over the nodes at times < t (outputs of earlier slices plus the assumed self edges; an infeasible earlier target contributes
+its self edge only). The argument `screening` chooses B(Z):
   "learned_blanket"  Markov blanket of Z in G_hat: parents, children, children's other parents (all at times < t);
   "shifted_parents"  the learned parents of X shifted one step forward ({V^j_{s+1} : V^j_s in pa_hat(X)}), the same for every Z;
   "union"            learned_blanket | shifted_parents;
   "oracle_blanket"   the Markov blanket of Z in the TRUE graph over the nodes at times < t (`A_true`): an upper bound that
                      removes error propagation through G_hat;
-  "none"             the empty hint: S_A = {X} (a screen given X only).
-Result files written before the rename carry the hint strings "mb", "shift", "oracle_mb" (methods_registry.OLD_HINT_TO_NEW);
+  "none"             the empty set: S_A = {X} (a screen given X only).
+Result files written before the rename carry the strings "mb", "shift", "oracle_mb" (methods_registry.OLD_SCREENING_TO_NEW);
 `run_s2` accepts both.
-`A_true` is read by the algorithm only for hint="oracle_blanket"; otherwise only for diagnostics written to per_pair
-(survivors that are not true parents, true parents lost in phase A, phase-A tests of the true parents).
+`A_true` is read by the algorithm only for screening="oracle_blanket"; otherwise only for diagnostics written to per_pair
+(survivors that are not true parents, true parents lost in the screening step, screening tests of the true parents).
 
-Cap (`cap`: None, an int, or "auto" = n - 4 for a test object with `n` samples, so every phase-A test is feasible for
-Fisher-z, which needs n >= |S| + 4): when |S_A(Z)| > cap, S_A keeps X and the cap - 1 most recent hint members (largest
-column index first: latest time, then largest series index); every truncation is counted (`n_capped`, `capped_dropped`).
-The cap does not touch phase B, the re-check or the final verification, so it cannot make a target decidable that has a
-large survivor set.
+Cap (`cap`: None, an int, or "auto" = n - 4 for a test object with `n` samples, so every screening test is feasible for
+Fisher-z, which needs n >= |S| + 4): when |S_A(Z)| > cap, S_A keeps X and the cap - 1 most recent members of B(Z)
+(largest column index first: latest time, then largest series index); every truncation is counted (`n_capped`,
+`capped_dropped`). The cap does not touch the shrink step, the re-check or the final shrink, so it cannot make a target
+decidable that has a large survivor set.
 
 Infeasible tests (the recorder raises `InfeasibleTest`; never answered "independent"):
-  phase A    the candidate is kept in R (cannot be pruned without a test) and counted in `a_inf`;
-  phase B, re-check, final verification   the target is infeasible: no parents output, excluded from its own score,
-             counted (`infeasible_targets`), as in itpd.run_s2(per_target=True) and the order-based baseline.
-Recorder labels: "A" (phase A), "B" (phase B), "C" (re-check), "V" (final verification); unique tests are attributed to
-the label that issued them first, so "V" tests that repeat phase B count as raw calls only.
-HPV has no lazy / non-lazy distinction: every issued test can change the output.
+  screening step                      the candidate is kept in R (cannot be pruned without a test) and counted in `a_inf`;
+  shrink step, re-check, final shrink the target is infeasible: no parents output, excluded from its own score,
+                                      counted (`infeasible_targets`), as in itpd.run_s2(per_target=True) and the
+                                      full-conditioning baseline.
+Recorder labels: "A" (screening step), "B" (shrink step), "C" (re-check), "V" (final shrink); unique tests are attributed to
+the label that issued them first, so "V" tests that repeat shrink-step tests count as raw calls only.
+Blanket-screened shrink has no lazy / non-lazy distinction: every issued test can change the output.
 """
 from __future__ import annotations
 
@@ -47,13 +48,13 @@ import numpy as np
 
 from .ci import InfeasibleTest
 from .itpd import Result
-from .methods_registry import OLD_HINT_TO_NEW
+from .methods_registry import OLD_SCREENING_TO_NEW
 
-HINTS = ("learned_blanket", "shifted_parents", "union", "oracle_blanket", "none")
+SCREENING_SETS = ("learned_blanket", "shifted_parents", "union", "oracle_blanket", "none")
 
 
 @dataclass
-class HPVResult(Result):
+class ShrinkResult(Result):
     stats: dict = field(default_factory=dict)
 
 
@@ -81,14 +82,14 @@ def _true_graph(A_true: np.ndarray, n_nodes: int):
     return pa
 
 
-def run_s2(rec, N: int, T: int, alpha_A: float, alpha_B: float | None = None, *, hint: str = "learned_blanket",
+def run_s2(rec, N: int, T: int, alpha_A: float, alpha_B: float | None = None, *, screening: str = "learned_blanket",
            recheck: bool = False, cap=None, A_true: np.ndarray | None = None, per_target: bool = True,
-           keep_parent_tests: bool = False) -> HPVResult:
-    hint = OLD_HINT_TO_NEW.get(hint, hint)
-    if hint not in HINTS:
-        raise ValueError(f"hint must be one of {HINTS}")
-    if hint == "oracle_blanket" and A_true is None:
-        raise ValueError("hint='oracle_blanket' needs A_true")
+           keep_parent_tests: bool = False) -> ShrinkResult:
+    screening = OLD_SCREENING_TO_NEW.get(screening, screening)
+    if screening not in SCREENING_SETS:
+        raise ValueError(f"screening must be one of {SCREENING_SETS}")
+    if screening == "oracle_blanket" and A_true is None:
+        raise ValueError("screening='oracle_blanket' needs A_true")
     alpha_B = alpha_A if alpha_B is None else alpha_B
     if cap == "auto":
         cap = int(getattr(rec.ci, "n")) - 4
@@ -107,10 +108,10 @@ def run_s2(rec, N: int, T: int, alpha_A: float, alpha_B: float | None = None, *,
         lo_t = col(0, t)                          # nodes at times < t are 0 .. lo_t - 1
         past = range(lo_t)
         mb = bnd = None
-        if hint in ("learned_blanket", "union"):
+        if screening in ("learned_blanket", "union"):
             mb = blankets(pa_hat, ch_hat, past)
             bnd = {z: blanket_bound(pa_hat, ch_hat, z) for z in past}
-        elif hint == "oracle_blanket":
+        elif screening == "oracle_blanket":
             ch_t = [set() for _ in range(lo_t)]
             pa_t = [pa_true[z] for z in range(lo_t)]
             for c in range(lo_t):
@@ -122,21 +123,21 @@ def run_s2(rec, N: int, T: int, alpha_A: float, alpha_B: float | None = None, *,
         for n in range(N):
             x, y = col(n, t - 1), col(n, t)
             cand = [c for c in past if c != x]
-            shift = {p + N for p in pa_hat[x]} if hint in ("shifted_parents", "union") else set()
+            shift = {p + N for p in pa_hat[x]} if screening in ("shifted_parents", "union") else set()
             rec.new_scope()
             raw0, uniq0 = rec.mark()
             row = {"pair": (x, y), "n_cand": len(cand), "a_inf": 0, "n_capped": 0}
             ptests = [] if (keep_parent_tests and pa_true is not None) else None
             tp = pa_true[y] - {x} if pa_true is not None else None
             try:
-                # ---- phase A
+                # ---- screening step
                 R, max_sa = [], 0
                 for z in cand:
-                    if hint == "none":
+                    if screening == "none":
                         H = set()
-                    elif hint == "shifted_parents":
+                    elif screening == "shifted_parents":
                         H = shift
-                    elif hint == "union":
+                    elif screening == "union":
                         H = mb[z] | shift
                     else:
                         H = mb[z]
@@ -161,7 +162,7 @@ def run_s2(rec, N: int, T: int, alpha_A: float, alpha_B: float | None = None, *,
                         R.append(z)
                     if ptests is not None and z in tp:
                         ptests.append([int(z), sorted(int(s) for s in S), float(p)])
-                # ---- phase B
+                # ---- shrink step
                 def verify(Rl, label):
                     out, mx = [], 0
                     for z in Rl:
@@ -231,5 +232,5 @@ def run_s2(rec, N: int, T: int, alpha_A: float, alpha_B: float | None = None, *,
                 for p in parents:
                     A[p, y] = 1
     st["n_infeasible_targets"] = len(bad)
-    return HPVResult(A_hat=A, pa=pa_pred, per_pair=per_pair, seconds=time.perf_counter() - t0, summary=rec.summary(),
+    return ShrinkResult(A_hat=A, pa=pa_pred, per_pair=per_pair, seconds=time.perf_counter() - t0, summary=rec.summary(),
                      infeasible_targets=bad, stats=st)

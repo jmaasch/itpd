@@ -11,7 +11,7 @@ here because it is compared with the same baselines on the same instances.
 
 oracle: one task = one oracle-run cell (arm, N, T, tau, d) = 20 graphs of R/instances/<arm> (R = `--results`, default $ITPD_RESULTS or ./results); the sha1 of every graph is
 checked against the row of the earlier oracle run; per graph: IAMB (three tie rules), ITPD + marginal-first (lazy and non-lazy), exactness and
-unique tests, next to the unique counts of itpd_naive, itpd and order_based of the same graph (paired by graph).
+unique tests, next to the unique counts of itpd_naive, itpd and full_conditioning of the same graph (paired by graph).
 finite: instances R/finite/window/instances/window_N<N>_T<T>_tau1_d2/g<g>.npz (the finite-data instances of the earlier run, with sha1, data_seed and
 data_sha1 checked against its task JSON); one JSON per (cell, graph, M) with `runs` (dataset_eval.IAMB_MARGINAL_FIRST_SPECS
 through dataset_eval.run_dataset: Fisher-z, one shared p-value memo per dataset, per-target infeasibility, common targets) and `lasso`
@@ -33,7 +33,7 @@ import numpy as np
 from . import dataset_eval, lasso, method_runner, observed_data
 from .ci import DSepCI, FisherZ
 from .instances import load_instance
-from .methods_registry import BY_NAME, OLD_TO_NEW, hpv_options
+from .methods_registry import BY_NAME, OLD_TO_NEW, shrink_options
 from .metrics import edge_metrics
 
 R_DEFAULT = os.environ.get("ITPD_RESULTS", "results")
@@ -78,13 +78,13 @@ def oracle_task(a):
     for g in sorted(stored):
         inst = load_instance(os.path.join(R, "instances", arm, f"N{N}_T{T}_tau{tau}_d{d}_{arm}_g{g}.npz"))
         ref = stored[g]
-        assert inst["sha1"] == ref["order_based"]["graph_stats"]["sha1"], (arm, N, T, tau, d, g)
+        assert inst["sha1"] == ref["full_conditioning"]["graph_stats"]["sha1"], (arm, N, T, tau, d, g)
         gr = inst["graph"]
         ci = DSepCI(gr.A)
-        n_cand_ref = ref["order_based"]["n_cand"]
+        n_cand_ref = ref["full_conditioning"]["n_cand"]
         row = {"graph": g, "sha1": inst["sha1"], "n_cand": n_cand_ref,
                "stored_oracle_run": {k: {"unique": ref[k]["unique"], "raw": ref[k]["raw"], "max_size": ref[k]["max_size"],
-                                   "exact": ref[k]["exact"]} for k in ("itpd_naive", "itpd", "order_based")}}
+                                   "exact": ref[k]["exact"]} for k in ("itpd_naive", "itpd", "full_conditioning")}}
         for name, method, kw in ORACLE_SPECS:
             kw = dict(kw)
             tie = kw.pop("tie", None)
@@ -185,9 +185,9 @@ def lasso_ebic_fixed_task(a):
 # ------------------------------------------------------------------------------------------------ timing
 
 TIMING_SPECS = (("itpd_naive", "itpd_naive", {"lazy": True}), ("itpd", "itpd", {"lazy": True}),
-                ("itpd_marginal_first", "itpd_marginal_first", {"lazy": True}), ("order_based", "order_based", {}),
+                ("itpd_marginal_first", "itpd_marginal_first", {"lazy": True}), ("full_conditioning", "full_conditioning", {}),
                 ("iamb_known_order", "iamb_known_order", {}),
-                ("hpv_safe", "hpv", {"hpv": hpv_options("hpv_safe")}))
+                ("blanket_screened_shrink_recheck", "blanket_screened_shrink", {"shrink": shrink_options("blanket_screened_shrink_recheck")}))
 
 
 def timing_task(a):

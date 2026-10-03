@@ -122,7 +122,7 @@ def test_iamb_finite_data_sane_and_small_sets():
     s = sim.simulate_s2(6, 6, 2000, 2, 1, rng, graph="window")
     o = runlib.run_s2_method("iamb_known_order", s, ci_kind="fisherz", alpha=0.01, per_target=True, order="time")
     assert o["status"] == "ok" and o["metrics"]["f1"] > 0.8
-    order = runlib.run_s2_method("order", s, ci_kind="fisherz", alpha=0.01, per_target=True, order="time")
+    order = runlib.run_s2_method("full_conditioning", s, ci_kind="fisherz", alpha=0.01, per_target=True, order="time")
     assert max(p["max_size"] for p in o["per_pair"]) < max(p["max_size"] for p in order["per_pair"])
     assert o["iamb_stats"]["grown"] >= o["iamb_stats"]["shrunk"]
 

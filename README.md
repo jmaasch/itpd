@@ -36,12 +36,12 @@ import numpy as np
 from itpd import method_runner, sim
 
 graph = sim.sample_time_graph(N=4, T=6, d=2, tau=2, rng=np.random.default_rng(0))   # random time graph, 4 series, 6 steps
-for method in ("itpd_naive", "itpd", "order_based"):
+for method in ("itpd_naive", "itpd", "full_conditioning"):
     out = method_runner.run_s2_method(method, None, graph=graph, ci_kind="oracle", alpha=0.01)
     print(method, "exact:", out["metrics"]["exact"], "unique tests:", out["tests"]["unique_tests"])
 ```
 
-The example runs ITPD_naive, ITPD and the order-based baseline with the d-separation oracle on the true graph and prints the number of unique CI tests of each method.
+The example runs ITPD_naive, ITPD and the full-conditioning baseline with the d-separation oracle on the true graph and prints the number of unique CI tests of each method.
 
 ## Tests
 

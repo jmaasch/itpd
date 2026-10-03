@@ -18,7 +18,7 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from itpd.methods_registry import OLD_TO_NEW  # noqa: E402
 
-H = ["itpd_naive", "itpd", "itpd_repo_variant", "order_based"]           # headline (lazy)
+H = ["itpd_naive", "itpd", "itpd_repo_variant", "full_conditioning"]           # headline (lazy)
 NL = ["itpd_naive_nonlazy", "itpd_nonlazy", "itpd_repo_variant_nonlazy"]
 ALL = H + NL
 
@@ -89,10 +89,10 @@ def main():
     # ITPD vs ITPD_naive
     L.append("\n### Unique tests, ITPD vs ITPD_naive (paired per graph)\n")
     rows = [["lazy (headline)", q(gather(cells, ratio("itpd", "itpd_naive"))), q(gather(cells, ratio("itpd_repo_variant", "itpd_naive"))),
-             q(gather(cells, ratio("order_based", "itpd_naive")))],
+             q(gather(cells, ratio("full_conditioning", "itpd_naive")))],
             ["non-lazy", q(gather(cells, ratio("itpd_nonlazy", "itpd_naive_nonlazy"))), q(gather(cells, ratio("itpd_repo_variant_nonlazy", "itpd_naive_nonlazy"))),
-             q(gather(cells, ratio("order_based", "itpd_naive_nonlazy")))]]
-    L.append(md(["evaluation", "itpd / itpd_naive", "itpd_repo_variant / itpd_naive", "order / itpd_naive"], rows))
+             q(gather(cells, ratio("full_conditioning", "itpd_naive_nonlazy")))]]
+    L.append(md(["evaluation", "itpd / itpd_naive", "itpd_repo_variant / itpd_naive", "full conditioning / itpd_naive"], rows))
     rows = []
     for key in ("N", "T", "tau", "d"):
         for v in sorted({c[key] for c, _ in cells}):
@@ -106,7 +106,7 @@ def main():
 
     def size_sum(m, lo, hi):
         return sum(v for _, gs in cells for g in gs for k, v in g[m]["by_size_unique"].items() if lo <= int(k) <= hi)
-    for tag, mm in (("lazy", H), ("non-lazy", ["itpd_naive_nonlazy", "itpd_nonlazy", "itpd_repo_variant_nonlazy", "order_based"])):
+    for tag, mm in (("lazy", H), ("non-lazy", ["itpd_naive_nonlazy", "itpd_nonlazy", "itpd_repo_variant_nonlazy", "full_conditioning"])):
         rows = []
         for name, lo, hi in (("0", 0, 0), ("1", 1, 1), (">=2", 2, 10 ** 9)):
             v = [size_sum(m, lo, hi) for m in mm]
@@ -128,7 +128,7 @@ def main():
           md(["method", "raw", "unique", "repeats"], rows)]
 
     # tests per candidate
-    L.append("\n### Unique tests per candidate (candidates = sum over targets; order-based is 1.00 by construction)\n")
+    L.append("\n### Unique tests per candidate (candidates = sum over targets; full conditioning is 1.00 by construction)\n")
     per = lambda m: (lambda g: g[m]["unique"] / g[m]["n_cand"])
     rows = [[m, q(gather(cells, per(m))), q(gather(cells, lambda g, m=m: g[m]["mean_target_max_frac"]))] for m in ALL]
     L.append(md(["method", "unique per candidate", "largest conditioning set / candidates (mean over targets)"], rows))
@@ -148,7 +148,7 @@ def main():
             sub = [(c, gs) for c, gs in cells if c["N"] == N and c["T"] == T]
             if not sub:
                 continue
-            cand = np.median(gather(sub, lambda g: g["order_based"]["n_cand"]))
+            cand = np.median(gather(sub, lambda g: g["full_conditioning"]["n_cand"]))
             meds = {m: float(np.median(gather(sub, uq(m)))) for m in ALL}
             frac = {m: float(np.median(gather(sub, lambda g, m=m: g[m]["mean_target_max_frac"]))) for m in ("itpd_naive", "itpd")}
             cellmed[(N, T)] = (cand, meds)
@@ -174,9 +174,9 @@ def main():
             rows.append([f"{key}={v:g}"] + [q(gather(sub, uq(m))) for m in H])
     L += ["\nUnique tests by tau and d (other factors pooled):\n", md([""] + H, rows)]
     rows = [[f"T={T}"] + [q(gather([(c, gs) for c, gs in cells if c["T"] == T], lambda g, m=m: g[m]["mean_target_max_frac"]))
-                          for m in ("itpd_naive", "itpd", "order_based")] for T in Ts]
+                          for m in ("itpd_naive", "itpd", "full_conditioning")] for T in Ts]
     L += ["\nLargest conditioning set per target as a share of its candidates, by T:\n",
-          md(["", "itpd_naive", "itpd", "order_based"], rows)]
+          md(["", "itpd_naive", "itpd", "full_conditioning"], rows)]
     big = [(c, gs) for c, gs in cells if c["N"] == Ns[-1] and c["T"] == Ts[-1]]
     rows = [[m, q(gather(big, lambda g, m=m: g[m]["seconds"])),
              q(gather(big, lambda g, m=m: 1e6 * g[m]["seconds"] / max(g[m]["raw"], 1)))] for m in ALL]
@@ -184,7 +184,7 @@ def main():
           md(["method", "seconds per graph", "us per raw call"], rows)]
     # realised degree
     L.append("\nRealised mean non-self out-degree (average over all nodes with t <= T-2): " +
-             q(gather(cells, lambda g: g["order_based"]["graph_stats"]["mean_out_degree_nonself"])))
+             q(gather(cells, lambda g: g["full_conditioning"]["graph_stats"]["mean_out_degree_nonself"])))
 
     # tests when a time step is appended
     L.append("\n### Tests when a time step is appended (order = time; new unique tests summed over the N targets of step t)\n")
@@ -196,10 +196,10 @@ def main():
         rows = []
         for t in range(1, Tmax):
             f = lambda m, i: gather(sub, lambda g: g[m]["per_step"][str(t)][i])
-            rows.append([t, q(f("order_based", 2))] + [q(f(m, 0)) for m in ("itpd_naive", "itpd", "order_based")] +
+            rows.append([t, q(f("full_conditioning", 2))] + [q(f(m, 0)) for m in ("itpd_naive", "itpd", "full_conditioning")] +
                         [f"{np.median(f('itpd_naive', 0)) / N:.1f}", f"{np.median(f('itpd', 0)) / N:.1f}"])
         L += [f"\nN={N}, T={Tmax} (tau, d pooled), t = index of the appended step:\n",
-              md(["t", "candidates (all N targets)", "itpd_naive", "itpd", "order_based", "itpd_naive per target", "itpd per target"], rows)]
+              md(["t", "candidates (all N targets)", "itpd_naive", "itpd", "full_conditioning", "itpd_naive per target", "itpd per target"], rows)]
     txt = "\n".join(L) + "\n"
     out = a.out or os.path.join(a.dir, "TABLES.md")
     open(out, "w").write(txt)

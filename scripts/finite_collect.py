@@ -11,7 +11,7 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from finite_common import BIN_LABELS, OLD_TO_NEW, boot_ci, fmt_ci, load_tasks, md, q, run_of, size_bins  # noqa: E402
 
-LAZY = ["itpd_naive", "itpd", "itpd_repo_variant", "order_based"]
+LAZY = ["itpd_naive", "itpd", "itpd_repo_variant", "full_conditioning"]
 EXTRA = ["itpd_adjacency_self"]
 NL = {"itpd_naive": "itpd_naive_nonlazy", "itpd": "itpd_nonlazy", "itpd_repo_variant": "itpd_repo_variant_nonlazy", "itpd_adjacency_self": "itpd_adjacency_self_nonlazy"}
 ALPHAS = None
@@ -44,7 +44,7 @@ def main():
     for (N, T) in sorted({(k[0], k[1]) for k in keys}):
         Ms = sorted({k[2] for k in keys if k[:2] == (N, T)})
         rows.append([N, T, N * (T - 1) + 3] + [f"{finite_ct(N, T, M)}/{T - 1}" for M in Ms])
-    L += ["\n### Feasibility: order-based needs M >= N (T - 1) + 3 for the last target; common targets (t <= (M - 3) / N) by M\n",
+    L += ["\n### Feasibility: full conditioning needs M >= N (T - 1) + 3 for the last target; common targets (t <= (M - 3) / N) by M\n",
           md(["N", "T", "M for all targets"] + [f"common t, M={M}" for M in Ms], rows)]
 
     def cellrows(metric_key, uniq_key, methods, title, note):
@@ -74,15 +74,15 @@ def main():
              "alpha 0.01; edges into targets t <= floor((M - 3) / N) only; unique tests summed over those targets.")
 
     # matched FP
-    alphas = sorted({r["alpha"] for t in tasks for r in t["runs"] if r["name"] == "order_based"})
+    alphas = sorted({r["alpha"] for t in tasks for r in t["runs"] if r["name"] == "full_conditioning"})
     rows = []
     for k in keys:
         ts = [t for t in by[k] if t["common_tmax"] >= 1]
         if not ts:
             continue
-        target = sum(run_of(t, "order_based")["metrics_common"]["fp"] for t in ts)
-        o = [run_of(t, "order_based")["metrics_common"] for t in ts]
-        rows.append([k[0], k[1], k[2], "order (alpha 0.01)", "0.01", target, q([x["recall"] for x in o]), q([x["precision"] for x in o]),
+        target = sum(run_of(t, "full_conditioning")["metrics_common"]["fp"] for t in ts)
+        o = [run_of(t, "full_conditioning")["metrics_common"] for t in ts]
+        rows.append([k[0], k[1], k[2], "full conditioning (alpha 0.01)", "0.01", target, q([x["recall"] for x in o]), q([x["precision"] for x in o]),
                      q([x["f1"] for x in o]), q([x["shd"] for x in o])])
         for m in ("itpd_naive", "itpd", "itpd_repo_variant"):
             best = None
@@ -101,8 +101,8 @@ def main():
             rows.append([k[0], k[1], k[2], m, f"{al:g}", fp, q([y["recall"] for y in x]), q([y["precision"] for y in x]),
                          q([y["f1"] for y in x]), q([y["shd"] for y in x])])
     L += ["\n### Matched false positives (common targets): each ITPD variant at the alpha whose total FP over the cell's graphs is closest to the "
-          "order-based total at alpha 0.01 (ties: smaller alpha)\n",
-          f"alpha grid: {', '.join(f'{x:g}' for x in alphas)}; the `FP total` column is the sum over the cell's graphs (target = the order row).\n",
+          "full-conditioning total at alpha 0.01 (ties: smaller alpha)\n",
+          f"alpha grid: {', '.join(f'{x:g}' for x in alphas)}; the `FP total` column is the sum over the cell's graphs (target = the full-conditioning row).\n",
           md(["N", "T", "M", "method", "alpha", "FP total", "recall", "precision", "F1", "SHD"], rows)]
 
     # paired differences
@@ -113,11 +113,11 @@ def main():
             continue
         def d(m1, m2, key="f1"):
             return boot_ci([run_of(t, m1)["metrics_common"][key] - run_of(t, m2)["metrics_common"][key] for t in ts])
-        rows.append([k[0], k[1], k[2], fmt_ci(d("itpd", "order_based")), fmt_ci(d("itpd_naive", "order_based")), fmt_ci(d("itpd", "itpd_naive")),
-                     fmt_ci(d("itpd", "itpd_repo_variant")), fmt_ci(d("itpd", "order_based", "recall")), fmt_ci(d("itpd", "order_based", "precision"))])
+        rows.append([k[0], k[1], k[2], fmt_ci(d("itpd", "full_conditioning")), fmt_ci(d("itpd_naive", "full_conditioning")), fmt_ci(d("itpd", "itpd_naive")),
+                     fmt_ci(d("itpd", "itpd_repo_variant")), fmt_ci(d("itpd", "full_conditioning", "recall")), fmt_ci(d("itpd", "full_conditioning", "precision"))])
     L += ["\n### Paired differences per graph (common targets, alpha 0.01): mean [95% bootstrap CI over graphs]\n",
-          md(["N", "T", "M", "F1 itpd - order", "F1 naive - order", "F1 itpd - naive", "F1 itpd - itpd_repo_variant", "recall itpd - order",
-              "precision itpd - order"], rows)]
+          md(["N", "T", "M", "F1 itpd - full conditioning", "F1 naive - full conditioning", "F1 itpd - naive", "F1 itpd - itpd_repo_variant", "recall itpd - full conditioning",
+              "precision itpd - full conditioning"], rows)]
 
     # tests by size and ratios
     rows = []
@@ -135,9 +135,9 @@ def main():
             return q([run_of(t, m1)["unique"] / run_of(t, m2)["unique"] for t in ts if run_of(t, m2)["unique"] and
                       run_of(t, m1)["n_inf_targets"] == 0 and run_of(t, m2)["n_inf_targets"] == 0])
         rows.append([k[0], k[1], k[2], r_("itpd", "itpd_naive"), r_("itpd_nonlazy", "itpd_naive_nonlazy"), r_("itpd_repo_variant", "itpd_naive"),
-                     r_("itpd_adjacency_self", "itpd"), r_("order_based", "itpd_naive")])
+                     r_("itpd_adjacency_self", "itpd"), r_("full_conditioning", "itpd_naive")])
     L += ["\n### Unique-test ratios, paired per graph (graphs where both methods have no infeasible target)\n",
-          md(["N", "T", "M", "itpd / naive (lazy)", "itpd / naive (non-lazy)", "itpd_repo_variant / naive", "itpd_adjacency_self / itpd", "order / naive"], rows)]
+          md(["N", "T", "M", "itpd / naive (lazy)", "itpd / naive (non-lazy)", "itpd_repo_variant / naive", "itpd_adjacency_self / itpd", "full conditioning / naive"], rows)]
 
     # largest conditioning set vs M
     rows = []
@@ -207,9 +207,9 @@ def main():
                 continue
             orc = _j.load(open(pf))
             o = {(r["graph"], OLD_TO_NEW.get(r["name"], r["name"])): r for r in orc["rows"]}
-            tk = [t for t in by[(N, T, 2000)] if (t["graph"], "order_based") in o]      # graphs beyond the oracle grid (index >= 20) have no oracle pair
-            same = all(o[(t["graph"], "order_based")]["graph_stats"]["sha1"] == t["sha1"] for t in tk)
-            for m in ("itpd_naive", "itpd", "order_based"):
+            tk = [t for t in by[(N, T, 2000)] if (t["graph"], "full_conditioning") in o]      # graphs beyond the oracle grid (index >= 20) have no oracle pair
+            same = all(o[(t["graph"], "full_conditioning")]["graph_stats"]["sha1"] == t["sha1"] for t in tk)
+            for m in ("itpd_naive", "itpd", "full_conditioning"):
                 rat = [run_of(t, m)["unique"] / o[(t["graph"], m)]["unique"] for t in tk if run_of(t, m)["n_inf_targets"] == 0]
                 rows.append([N, T, m, "yes" if same else "NO", q(rat)])
         L += ["\n### Finite-data unique tests (M = 2,000, alpha 0.01) / oracle unique tests, same graph (sha1 equal), per graph\n",
