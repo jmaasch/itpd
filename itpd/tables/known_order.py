@@ -1,30 +1,29 @@
 """Tables of the known-order baselines: oracle check (IAMB, ITPD + marginal-first), finite-data comparison on the window instances
 of the finite-data runs (IAMB, ITPD + marginal-first, lasso next to the ITPD, ITPD_naive and full-conditioning rows and the blanket-screened shrink rows),
 paired per-graph differences, matched-FP, wall-clock. Reads, under the results directory R ($ITPD_RESULTS or ./results):
-R/baselines/{oracle,finite,lasso_ebic_fixed,timing} (itpd.run_known_order_baselines), R/finite/window and R/oracle (the earlier
-runs) and R/blanket_screened_shrink/{single_pass,recheck,oracle} (itpd.run_blanket_screened_shrink, optional). Writes R/baselines/TABLES.md and aggregates.json.
+R/baselines/{oracle,finite,lasso_ebic_fixed,timing} (`itpd.experiments stored_instances known_order`), R/finite/window and R/oracle (the earlier
+runs) and R/blanket_screened_shrink/{single_pass,recheck,oracle} (`itpd.experiments stored_instances shrink`, optional). Writes R/baselines/TABLES.md and aggregates.json.
 
-    python scripts/known_order_baselines_collect.py [--out DIR]
+    python -m itpd.tables stored_instances known_order [--out DIR] [--cells 10x8:0-49,20x8:0-49,10x16:0-19,20x16:0-19]
+        [--M 50,100,200,500,2000] [--shrink-graphs 20]
+
+`--cells` and `--M` are the grid of the finite-data tables (a file that does not exist is skipped); the first `--shrink-graphs` graphs of a
+cell carry the blanket-screened shrink rows.
 """
 from __future__ import annotations
 
-import argparse
 import glob
 import json
 import os
-import sys
+from typing import NamedTuple
 
 import numpy as np
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from blanket_screened_shrink_tables import interp, ncand, table   # noqa: E402
-from itpd.methods_registry import OLD_TO_NEW   # noqa: E402
+from itpd.experiments.common import ints
+from itpd.experiments.stored_instances import CELLS_DEFAULT, parse_cells
 
-RES = os.environ.get("ITPD_RESULTS", "results")
-CELLS = [(10, 8, 50), (20, 8, 50), (10, 16, 20), (20, 16, 20)]
-MS = [50, 100, 200, 500, 2000]
-A0 = 0.01
+from .common import ALPHA, RESULTS, interp, md, ncand, new_name, rename_rows
+
 SRC = {"iamb": ("baselines", "iamb_known_order"), "itpd_mf": ("baselines", "itpd_marginal_first"), "itpd": ("finite", "itpd"), "naive": ("finite", "itpd_naive"),
        "full_conditioning": ("finite", "full_conditioning"), "blanket_screened_shrink_recheck": ("recheck", "blanket_screened_shrink_recheck"),
        "blanket_screened_shrink": ("single_pass", "blanket_screened_shrink")}
@@ -34,17 +33,19 @@ LABEL = {"lasso_ebic": "lasso EBIC (headline)", "lasso_fixed": "lasso fixed pena
 rng = np.random.default_rng(0)
 
 
+class Grid(NamedTuple):
+    cells: list          # (N, T, graph indices) per cell
+    Ms: list
+    n_shrink: int        # graphs 0 .. n_shrink - 1 carry the blanket-screened shrink rows
+
+
 def rename_names(d):
     """Result files written before the method-name rename carry old names (row `name`, keys of the oracle rows): translate."""
-    new = lambda n: OLD_TO_NEW.get(n, n)
-    for lst in (d.get("runs"), d.get("rows"), (d.get("lasso") or {}).get("rows")):
-        for r in lst or []:
-            if isinstance(r, dict) and "name" in r:
-                r["name"] = new(r["name"])
+    rename_rows(d)
     for i, r in enumerate(d.get("graphs") or []):           # oracle files: rows keyed by method name
-        r = {new(k): v for k, v in r.items()}
+        r = {new_name(k): v for k, v in r.items()}
         if "stored_oracle_run" in r:
-            r["stored_oracle_run"] = {new(k): v for k, v in r["stored_oracle_run"].items()}
+            r["stored_oracle_run"] = {new_name(k): v for k, v in r["stored_oracle_run"].items()}
         d["graphs"][i] = r
     return d
 
@@ -54,30 +55,30 @@ def jl(p):
         return rename_names(json.load(f))
 
 
-def run_of(d, key, alpha=A0):
+def stored_run(d, key, alpha=ALPHA):
     src, name = SRC[key]
     r = [q for q in d[src]["runs"] if q["name"] == name and abs(q["alpha"] - alpha) < 1e-12]
     return r[0] if r else None
 
 
-def load(out):
+def load(out, grid):
     """data[(N, T, M)][g] = {"baselines": json, "finite": json, "lasso": json?, "single_pass": json?, "recheck": json?}"""
     data = {}
-    for N, T, ng in CELLS:
+    for N, T, graphs in grid.cells:
         cell = f"window_N{N}_T{T}_tau1_d2"
-        for M in MS:
+        for M in grid.Ms:
             per = {}
-            for g in range(ng):
+            for g in graphs:
                 bp = f"{out}/finite/{cell}/g{g:02d}_M{M}.json"
                 if not os.path.exists(bp):
                     continue
-                d = {"baselines": jl(bp), "finite": jl(f"{RES}/finite/window/{cell}/g{g:02d}_M{M}.json")}
+                d = {"baselines": jl(bp), "finite": jl(f"{RESULTS}/finite/window/{cell}/g{g:02d}_M{M}.json")}
                 pl = f"{out}/lasso_ebic_fixed/{cell}/g{g:02d}_M{M}.json"
                 if os.path.exists(pl):
                     d["lasso"] = jl(pl)
                 for k in ("single_pass", "recheck"):
-                    pk = f"{RES}/blanket_screened_shrink/{k}/{cell}/g{g:02d}_M{M}.json"
-                    if g < 20 and os.path.exists(pk):
+                    pk = f"{RESULTS}/blanket_screened_shrink/{k}/{cell}/g{g:02d}_M{M}.json"
+                    if g < grid.n_shrink and os.path.exists(pk):
                         d[k] = jl(pk)
                 for k in ("finite", "single_pass", "recheck"):
                     if k in d:
@@ -106,7 +107,7 @@ def med(v):
     return float(np.median(v)) if len(v) else float("nan")
 
 
-def boot_ci(diff, n=2000):
+def boot_bounds(diff, n=2000):
     diff = np.asarray(diff, dtype=float)
     if len(diff) < 2:
         return float("nan"), float("nan")
@@ -126,7 +127,7 @@ def per_graph(per, key, field):
     for g, d in per.items():
         if not have(d, key):
             continue
-        r = lrow(d, key) if key in LASSO else run_of(d, key)
+        r = lrow(d, key) if key in LASSO else stored_run(d, key)
         if r is None:
             continue
         if field in ("recall", "precision", "f1", "fp"):
@@ -140,14 +141,14 @@ def per_graph(per, key, field):
     return out
 
 
-def summary_tables(data, subset):
-    """subset 'all' (every graph of the cell, no blanket-screened shrink) or 'shrink' (graphs 0-19 incl. blanket-screened shrink rows)."""
+def summary_tables(data, subset, grid):
+    """subset 'all' (every graph of the cell, no blanket-screened shrink) or 'shrink' (the first n_shrink graphs incl. blanket-screened shrink rows)."""
     L = []
     keys = ["iamb", "itpd_mf", "itpd", "naive", "full_conditioning"] + (["blanket_screened_shrink_recheck", "blanket_screened_shrink"] if subset == "shrink" else [])
-    for N, T, ng in CELLS:
+    for N, T, graphs in grid.cells:
         rows = []
-        for M in MS:
-            per = {g: d for g, d in data[(N, T, M)].items() if subset == "all" or g < 20}
+        for M in grid.Ms:
+            per = {g: d for g, d in data[(N, T, M)].items() if subset == "all" or g < grid.n_shrink}
             if not per:
                 continue
             nc = ncand(N, T)
@@ -163,30 +164,30 @@ def summary_tables(data, subset):
                 u = per_graph(per, k, "unique")
                 if not u:
                     continue
-                tm = {g: max(run_of(d, k)["target_max"]) for g, d in per.items() if have(d, k) and run_of(d, k)}
+                tm = {g: max(stored_run(d, k)["target_max"]) for g, d in per.items() if have(d, k) and stored_run(d, k)}
                 ni = per_graph(per, k, "n_inf_targets"); nt = per_graph(per, k, "n_targets")
                 rec = per_graph(per, k, "recall"); pre = per_graph(per, k, "precision")
                 f1 = per_graph(per, k, "f1"); fp = per_graph(per, k, "fp"); ns = per_graph(per, k, "n_sel")
                 rows.append([M, LABEL[k], len(u), f"{sum(u.values()) / (len(u) * nc):.3f}", f"{med(tm.values()):.0f} / {max(tm.values())}",
                              f"{sum(ni.values())} / {sum(nt.values())}", f3(med(rec.values())), f3(med(pre.values())),
                              f3(med(f1.values())), f"{med(fp.values()):.0f}", f"{med(ns.values()):.0f}", f"{med(list(u.values())):.0f}"])
-        L += [f"\n#### N {N}, T {T}, " + ("all graphs of the cell (" + str(ng) + "), without blanket-screened shrink" if subset == "all" else "graphs 0-19, with the blanket-screened shrink rows") + "\n",
-              table(["M", "method", "graphs", "unique tests per candidate", "largest set (median / max over graphs of the per-graph max)",
-                     "undecidable targets / targets (all graphs)", "median recall", "median precision", "median F1", "median FP",
-                     "median selected edges (common targets)", "median unique tests"], rows)]
+        L += [f"\n#### N {N}, T {T}, " + ("all graphs of the cell (" + str(len(graphs)) + "), without blanket-screened shrink" if subset == "all" else f"graphs 0-{grid.n_shrink - 1}, with the blanket-screened shrink rows") + "\n",
+              md(["M", "method", "graphs", "unique tests per candidate", "largest set (median / max over graphs of the per-graph max)",
+                  "undecidable targets / targets (all graphs)", "median recall", "median precision", "median F1", "median FP",
+                  "median selected edges (common targets)", "median unique tests"], rows)]
     return L
 
 
-def paired_tables(data):
+def paired_tables(data, grid):
     L = []
     pairs = [("iamb", "itpd", "all"), ("itpd_mf", "itpd", "all"), ("iamb", "full_conditioning", "all"), ("iamb", "blanket_screened_shrink_recheck", "shrink"),
              ("iamb", "blanket_screened_shrink", "shrink"), ("itpd", "blanket_screened_shrink_recheck", "shrink"), ("lasso_ebic", "itpd", "all"),
              ("lasso_ebic", "iamb", "all"), ("lasso_ebic", "blanket_screened_shrink_recheck", "shrink"), ("lasso_cv", "lasso_ebic", "all")]
     for a, b, sub in pairs:
         rows = []
-        for N, T, ng in CELLS:
-            for M in MS:
-                per = {g: d for g, d in data[(N, T, M)].items() if sub == "all" or g < 20}
+        for N, T, graphs in grid.cells:
+            for M in grid.Ms:
+                per = {g: d for g, d in data[(N, T, M)].items() if sub == "all" or g < grid.n_shrink}
                 ga, gb = (per_graph(per, a, "f1"), per_graph(per, b, "f1"))
                 gs = sorted(set(ga) & set(gb))
                 if not gs:
@@ -195,18 +196,18 @@ def paired_tables(data):
                 for fld in ("recall", "precision", "f1"):
                     xa, xb = per_graph(per, a, fld), per_graph(per, b, fld)
                     diff = np.array([xa[g] - xb[g] for g in gs])
-                    lo, hi = boot_ci(diff)
+                    lo, hi = boot_bounds(diff)
                     cells.append(f"{diff.mean():+.3f} [{lo:+.3f}, {hi:+.3f}]; {int((diff > 1e-12).sum())}/{int((diff < -1e-12).sum())}")
                 if a in LASSO or b in LASSO:
                     rows.append([f"N{N} T{T}", M, len(gs)] + cells + ["-"])
                     continue
                 ua, ub = per_graph(per, a, "unique"), per_graph(per, b, "unique")
                 ratio = np.array([ua[g] / ub[g] for g in gs])
-                lo, hi = boot_ci(ratio)
+                lo, hi = boot_bounds(ratio)
                 rows.append([f"N{N} T{T}", M, len(gs)] + cells + [f"{ratio.mean():.3f} [{lo:.3f}, {hi:.3f}]"])
-        L += [f"\n#### {LABEL[a]} minus {LABEL[b]} per graph " + ("(graphs 0-19)" if sub == "shrink" else "(all graphs of the cell)") + "\n",
-              table(["cell", "M", "graphs", "recall: mean diff [95% bootstrap CI over graphs]; graphs higher/lower",
-                     "precision: same", "F1: same", "unique tests ratio, mean [CI]"], rows)]
+        L += [f"\n#### {LABEL[a]} minus {LABEL[b]} per graph " + (f"(graphs 0-{grid.n_shrink - 1})" if sub == "shrink" else "(all graphs of the cell)") + "\n",
+              md(["cell", "M", "graphs", "recall: mean diff [95% bootstrap CI over graphs]; graphs higher/lower",
+                  "precision: same", "F1: same", "unique tests ratio, mean [CI]"], rows)]
     return L
 
 
@@ -229,7 +230,7 @@ def pooled(per, key, lam=False):
     return out
 
 
-def matched_tables(data):
+def matched_tables(data, grid):
     L = []
     levels = {"a": ("full_conditioning", "full conditioning's FP at alpha 0.01"), "c": ("itpd", "ITPD's FP at alpha 0.01"), "e": ("iamb", "IAMB's FP at alpha 0.01"),
               "d": ("blanket_screened_shrink_recheck", "blanket-screened shrink re-check's FP at alpha 0.01"), "f": ("lasso_ebic", "EBIC lasso's own FP"),
@@ -237,9 +238,9 @@ def matched_tables(data):
     for sub in ("all", "shrink"):
         rows = []
         mk = ["iamb", "itpd", "itpd_mf", "full_conditioning", "naive", "lasso_path"] + (["blanket_screened_shrink_recheck"] if sub == "shrink" else [])
-        for N, T, ng in CELLS:
-            for M in MS:
-                per = {g: d for g, d in data[(N, T, M)].items() if sub == "all" or g < 20}
+        for N, T, graphs in grid.cells:
+            for M in grid.Ms:
+                per = {g: d for g, d in data[(N, T, M)].items() if sub == "all" or g < grid.n_shrink}
                 if not per:
                     continue
                 C = {k: pooled(per, k) for k in mk}
@@ -256,16 +257,16 @@ def matched_tables(data):
                             continue
                         if lv == "d" and sub != "shrink":
                             continue
-                        fp0 = C[ref][A0][0]
+                        fp0 = C[ref][ALPHA][0]
                     cells = []
                     for k in mk:
                         r, st, _ = interp(C[k], fp0)
                         cells.append(f3(r) if st == "ok" else ("below range" if st == "below" else "above range"))
                     rows.append([f"N{N} T{T}", M, lv, f"{fp0}"] + cells)
-        L += [f"\n#### Matched false positives, " + ("all graphs of the cell" if sub == "all" else "graphs 0-19 incl. blanket-screened shrink re-check") +
+        L += ["\n#### Matched false positives, " + ("all graphs of the cell" if sub == "all" else f"graphs 0-{grid.n_shrink - 1} incl. blanket-screened shrink re-check") +
               ": recall (pooled over graphs, common targets) interpolated in log FP on each method's sweep (alpha for the CI methods, 13 fixed lambdas for the lasso); levels: a = full conditioning's FP at 0.01, c = ITPD's, e = IAMB's"
               + (", d = blanket-screened shrink re-check's" if sub == "shrink" else "") + "; oracle-tuned comparison\n",
-              table(["cell", "M", "level", "FP pooled"] + [LABEL[k] for k in mk], rows)]
+              md(["cell", "M", "level", "FP pooled"] + [LABEL[k] for k in mk], rows)]
     return L
 
 
@@ -278,14 +279,14 @@ def oracle_nonlazy_unique(arm, N, T, tau, d, g):
     """Stored non-lazy oracle-run unique counts (itpd_naive_nonlazy, itpd_nonlazy) of one graph."""
     k = (arm, N, T, tau, d)
     if k not in _ORACLE_ROWS:
-        j = jl(f"{RES}/oracle/{arm}/N{N}_T{T}_tau{tau}_d{d}.json")
+        j = jl(f"{RESULTS}/oracle/{arm}/N{N}_T{T}_tau{tau}_d{d}.json")
         _ORACLE_ROWS[k] = {}
         for r in j["rows"]:
             _ORACLE_ROWS[k].setdefault(r["graph"], {})[r["name"]] = r["unique"]
     return _ORACLE_ROWS[k][g]["itpd_naive_nonlazy"], _ORACLE_ROWS[k][g]["itpd_nonlazy"]
 
 
-def oracle_tables(out):
+def oracle_tables(out, grid):
     L = []
     files = sorted(glob.glob(f"{out}/oracle/*/*.json"))
     if not files:
@@ -326,16 +327,16 @@ def oracle_tables(out):
                       f"{a['u']['itpd_nonlazy'] / a['u']['itpd_naive_nonlazy']:.4f}"])
     L += [f"\nOracle check: {n_graphs} graphs, {n_bad} not exact" + ("" if not bad else f" (BUG: {bad[:5]})") + ".\n",
           "\n#### IAMB per target under the oracle on the oracle-run instances (all tau 1-3, d 1-3 pooled per arm, N, T): graphs exact out of graphs for IAMB with tie rules last / first / random, ITPD+mf lazy / non-lazy; unique tests per candidate (paired by graph with the stored oracle-run rows) and largest set (max over graphs)\n",
-          table(["arm", "N", "T", "graphs", "exact: IAMB / IAMB first / IAMB rand / mf / mf non-lazy", "IAMB tests per cand.", "ITPD_naive", "ITPD", "full conditioning",
-                 "IAMB largest set", "naive", "ITPD", "full conditioning"], rows1),
+          md(["arm", "N", "T", "graphs", "exact: IAMB / IAMB first / IAMB rand / mf / mf non-lazy", "IAMB tests per cand.", "ITPD_naive", "ITPD", "full conditioning",
+              "IAMB largest set", "naive", "ITPD", "full conditioning"], rows1),
           "\n#### ITPD + marginal-first under the oracle: unique tests relative to ITPD_naive and ITPD (pooled over the graphs of the group), lazy, and non-lazy (the evaluation of the original code) in the last two columns\n",
-          table(["arm", "N", "T", "graphs", "mf / naive (lazy)", "mf / ITPD (lazy)", "ITPD / naive (lazy, stored)", "mf / naive (both non-lazy)",
-                 "ITPD / naive (both non-lazy, stored)"], rows2)]
+          md(["arm", "N", "T", "graphs", "mf / naive (lazy)", "mf / ITPD (lazy)", "ITPD / naive (lazy, stored)", "mf / naive (both non-lazy)",
+              "ITPD / naive (both non-lazy, stored)"], rows2)]
     # blanket-screened shrink oracle rows (d = 2, N 10/20, T 8/16, tau 1/2) on the same graphs
     rows3 = []
     for f in sorted(glob.glob(f"{out}/oracle/*/*_d2.json")):
         d = jl(f)
-        pdir = f"{RES}/blanket_screened_shrink/oracle/{d['arm']}/N{d['N']}_T{d['T']}_tau{d['tau']}_d2"
+        pdir = f"{RESULTS}/blanket_screened_shrink/oracle/{d['arm']}/N{d['N']}_T{d['T']}_tau{d['tau']}_d2"
         if not os.path.isdir(pdir):
             continue
         ui = u_sh = u_rc = nc = 0
@@ -347,9 +348,9 @@ def oracle_tables(out):
             ui += r["iamb_known_order"]["unique"]; u_sh += rr["blanket_screened_shrink"]["unique"]; u_rc += rr["blanket_screened_shrink_recheck"]["unique"]; nc += r["n_cand"]
             mi = max(mi, r["iamb_known_order"]["max_size"]); m_sh = max(m_sh, rr["blanket_screened_shrink"]["max_size"]); m_rc = max(m_rc, rr["blanket_screened_shrink_recheck"]["max_size"])
         rows3.append([d["arm"], d["N"], d["T"], d["tau"], len(d["graphs"]), f"{ui / nc:.3f}", f"{u_sh / nc:.3f}", f"{u_rc / nc:.3f}", mi, m_sh, m_rc])
-    L += ["\n#### O3. IAMB, blanket-screened shrink and blanket-screened shrink re-check under the oracle on the same 20 graphs per cell (d = 2): unique tests per candidate and largest set (max over graphs)\n",
-          table(["arm", "N", "T", "tau", "graphs", "IAMB tests/cand", "blanket-screened shrink", "blanket-screened shrink re-check", "IAMB largest set",
-                 "blanket-screened shrink", "blanket-screened shrink re-check"], rows3)]
+    L += ["\n#### O3. IAMB, blanket-screened shrink and blanket-screened shrink re-check under the oracle on the same " + str(grid.n_shrink) + " graphs per cell (d = 2): unique tests per candidate and largest set (max over graphs)\n",
+          md(["arm", "N", "T", "tau", "graphs", "IAMB tests/cand", "blanket-screened shrink", "blanket-screened shrink re-check", "IAMB largest set",
+              "blanket-screened shrink", "blanket-screened shrink re-check"], rows3)]
     return L, {"graphs": n_graphs, "not_exact": n_bad}
 
 
@@ -372,28 +373,29 @@ def timing_tables(out):
     for k in sorted(by):
         rows.append([f"N{k[0]} T{k[1]}", k[2], len(by[k]["iamb_known_order"])] + [(f"{med([x[0] for x in by[k][n]]):.2f} / {med([x[1] for x in by[k][n]]):.2f}" if n in by[k] else "-") for n in names])
     return ["\n#### Wall-clock (median over the timed graphs; wall / CPU seconds per dataset), alpha 0.01, fresh Fisher-z object and no shared memo per method, one process, 4 timed tasks in parallel on one node\n",
-            table(["cell", "M", "graphs"] + names, rows)]
+            md(["cell", "M", "graphs"] + names, rows)]
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--out", default=f"{RES}/baselines")
-    a = ap.parse_args()
-    L = ["# Known-order baselines: tables (generated by scripts/known_order_baselines_collect.py)\n"]
-    o, agg = oracle_tables(a.out)
+def add_args(ap):
+    ap.add_argument("--out", default=f"{RESULTS}/baselines", help="the baselines directory R/baselines (input of the tables and output)")
+    ap.add_argument("--cells", default=CELLS_DEFAULT, help="cells N x T : first-last graph of the finite-data tables")
+    ap.add_argument("--M", default="50,100,200,500,2000")
+    ap.add_argument("--shrink-graphs", type=int, default=20, help="the first graphs of a cell that carry blanket-screened shrink rows")
+
+
+def run(a):
+    grid = Grid(parse_cells(a.cells), ints(a.M), a.shrink_graphs)
+    L = ["# Known-order baselines: tables (generated by python -m itpd.tables stored_instances known_order)\n"]
+    o, agg = oracle_tables(a.out, grid)
     L += ["\n## Oracle\n"] + o
-    data = load(a.out)
+    data = load(a.out, grid)
     n = {k: len(v) for k, v in data.items()}
     L += [f"\n## Finite data (window instances of the finite-data runs, tau 1, d 2, linear-Gaussian, Fisher-z, alpha 0.01 unless stated); tasks present per (N, T, M): {n}\n",
-          "\n### Operating point alpha 0.01, common targets (t <= (M - 3) / N)\n"] + summary_tables(data, "all") + summary_tables(data, "shrink")
-    L += ["\n### Paired per-graph differences (common targets)\n"] + paired_tables(data)
-    L += ["\n### Matched false positives\n"] + matched_tables(data)
+          "\n### Operating point alpha 0.01, common targets (t <= (M - 3) / N)\n"] + summary_tables(data, "all", grid) + summary_tables(data, "shrink", grid)
+    L += ["\n### Paired per-graph differences (common targets)\n"] + paired_tables(data, grid)
+    L += ["\n### Matched false positives\n"] + matched_tables(data, grid)
     L += ["\n### Wall-clock\n"] + timing_tables(a.out)
     with open(f"{a.out}/TABLES.md", "w") as f:
         f.write("\n".join(L) + "\n")
     json.dump({"oracle": agg, "tasks": {f"{k[0]}x{k[1]}xM{k[2]}": v for k, v in n.items()}}, open(f"{a.out}/aggregates.json", "w"))
     print("wrote", f"{a.out}/TABLES.md")
-
-
-if __name__ == "__main__":
-    main()

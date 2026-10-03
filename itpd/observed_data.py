@@ -184,8 +184,8 @@ def build_instance(N: int, T: int, tau: int, d: float, seed: int, g: int, *, vio
 
 
 def window_instance(N, T, tau, d, seed, g, arm: str) -> dict:
-    """Finite-data instance: the same graph and weights as `run_oracle_counts --with-weights` (so counts pair with the oracle runs)."""
-    from .run_oracle_counts import make_instance
+    """Finite-data instance: the same graph and weights as `oracle_counts cell --with-weights` (so counts pair with the oracle runs)."""
+    from .experiments.oracle_counts import make_instance
     gr, W = make_instance(N, T, tau, d, seed, g, arm, with_weights=True)
     return {"A": gr.A, "W": W, "N": N, "T": T, "tau": tau, "d": d, "seed": seed, "g": g, "kind": arm,
             "meta": {"violation": None, "nonstationary": None, "noise": "gauss", "hidden": []}, "graph": gr}

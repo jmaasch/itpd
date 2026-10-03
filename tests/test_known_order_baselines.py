@@ -3,7 +3,8 @@
 import numpy as np
 import pytest
 
-from itpd import ci, iamb, lasso, run_oracle_counts as oracle_counts, sim
+from itpd import ci, iamb, lasso, sim
+from itpd.experiments import oracle_counts
 from itpd import dataset_eval as finite, method_runner as runlib
 from itpd.graphs import TimeGraph, unroll
 

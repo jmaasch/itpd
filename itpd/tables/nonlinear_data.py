@@ -1,34 +1,27 @@
-"""Tables from the per-task JSONs of itpd.run_nonlinear (nonlinear data, GCM test).
+"""Tables from the per-task JSONs of `itpd.experiments nonlinear_data` (nonlinear data, GCM test).
 
-    python scripts/nonlinear_collect.py RUNS_DIR [--lin FINITE_WINDOW_DIR] [--out FILE.md]
+    python -m itpd.tables nonlinear_data RUNS_DIR [--lin FINITE_WINDOW_DIR] [--out FILE.md]
+
 Numbers only. Median [Q1, Q3] over graphs. `--lin` = results/finite/window (linear-Gaussian Fisher-z, same graphs by sha1) for the
 paired comparison.
 """
 import argparse
-import glob
-import json
 import os
-import sys
 from collections import defaultdict
 
 import numpy as np
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from finite_common import q, md, run_of, boot_ci, fmt_ci, size_bins, BIN_LABELS, f, rename_rows  # noqa
-
-METHODS = ["itpd_naive", "itpd", "full_conditioning"]
+from .common import BIN_LABELS, CORE, SIZE_BINS, boot_ci, fmt_ci, load_tasks, md, q, run_of, size_bins
 
 
-def main():
-    ap = argparse.ArgumentParser()
+def main(argv=None):
+    ap = argparse.ArgumentParser(prog="python -m itpd.tables nonlinear_data", description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("dir")
     ap.add_argument("--lin", default=None)
     ap.add_argument("--out")
-    a = ap.parse_args()
-    tasks = []
-    for p in sorted(glob.glob(os.path.join(a.dir, "nonlinear_*", "g*_M*.json"))):
-        if ".tmp" not in p:
-            tasks.append(rename_rows(json.load(open(p))))
+    a = ap.parse_args(argv)
+    tasks = load_tasks(os.path.join(a.dir, "nonlinear_*", "g*_M*.json"))
     L = []
     if tasks:
         by = defaultdict(list)
@@ -43,7 +36,7 @@ def main():
         rows = []
         for k in keys:
             ts = by[k]
-            for m in METHODS:
+            for m in CORE:
                 rs = [run_of(t, m) for t in ts]
                 x = [r["metrics_common"] for r in rs]
                 rows.append([k[0], k[1], k[2], m, len(ts), q([r["unique"] for r in rs]), q([r["raw"] for r in rs]),
@@ -55,7 +48,7 @@ def main():
                   "largest set", "mean target-max set"], rows)]
         rows = []
         for k in keys:
-            for m in METHODS:
+            for m in CORE:
                 b = np.array([size_bins(run_of(t, m)["by_size_unique"]) for t in by[k]])
                 rows.append([k[0], k[1], k[2], m] + [f"{int(np.median(b[:, i]))}" for i in range(b.shape[1])])
         L += ["\n### Unique tests by conditioning-set size (median over graphs of the count in the bin; alpha 0.01)\n", md(["N", "T", "M", "method"] + BIN_LABELS, rows)]
@@ -104,9 +97,8 @@ def main():
                 for s, v in t["gcm_sec_by_size"].items():
                     secs[int(s)] += v
             tot_c, tot_s = sum(calls.values()), sum(secs.values())
-            bins = [(0, 0), (1, 1), (2, 4), (5, 19), (20, 99), (100, 10 ** 9)]
             cells = []
-            for lo, hi in bins:
+            for lo, hi in SIZE_BINS:
                 c = sum(v for s, v in calls.items() if lo <= s <= hi)
                 s_ = sum(v for s, v in secs.items() if lo <= s <= hi)
                 cells.append(f"{s_ / c:.3f}" if c else "-")
@@ -116,19 +108,14 @@ def main():
               md(["N", "T", "M", "datasets", "distinct tests per dataset (memo size, all alpha and methods)", "tasks resumed from a checkpoint", "evaluations timed in the last process (per dataset)", "s per evaluation (mean)", "test seconds per dataset (last process)"] + [f"s/eval |S| {l}" for l in BIN_LABELS] + ["task wall seconds"], rows)]
         # linear comparison
         if a.lin:
-            lin = {}
-            for p in glob.glob(os.path.join(a.lin, "*", "g*_M*.json")):
-                if ".tmp" in p:
-                    continue
-                d = rename_rows(json.load(open(p)))
-                lin[(d["N"], d["T"], d["M"], d["graph"])] = d
+            lin = {(d["N"], d["T"], d["M"], d["graph"]): d for d in load_tasks(os.path.join(a.lin, "*", "g*_M*.json"))}
             rows = []
             for k in keys:
                 pairs = [(t, lin[(k[0], k[1], k[2], t["graph"])]) for t in by[k] if (k[0], k[1], k[2], t["graph"]) in lin]
                 if not pairs:
                     continue
                 assert all(t["sha1"] == l["sha1"] for t, l in pairs)
-                for m in METHODS:
+                for m in CORE:
                     rows.append([k[0], k[1], k[2], m, len(pairs),
                                  q([run_of(l, m)["unique"] for _, l in pairs]), q([run_of(t, m)["unique"] for t, _ in pairs]),
                                  q([run_of(t, m)["unique"] / run_of(l, m)["unique"] for t, l in pairs if run_of(l, m)["n_inf_targets"] == 0]),

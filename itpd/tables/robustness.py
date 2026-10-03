@@ -1,23 +1,23 @@
-"""Tables from the per-task JSONs of itpd.run_robustness.   python scripts/robustness_collect.py DIR --exp nonstationary|violations [--out FILE]
-Numbers only. Median [Q1, Q3] over graphs; deltas are paired per graph (same base graph and data seed) with a 95% bootstrap CI of the mean."""
+"""Tables from the per-task JSONs of `itpd.experiments robustness`.
+
+    python -m itpd.tables robustness DIR --exp nonstationary|violations [--out FILE]
+
+Numbers only. Median [Q1, Q3] over graphs; deltas are paired per graph (same base graph and data seed) with a 95% bootstrap CI of the mean.
+"""
 import argparse
 import os
-import sys
 from collections import defaultdict
 
-
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from finite_common import boot_ci, fmt_ci, load_tasks, md, q, run_of  # noqa: E402
-
-METH = ["itpd_naive", "itpd", "full_conditioning"]
+from .common import CORE, boot_ci, fmt_ci, load_tasks, md, q, run_of
 
 
-def main():
-    ap = argparse.ArgumentParser()
+def main(argv=None):
+    ap = argparse.ArgumentParser(prog="python -m itpd.tables robustness", description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("dir")
     ap.add_argument("--exp", required=True)
     ap.add_argument("--out")
-    a = ap.parse_args()
+    a = ap.parse_args(argv)
     tasks = load_tasks(os.path.join(a.dir, a.exp, "*", "g*_M*.json"))
     by = defaultdict(dict)
     for t in tasks:
@@ -38,7 +38,7 @@ def main():
             ts = [by[(s, M)][g] for g in sorted(by[(s, M)])] if (s, M) in by else []
             if not ts:
                 continue
-            for m in METH:
+            for m in CORE:
                 rs = [run_of(t, m) for t in ts]
                 x = [r["metrics"] for r in rs]
                 nl = [run_of(t, m + "_nonlazy") for t in ts] if m != "full_conditioning" else []

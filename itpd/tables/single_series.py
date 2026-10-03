@@ -1,13 +1,16 @@
-"""Tables from the per-task JSONs of itpd.run_single_series.   python scripts/single_series_collect.py DIR [--out FILE]   Numbers only."""
+"""Tables from the per-task JSONs of `itpd.experiments single_series`.
+
+    python -m itpd.tables single_series DIR [--out FILE]
+
+Numbers only.
+"""
 import argparse
 import os
-import sys
 from collections import defaultdict
 
 import numpy as np
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from finite_common import load_tasks, md, q  # noqa: E402
+from .common import load_tasks, md, q
 
 
 def get(t, name):
@@ -16,11 +19,12 @@ def get(t, name):
             return r
 
 
-def main():
-    ap = argparse.ArgumentParser()
+def main(argv=None):
+    ap = argparse.ArgumentParser(prog="python -m itpd.tables single_series", description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("dir")
     ap.add_argument("--out")
-    a = ap.parse_args()
+    a = ap.parse_args(argv)
     tasks = load_tasks(os.path.join(a.dir, "N*", "g*.json"))
     by = defaultdict(list)
     for t in tasks:

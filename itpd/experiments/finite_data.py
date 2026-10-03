@@ -1,10 +1,10 @@
 """Finite-data driver: Fisher-z runs of the ITPD family and the full-conditioning baseline on S2 instances, one JSON per (cell, graph, M), resumable.
 
-    python -m itpd.run_finite_data --out-dir DIR --arm window --N 10,20 --T 8,16 --M 50,100,200,500,2000 --graphs 20 --workers 16
+    python -m itpd.experiments finite_data --out-dir DIR --arm window --N 10,20 --T 8,16 --M 50,100,200,500,2000 --graphs 20 --workers 16
         [--tau 1 --d 2 --seed 0 --budget-sec 780 --small]
 
 Cell = (arm, N, T, tau, d); arm "window" (stationary lag graph, lag weights fixed in t) or "time"
-(per-source edges, per-step weights); instances and weights are the ones of the oracle runs (`run_oracle_counts.make_instance`,
+(per-source edges, per-step weights); instances and weights are the ones of the oracle runs (`oracle_counts.make_instance`,
 same seed convention), so a finite-data graph has the same sha1 as the oracle-run graph of the same cell and index. Data: the first
 M rows of one M_max = 2000 matrix per graph (paired across M and across methods). Linear-Gaussian, Fisher-z, alpha grid
 `dataset_eval.ALPHAS` (the headline alpha is 0.01), full history, process order = time. Methods: `dataset_eval.ITPD_AND_ORDER_SPECS`
@@ -16,13 +16,12 @@ from __future__ import annotations
 
 import argparse
 import itertools
-import json
 import os
 import time
 
-
-from . import dataset_eval, observed_data
-from .instances import graph_hash, save_instance
+from .. import dataset_eval, observed_data
+from ..instances import graph_hash, save_instance
+from . import common
 
 M_MAX = observed_data.M_MAX
 
@@ -74,11 +73,7 @@ def run_task(a):
     res.update({"cell": cell, "arm": arm, "N": N, "T": T, "tau": tau, "d": d, "seed": seed, "graph": g,
                 "sha1": graph_hash(inst["A"]), "data_seed": inst["data_seed"], "M_max": M_MAX,
                 "n_true_edges_nonself": int(len(edges)), "seconds": time.time() - t0})
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    tmp = path + f".tmp{os.getpid()}"
-    with open(tmp, "w") as f:
-        json.dump(res, f, default=lambda o: o.item() if hasattr(o, "item") else str(o))
-    os.replace(tmp, path)
+    common.dump_json(path, res)
     return path, "done", time.time() - t0
 
 
@@ -87,17 +82,6 @@ def est_cost(N, T, M):
     n = N * T
     feas = min(1.0, max(0.05, (M - N) / max(n - N, 1)))
     return (n / 320.0) ** 2.2 * 400.0 * feas
-
-
-def _guarded(a, deadline):
-    if time.time() > deadline:
-        return a, "skipped", 0.0
-    return run_task(a)
-
-
-def _worker(args):
-    a, deadline = args
-    return _guarded(a, deadline)
 
 
 def main(argv=None):
@@ -112,37 +96,26 @@ def main(argv=None):
     ap.add_argument("--graphs", type=int, default=20)
     ap.add_argument("--offset", type=int, default=0)
     ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--workers", type=int, default=1)
     ap.add_argument("--instances-only", action="store_true", help="(re)write the instance files only (overwrites)")
     ap.add_argument("--small", action="store_true", help="alpha = 0.01 only, methods itpd_naive, itpd, order (+ nl)")
-    ap.add_argument("--budget-sec", type=float, default=1e9, help="start no new task after this many seconds")
+    common.add_pool_args(ap)
     a = ap.parse_args(argv)
-    ints = lambda s: [int(x) for x in s.split(",")]
     tasks = []
-    for N, T, M in itertools.product(ints(a.N), ints(a.T), ints(a.M)):
+    for N, T, M in itertools.product(common.ints(a.N), common.ints(a.T), common.ints(a.M)):
         for g in range(a.offset, a.offset + a.graphs):
             tasks.append((a.out_dir, a.arm, N, T, a.tau, a.d, a.seed, g, M, "small" if a.small else "full"))
     if a.instances_only:
-        for N, T in itertools.product(ints(a.N), ints(a.T)):
+        for N, T in itertools.product(common.ints(a.N), common.ints(a.T)):
             for g in range(a.offset, a.offset + a.graphs):
                 write_instance(a.out_dir, cell_name(a.arm, N, T, a.tau, a.d), make_inst(a.arm, N, T, a.tau, a.d, a.seed, g), True)
         return
     todo = [t for t in tasks if not os.path.exists(task_path(t[0], cell_name(*t[1:6]), t[7], t[8]))]
     todo.sort(key=lambda t: -est_cost(t[2], t[3], t[8]))
     print(f"tasks {len(tasks)} todo {len(todo)}", flush=True)
-    deadline = time.time() + a.budget_sec
     t0 = time.time()
-    if a.workers <= 1:
-        for t in todo:
-            r = _guarded(t, deadline)
-            print(r[1], os.path.basename(r[0]) if isinstance(r[0], str) else "", round(r[2], 1), flush=True)
-    else:
-        import multiprocessing as mp
-        with mp.get_context("fork").Pool(a.workers) as pool:
-            for r in pool.imap_unordered(_worker, [(t, deadline) for t in todo], chunksize=1):
-                pass
+    common.run_tasks(run_task, todo, a.workers, t0 + a.budget_sec, common.print_progress)
     left = len([t for t in tasks if not os.path.exists(task_path(t[0], cell_name(*t[1:6]), t[7], t[8]))])
-    print(f"done in {time.time() - t0:.0f}s; remaining {left}", flush=True)
+    common.finish(t0, left)
 
 
 if __name__ == "__main__":

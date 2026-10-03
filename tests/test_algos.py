@@ -193,7 +193,7 @@ def test_metrics_conventions():
 
 
 def test_instance_export_with_weights_keeps_the_graph():
-    from itpd import run_oracle_counts as oracle_counts
+    from itpd.experiments import oracle_counts
     for kind in ("time", "window"):
         g1, W1 = oracle_counts.make_instance(4, 6, 2, 2.0, 0, 3, kind, with_weights=False)
         g2, W2 = oracle_counts.make_instance(4, 6, 2, 2.0, 0, 3, kind, with_weights=True)
@@ -203,7 +203,7 @@ def test_instance_export_with_weights_keeps_the_graph():
 
 
 def test_oracle_counts_methods_subset():
-    from itpd import run_oracle_counts as oracle_counts
+    from itpd.experiments import oracle_counts
     res = oracle_counts.run_cell(3, 4, 1, 1.0, 2, 0, None, methods=oracle_counts.select_methods("order,itpd_naive"))
     assert {r["name"] for r in res["rows"]} == {"full_conditioning", "itpd_naive"}
     assert all(r["exact"] for r in res["rows"])
@@ -264,7 +264,7 @@ def test_adjacency_self_saves_one_pair_of_tests_per_target_at_most():
 
 
 def test_adjacency_self_finite_data_runs_and_oracle_counts_selects_it():
-    from itpd import run_oracle_counts as oracle_counts
+    from itpd.experiments import oracle_counts
     rng = np.random.default_rng(3)
     r = sim.simulate_s2(3, 6, 600, 1.5, 2, rng)
     o = runlib.run_s2_method("itpd_adjself", r, ci_kind="fisherz", tau_max=None)

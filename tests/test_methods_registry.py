@@ -4,7 +4,8 @@ import os
 
 import numpy as np
 
-from itpd import dataset_eval, method_runner, run_blanket_screened_shrink, run_known_order_baselines, run_oracle_counts, run_nonlinear, run_robustness, sim
+from itpd import dataset_eval, method_runner, sim
+from itpd.experiments import nonlinear_data, oracle_counts, robustness, stored_instances
 from itpd.methods_registry import BY_NAME, METHODS, OLD_SCREENING_TO_NEW, OLD_TO_NEW
 
 README = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "itpd", "README.md")
@@ -71,34 +72,34 @@ def test_spec_tables_equal_the_hand_written_tables_before_the_rename():
 
     assert dataset_eval.ITPD_AND_ORDER_SPECS == translated(old_finite)
     assert dataset_eval.IAMB_MARGINAL_FIRST_SPECS == translated(old_known_order)
-    assert run_blanket_screened_shrink.SHRINK_FINITE_SPECS == translated(old_f)
-    assert dataset_eval.PRIMARY_ALPHA_SPECS == run_robustness.ROBUSTNESS_SPECS == translated(old_robust)
-    assert run_nonlinear.specs_for((0.01, 0.05)) == (
+    assert stored_instances.SHRINK_FINITE_SPECS == translated(old_f)
+    assert dataset_eval.PRIMARY_ALPHA_SPECS == robustness.ROBUSTNESS_SPECS == translated(old_robust)
+    assert nonlinear_data.specs_for((0.01, 0.05)) == (
         ("itpd_naive", "itpd_naive", "paper", True, (0.01, 0.05)), ("itpd", "itpd", "paper", True, (0.01, 0.05)),
         ("full_conditioning", "full_conditioning", None, False, (0.01, 0.05)))
     # oracle runs
     old_oracle = (("itpd_naive", "itpd_naive", "paper", True), ("itpd", "itpd", "paper", True), ("itpd_repo", "itpd", "repo", True),
                   ("itpd_naive_nl", "itpd_naive", "paper", False), ("itpd_nl", "itpd", "paper", False),
                   ("itpd_repo_nl", "itpd", "repo", False), ("order", "order", None, False))
-    assert run_oracle_counts.ORACLE_SPECS == tuple((new(n), new(f), v, lz) for n, f, v, lz in old_oracle)
-    assert [s[0] for s in run_oracle_counts.EXTRA_ORACLE_SPECS] == ["itpd_adjacency_self", "itpd_adjacency_self_nonlazy"]
-    assert run_known_order_baselines.ORACLE_SPECS == (
+    assert oracle_counts.ORACLE_SPECS == tuple((new(n), new(f), v, lz) for n, f, v, lz in old_oracle)
+    assert [s[0] for s in oracle_counts.EXTRA_ORACLE_SPECS] == ["itpd_adjacency_self", "itpd_adjacency_self_nonlazy"]
+    assert stored_instances.KNOWN_ORDER_ORACLE_SPECS == (
         ("iamb_known_order", "iamb_known_order", {"lazy": False}), ("iamb_known_order_tie_first", "iamb_known_order", {"lazy": False, "tie": "first"}),
         ("iamb_known_order_tie_random", "iamb_known_order", {"lazy": False, "tie": "random:7"}),
         ("itpd_marginal_first", "itpd_marginal_first", {"lazy": True}), ("itpd_marginal_first_nonlazy", "itpd_marginal_first", {"lazy": False}))
-    assert dict(run_blanket_screened_shrink.SHRINK_ORACLE_VARIANTS) == {
+    assert dict(stored_instances.SHRINK_ORACLE_VARIANTS) == {
         "blanket_screened_shrink": {"screening": "learned_blanket"}, "blanket_screened_shrink_oracle_blanket": {"screening": "oracle_blanket"},
         "blanket_screened_shrink_x_only": {"screening": "none"}, "blanket_screened_shrink_union": {"screening": "union"},
         "blanket_screened_shrink_recheck": {"screening": "learned_blanket", "recheck": True}, "blanket_screened_shrink_shifted_parents": {"screening": "shifted_parents"}}
-    assert [n for n, _ in run_blanket_screened_shrink.SHRINK_ORACLE_VARIANTS] == ["blanket_screened_shrink", "blanket_screened_shrink_oracle_blanket", "blanket_screened_shrink_x_only",
+    assert [n for n, _ in stored_instances.SHRINK_ORACLE_VARIANTS] == ["blanket_screened_shrink", "blanket_screened_shrink_oracle_blanket", "blanket_screened_shrink_x_only",
                                                            "blanket_screened_shrink_union", "blanket_screened_shrink_recheck", "blanket_screened_shrink_shifted_parents"]
 
 
 def test_every_name_used_by_a_driver_is_in_the_registry():
-    used = {s[0] for s in dataset_eval.ITPD_AND_ORDER_SPECS + dataset_eval.IAMB_MARGINAL_FIRST_SPECS + run_blanket_screened_shrink.SHRINK_FINITE_SPECS}
-    used |= {s[0] for s in run_oracle_counts.ORACLE_SPECS + run_oracle_counts.EXTRA_ORACLE_SPECS}
-    used |= {s[0] for s in run_known_order_baselines.ORACLE_SPECS + run_known_order_baselines.TIMING_SPECS}
-    used |= {n for n, _ in run_blanket_screened_shrink.SHRINK_ORACLE_VARIANTS}
+    used = {s[0] for s in dataset_eval.ITPD_AND_ORDER_SPECS + dataset_eval.IAMB_MARGINAL_FIRST_SPECS + stored_instances.SHRINK_FINITE_SPECS}
+    used |= {s[0] for s in oracle_counts.ORACLE_SPECS + oracle_counts.EXTRA_ORACLE_SPECS}
+    used |= {s[0] for s in stored_instances.KNOWN_ORDER_ORACLE_SPECS + stored_instances.TIMING_SPECS}
+    used |= {n for n, _ in stored_instances.SHRINK_ORACLE_VARIANTS}
     assert used <= set(BY_NAME), used - set(BY_NAME)
 
 

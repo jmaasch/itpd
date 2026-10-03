@@ -5,7 +5,7 @@ import os
 import numpy as np
 
 from itpd import ci, nonlinear, instances
-from itpd import run_nonlinear as driver, run_oracle_counts as oracle_counts
+from itpd.experiments import nonlinear_data as driver, oracle_counts
 
 
 def test_nonlinear_instance_graph_pairs_with_oracle_window_and_data_reproducible(tmp_path):

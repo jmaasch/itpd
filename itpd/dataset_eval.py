@@ -38,7 +38,7 @@ ITPD_AND_ORDER_SPECS = (
     spec("itpd_adjacency_self", (PRIMARY,)),
     spec("itpd_adjacency_self_nonlazy", (PRIMARY,)),
 )
-# Known-order IAMB per target and ITPD + marginal-first (lazy headline + non-lazy beside it at PRIMARY); run by run_known_order_baselines.
+# Known-order IAMB per target and ITPD + marginal-first (lazy headline + non-lazy beside it at PRIMARY); run by experiments/stored_instances.py (known_order).
 IAMB_MARGINAL_FIRST_SPECS = (
     spec("iamb_known_order", ALPHAS),
     spec("itpd_marginal_first", ALPHAS),

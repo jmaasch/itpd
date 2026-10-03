@@ -4,7 +4,8 @@ import numpy as np
 import pytest
 
 from itpd import ci, instances, itpd as I, sim
-from itpd import dataset_eval as finite, method_runner as runlib, observed_data as violations, run_single_series as s1x
+from itpd import dataset_eval as finite, method_runner as runlib, observed_data as violations
+from itpd.experiments import single_series as s1x
 from itpd.metrics import edge_metrics
 
 

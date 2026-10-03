@@ -1,29 +1,56 @@
-"""Tables from the per-task JSONs of itpd.run_finite_data.   python scripts/finite_collect.py DIR [--out DIR/TABLES.md]
+"""Tables from the per-task JSONs of `itpd.experiments finite_data`.
+
+    python -m itpd.tables finite_data DIR [--out DIR/TABLES.md] [--oracle ORACLE_DIR]
+        [--M-ref 2000] [--sens-cells 10x8:500,20x16:2000,20x8:500] [--sens-alphas 0.001,0.01,0.05]
+
 Numbers only. Median [Q1, Q3] over graphs unless stated; all graphs of every cell are in every table (an infeasible
-target is excluded from its method's score, the share is shown; a graph is never dropped)."""
+target is excluded from its method's score, the share is shown; a graph is never dropped). `--M-ref` is the M at which every
+target is feasible (the largest-set table and the pairing with the oracle runs use it); `--sens-cells` and `--sens-alphas`
+are the cells (N x T : M) and the alphas of the alpha-sensitivity table.
+"""
 import argparse
+import json
 import os
-import sys
 from collections import defaultdict
 
 import numpy as np
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from finite_common import BIN_LABELS, OLD_TO_NEW, boot_ci, fmt_ci, load_tasks, md, q, run_of, size_bins  # noqa: E402
+from itpd import observed_data
+from itpd.instances import load_instance
 
-LAZY = ["itpd_naive", "itpd", "itpd_repo_variant", "full_conditioning"]
+from .common import BIN_LABELS, LAZY, boot_ci, fmt_ci, load_tasks, md, new_name, q, run_of, size_bins
+
 EXTRA = ["itpd_adjacency_self"]
 NL = {"itpd_naive": "itpd_naive_nonlazy", "itpd": "itpd_nonlazy", "itpd_repo_variant": "itpd_repo_variant_nonlazy", "itpd_adjacency_self": "itpd_adjacency_self_nonlazy"}
-ALPHAS = None
 BINS = [(0, 0.05), (0.05, 0.1), (0.1, 0.2), (0.2, 0.4), (0.4, 1.01)]
 
 
-def main():
-    ap = argparse.ArgumentParser()
+def finite_ct(N, T, M):
+    return int(max(0, min(T - 1, (M - 3) // N)))
+
+
+def parse_sens_cells(s):
+    """'10x8:500,20x16:2000' -> {(10, 8, 500), (20, 16, 2000)}."""
+    out = set()
+    for part in s.split(","):
+        nt, M = part.split(":")
+        N, T = (int(v) for v in nt.split("x"))
+        out.add((N, T, int(M)))
+    return out
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(prog="python -m itpd.tables finite_data", description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("dir")
     ap.add_argument("--out")
     ap.add_argument("--oracle", default=None, help="results directory of the oracle runs of the same arm (pairing / finite-vs-oracle counts)")
-    a = ap.parse_args()
+    ap.add_argument("--M-ref", type=int, default=2000, help="M with every target feasible (largest-set table, pairing with the oracle runs)")
+    ap.add_argument("--sens-cells", default="10x8:500,20x16:2000,20x8:500", help="cells N x T : M of the alpha-sensitivity table")
+    ap.add_argument("--sens-alphas", default="0.001,0.01,0.05", help="alphas of the alpha-sensitivity table")
+    a = ap.parse_args(argv)
+    sens_cells = parse_sens_cells(a.sens_cells)
+    sens_alphas = [float(x) for x in a.sens_alphas.split(",")]
     tasks = load_tasks(os.path.join(a.dir, "*", "g*_M*.json"))
     if not tasks:
         raise SystemExit("no tasks")
@@ -143,20 +170,18 @@ def main():
     rows = []
     for (N, T) in sorted({(k[0], k[1]) for k in keys}):
         for m in LAZY:
-            big = [run_of(t, m) for t in by.get((N, T, 2000), [])]
+            big = [run_of(t, m) for t in by.get((N, T, a.M_ref), [])]
             if not big:
                 continue
             tm = [max(r["target_max"]) for r in big]
             rows.append([N, T, m, q(tm), f"{int(np.median(tm)) + 4}", q([np.median(r["target_max"]) for r in big]),
                          " ".join(f"{k[2]}:{np.mean([run_of(t, m)['n_inf_targets'] / run_of(t, m)['n_targets'] for t in by[k]]):.2f}"
                                   for k in keys if k[:2] == (N, T))])
-    L += ["\n### Largest conditioning set per graph (max over targets, from the M = 2,000 runs, all targets feasible) and the M it needs "
+    L += [f"\n### Largest conditioning set per graph (max over targets, from the M = {a.M_ref:,} runs, all targets feasible) and the M it needs "
           "(= largest + 4); median per target; measured infeasible-target share by M (mean over graphs)\n",
           md(["N", "T", "method", "largest set per graph", "M needed (median)", "median target-max", "infeasible share by M (M:share)"], rows)]
 
     # FN by population strength
-    from itpd import observed_data
-    import itpd.instances as inst_mod
     rows = []
     for k in keys:
         acc = {m: np.zeros((len(BINS), 2)) for m in LAZY}
@@ -166,7 +191,7 @@ def main():
             ip = os.path.join(a.dir, "instances", t["cell"], f"g{t['graph']:02d}.npz")
             if not os.path.exists(ip):
                 continue
-            inst = inst_mod.load_instance(ip)
+            inst = load_instance(ip)
             Sig = observed_data.sigma_from_W(inst["W"])
             es = observed_data.edge_strengths(inst["A"], Sig, k[0], k[1])
             inc = (es["edges"][:, 1] // k[0]) <= t["common_tmax"]
@@ -185,10 +210,10 @@ def main():
 
     # alpha sensitivity
     rows = []
-    for k in [kk for kk in keys if kk in ((10, 8, 500), (20, 16, 2000), (20, 8, 500))]:
+    for k in [kk for kk in keys if kk in sens_cells]:
         ts = [t for t in by[k] if t["common_tmax"] >= 1]
         for m in LAZY:
-            for al in (0.001, 0.01, 0.05):
+            for al in sens_alphas:
                 rs = [run_of(t, m, al) for t in ts]
                 if any(r is None for r in rs):
                     continue
@@ -199,29 +224,24 @@ def main():
 
     # pairing with the oracle runs and finite vs oracle counts
     if a.oracle:
-        import json as _j
         rows = []
         for (N, T) in sorted({(k[0], k[1]) for k in keys}):
             pf = os.path.join(a.oracle, f"N{N}_T{T}_tau{tasks[0]['tau']}_d{tasks[0]['d']:g}.json")
-            if not os.path.exists(pf) or (N, T, 2000) not in by:
+            if not os.path.exists(pf) or (N, T, a.M_ref) not in by:
                 continue
-            orc = _j.load(open(pf))
-            o = {(r["graph"], OLD_TO_NEW.get(r["name"], r["name"])): r for r in orc["rows"]}
-            tk = [t for t in by[(N, T, 2000)] if (t["graph"], "full_conditioning") in o]      # graphs beyond the oracle grid (index >= 20) have no oracle pair
+            orc = json.load(open(pf))
+            o = {(r["graph"], new_name(r["name"])): r for r in orc["rows"]}
+            tk = [t for t in by[(N, T, a.M_ref)] if (t["graph"], "full_conditioning") in o]      # graphs beyond the oracle grid (index >= 20) have no oracle pair
             same = all(o[(t["graph"], "full_conditioning")]["graph_stats"]["sha1"] == t["sha1"] for t in tk)
             for m in ("itpd_naive", "itpd", "full_conditioning"):
                 rat = [run_of(t, m)["unique"] / o[(t["graph"], m)]["unique"] for t in tk if run_of(t, m)["n_inf_targets"] == 0]
                 rows.append([N, T, m, "yes" if same else "NO", q(rat)])
-        L += ["\n### Finite-data unique tests (M = 2,000, alpha 0.01) / oracle unique tests, same graph (sha1 equal), per graph\n",
+        L += [f"\n### Finite-data unique tests (M = {a.M_ref:,}, alpha 0.01) / oracle unique tests, same graph (sha1 equal), per graph\n",
               md(["N", "T", "method", "same sha1 as the oracle run", "ratio"], rows)]
     txt = "\n".join(L) + "\n"
     out = a.out or os.path.join(a.dir, "TABLES.md")
     open(out, "w").write(txt)
     print("wrote", out, len(txt))
-
-
-def finite_ct(N, T, M):
-    return int(max(0, min(T - 1, (M - 3) // N)))
 
 
 if __name__ == "__main__":
