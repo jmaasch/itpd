@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "itpd"
+version = "0.2.0"
+description = "Instrumented ITPD, ITPD_naive and an order-based baseline on one CI-test foundation"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["numpy", "scipy", "scikit-learn", "networkx>=3.3", "pandas", "causal-learn"]
+
+[project.optional-dependencies]
+# The parity tests import the original modules in legacy/, which need matplotlib and seaborn.
+test = ["pytest", "matplotlib", "seaborn"]
+
+[tool.setuptools.packages.find]
+include = ["itpd*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
