@@ -1,10 +1,10 @@
 """Run one method on one instance and return a JSON-able summary (config, metrics, recorder summary, rules fired).
 
 `run_s2_method(method, ...)`: `method` is one of "itpd_naive", "itpd", "itpd_adjacency_self", "itpd_marginal_first", "full_conditioning",
-"iamb_known_order", "blanket_screened_shrink" (the `function` column of methods_registry.py); the strings of earlier releases
-("order", "order_based", "hpv", "itpd_adjself", ...; `OLD_TO_NEW`) are still accepted and written back under the new name.
+"iamb_known_order", "itpd_s" (the `function` column of methods_registry.py); the strings of earlier releases
+("order", "order_based", "itpd_adjself", ...; `OLD_TO_NEW`) are still accepted and written back under the new name.
 `run_s1_method` is the single-series setting.
-"blanket_screened_shrink" (itpd/blanket_screened_shrink.py) takes its options as `shrink=dict(screening=..., alpha_A=...,
+"itpd_s" (itpd/itpd_s.py: ITPD-S, and ITPD-S+ with recheck=True) takes its options as `shrink=dict(screening=..., alpha_A=...,
 recheck=..., cap=..., keep_parent_tests=...)`; `alpha` is alpha_B (alpha_A defaults to alpha). The truth graph is passed to
 it for screening="oracle_blanket" and for diagnostics only. "iamb_known_order" (itpd/iamb.py) is IAMB per target with the self
 edge known and has no options. "itpd_marginal_first" is ITPD with the Z8 step never skipped and the Y-marginal
@@ -18,7 +18,7 @@ import time
 
 import numpy as np
 
-from . import blanket_screened_shrink as _shrink
+from . import itpd_s as _shrink
 from . import iamb as _iamb
 from . import itpd as _itpd
 from .baselines import full_conditioning as _full_conditioning
@@ -71,7 +71,7 @@ def run_s2_method(method: str, sim: SimResult | None, *, graph=None, ci_kind: st
                                rules=_itpd.RULES, per_target=per_target, marginal_first=True)
         elif method == "iamb_known_order":
             res = _iamb.run_s2(rec, N, T, alpha, tau_max=tau_max, order=order, per_target=per_target)
-        elif method == "blanket_screened_shrink":
+        elif method == "itpd_s":
             kw = dict(shrink or {})
             aA = kw.pop("alpha_A", None)
             res = _shrink.run_s2(rec, N, T, alpha if aA is None else aA, alpha, A_true=g.A, per_target=per_target, **kw)
@@ -92,7 +92,7 @@ def run_s2_method(method: str, sim: SimResult | None, *, graph=None, ci_kind: st
                "metrics": None if n_bad == n_scored_targets else edge_metrics(g.A, res.A_hat, N, T, targets=tmask),
                "n_targets": n_scored_targets, "n_infeasible_targets": n_bad, "infeasible_targets": bad,
                "tests": res.summary, "skips": res.skips, "seconds": res.seconds, "per_pair": res.per_pair}
-        if method == "blanket_screened_shrink":
+        if method == "itpd_s":
             out["variant"], out["shrink"], out["shrink_stats"] = None, dict(shrink or {}), res.stats
         if method == "iamb_known_order":
             out["iamb_stats"] = res.stats
@@ -112,7 +112,7 @@ def run_s2_method(method: str, sim: SimResult | None, *, graph=None, ci_kind: st
            "variant": variant if method not in ("full_conditioning", "iamb_known_order") else None, "order": order, "lazy": lazy,
            "metrics": edge_metrics(g.A, res.A_hat, N, T), "tests": res.summary, "skips": res.skips,
            "seconds": res.seconds, "per_pair": res.per_pair}
-    if method == "blanket_screened_shrink":
+    if method == "itpd_s":
         out["variant"], out["shrink"], out["shrink_stats"] = None, dict(shrink or {}), res.stats
     if method == "iamb_known_order":
         out["iamb_stats"] = res.stats

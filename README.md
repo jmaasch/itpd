@@ -6,7 +6,7 @@ Iterative Temporal Parent Discovery (ITPD) is a constraint-based causal discover
 
 ```
 .
-├── itpd/                # Instrumented implementation of ITPD, ITPD_naive and baselines (package; see itpd/README.md). itpd/experiments and itpd/tables hold the experiment drivers and the collectors.
+├── itpd/                # Instrumented implementation of ITPD, ITPD_naive, ITPD-S (blanket-screened shrink), ITPD-S+ (ITPD-S with a re-check) and baselines (package; see itpd/README.md). itpd/experiments and itpd/tables hold the experiment drivers and the collectors.
 ├── tests/                # Tests of the package, including parity tests against legacy/.
 ├── pyproject.toml
 ├── legacy/

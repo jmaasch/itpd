@@ -1,4 +1,4 @@
-"""Runs on the stored instances of earlier runs: the known-order baselines (`known_order`) and the blanket-screened shrink (`shrink`).
+"""Runs on the stored instances of earlier runs: the known-order baselines (`known_order`) and ITPD-S and ITPD-S+ (`itpd_s`).
 Nothing is regenerated except the data of a finite-data instance, which is checked against its stored data_sha1. One JSON per
 task, resumable (an existing file is skipped). The earlier runs are read from the results directory R (`--results`, default
 $ITPD_RESULTS or ./results): `python -m itpd.experiments oracle_counts cell ... --out R/oracle/<arm>/N<N>_T<T>_tau<tau>_d2.json
@@ -10,10 +10,10 @@ $ITPD_RESULTS or ./results): `python -m itpd.experiments oracle_counts cell ... 
     python -m itpd.experiments stored_instances known_order lasso_ebic_fixed --out-dir OUT/lasso --workers 16 [--cells ... --M ...]
         (extended-BIC and fixed-penalty lasso, see itpd/lasso.py)
     python -m itpd.experiments stored_instances known_order timing --out-dir OUT/timing --workers 4 [--cells 10x8:0-4,...] [--M 200,2000]
-    python -m itpd.experiments stored_instances shrink oracle --out-dir OUT/oracle --workers 12 [--arm time,window --N 10,20 --T 8,16 --tau 1,2 --graphs 20]
-    python -m itpd.experiments stored_instances shrink finite --out-dir OUT/finite --workers 12 [--N 10,20 --T 8,16 --M 50,100,200,500,2000 --graphs 20]
+    python -m itpd.experiments stored_instances itpd_s oracle --out-dir OUT/oracle --workers 12 [--arm time,window --N 10,20 --T 8,16 --tau 1,2 --graphs 20]
+    python -m itpd.experiments stored_instances itpd_s finite --out-dir OUT/finite --workers 12 [--N 10,20 --T 8,16 --M 50,100,200,500,2000 --graphs 20]
         [--budget-sec S]   (start no new task after S seconds)
-        [--specs blanket_screened_shrink_recheck,blanket_screened_shrink_recheck_lenient]   (run only these entries of SHRINK_FINITE_SPECS; default all; use a new --out-dir)
+        [--specs itpd_s_plus,itpd_s_plus_lenient]   (run only these entries of SHRINK_FINITE_SPECS; default all; use a new --out-dir)
         [--shard K/NSH]    (this process runs tasks K, K + NSH, ... of the cost-sorted list; one shard per batch job)
         [--summary FILE]   (one-line summary written at the end)
 
@@ -31,11 +31,11 @@ timing: wall-clock per method at alpha 0.01 with a fresh test object and no shar
 one p-value memo among the methods of a dataset, so their `seconds` are not comparable); per task one process, methods one
 after another, perf_counter and process CPU time.
 
-shrink oracle: instances R/instances/<arm>/N<N>_T<T>_tau<tau>_d2_<arm>_g<g>.npz, sha1 checked against the stored oracle-run row of the same
-graph (R/oracle/<arm>/N<N>_T<T>_tau<tau>_d2.json, graph_stats.sha1) and Sum|C| against its n_cand. blanket-screened shrink variants (`SHRINK_ORACLE_VARIANTS`):
-screening sets learned_blanket, oracle_blanket, none, union, learned_blanket + re-check (blanket_screened_shrink_recheck), and shifted_parents (window arm only); exact
+itpd_s oracle: instances R/instances/<arm>/N<N>_T<T>_tau<tau>_d2_<arm>_g<g>.npz, sha1 checked against the stored oracle-run row of the same
+graph (R/oracle/<arm>/N<N>_T<T>_tau<tau>_d2.json, graph_stats.sha1) and Sum|C| against its n_cand. ITPD-S variants (`SHRINK_ORACLE_VARIANTS`):
+screening sets learned_blanket, oracle_blanket, none, union, learned_blanket + re-check (itpd_s_plus), and shifted_parents (window arm only); exact
 d-separation oracle on the full graph.
-shrink finite: instances R/finite/window/instances/window_N<N>_T<T>_tau1_d2/g<g>.npz, sha1 and data_seed checked against the stored finite-data task
+itpd_s finite: instances R/finite/window/instances/window_N<N>_T<T>_tau1_d2/g<g>.npz, sha1 and data_seed checked against the stored finite-data task
 JSON, data regenerated and checked against data_sha1 (M = 2000), the first M rows used (paired across M).
 Methods `SHRINK_FINITE_SPECS` through dataset_eval.run_dataset (Fisher-z, one shared p-value memo per dataset, per-target infeasibility,
 common targets t <= (M - 3) / N). For the true parents, the population partial correlation given the screening set actually
@@ -206,7 +206,7 @@ def lasso_ebic_fixed_task(a):
 TIMING_SPECS = (("itpd_naive", "itpd_naive", {"lazy": True}), ("itpd", "itpd", {"lazy": True}),
                 ("itpd_marginal_first", "itpd_marginal_first", {"lazy": True}), ("full_conditioning", "full_conditioning", {}),
                 ("iamb_known_order", "iamb_known_order", {}),
-                ("blanket_screened_shrink_recheck", "blanket_screened_shrink", {"shrink": shrink_options("blanket_screened_shrink_recheck")}))
+                ("itpd_s_plus", "itpd_s", {"shrink": shrink_options("itpd_s_plus")}))
 
 
 def timing_task(a):
@@ -246,27 +246,27 @@ def parse_cells(s):
     return out
 
 
-# ------------------------------------------------------------------------------------------------ blanket-screened shrink: variants and specs
+# ------------------------------------------------------------------------------------------------ ITPD-S and ITPD-S+: variants and specs
 
 ALPHAS = dataset_eval.ALPHAS
 ALPHAS_LEN = tuple(a for a in ALPHAS if a <= 0.1 + 1e-12)
 SHRINK_FINITE_SPECS = (                      # built from methods_registry.spec; set by main(--specs); forked workers inherit it
-    spec("blanket_screened_shrink", ALPHAS, keep_parent_tests=True),
-    spec("blanket_screened_shrink_lenient", ALPHAS_LEN, keep_parent_tests=True),
-    spec("blanket_screened_shrink_oracle_blanket", (dataset_eval.PRIMARY,), keep_parent_tests=True),
-    spec("blanket_screened_shrink_oracle_blanket_lenient", (dataset_eval.PRIMARY,), keep_parent_tests=True),
+    spec("itpd_s", ALPHAS, keep_parent_tests=True),
+    spec("itpd_s_lenient", ALPHAS_LEN, keep_parent_tests=True),
+    spec("itpd_s_oracle_blanket", (dataset_eval.PRIMARY,), keep_parent_tests=True),
+    spec("itpd_s_oracle_blanket_lenient", (dataset_eval.PRIMARY,), keep_parent_tests=True),
     # the re-check (always-verify) at equal alpha with the full 13-point sweep (matched-false-positive curves); the lenient
     # row sweeps alpha_B with alpha_A = 0.1
-    spec("blanket_screened_shrink_recheck", ALPHAS),
-    spec("blanket_screened_shrink_recheck_lenient", ALPHAS_LEN),
+    spec("itpd_s_plus", ALPHAS),
+    spec("itpd_s_plus_lenient", ALPHAS_LEN),
 )
 ACTIVE_SHRINK_SPECS = SHRINK_FINITE_SPECS
 SHRINK_ORACLE_VARIANTS = tuple((n, shrink_options(n)) for n in (
-    "blanket_screened_shrink", "blanket_screened_shrink_oracle_blanket", "blanket_screened_shrink_x_only", "blanket_screened_shrink_union", "blanket_screened_shrink_recheck",
-    "blanket_screened_shrink_shifted_parents"))
+    "itpd_s", "itpd_s_oracle_blanket", "itpd_s_x_only", "itpd_s_union", "itpd_s_plus",
+    "itpd_s_shifted_parents"))
 
 
-# ------------------------------------------------------------------------------------------------ blanket-screened shrink: oracle
+# ------------------------------------------------------------------------------------------------ ITPD-S and ITPD-S+: oracle
 
 @lru_cache(maxsize=None)
 def _oracle_rows(oracle_dir, arm, N, T, tau):
@@ -293,9 +293,9 @@ def shrink_oracle_task(a):
     e_nonself = int(A.sum()) - N * (T - 1)
     rows = []
     for name, kw in SHRINK_ORACLE_VARIANTS:
-        if name == "blanket_screened_shrink_shifted_parents" and arm != "window":
+        if name == "itpd_s_shifted_parents" and arm != "window":
             continue
-        o = method_runner.run_s2_method("blanket_screened_shrink", None, graph=gr, ci_kind="oracle", alpha=0.01, per_target=True, shrink=kw)
+        o = method_runner.run_s2_method("itpd_s", None, graph=gr, ci_kind="oracle", alpha=0.01, per_target=True, shrink=kw)
         pp, t = o["per_pair"], o["tests"]
         sum_c = sum(p["n_cand"] for p in pp)
         assert sum_c == ncand_stored
@@ -317,7 +317,7 @@ def shrink_oracle_task(a):
             "overhead_bound": 1 + 2 * (din - 1) / (N * T - 2),
             # learned_blanket / oracle_blanket: |S_A| <= b(Z) + |F|; union adds |pa_hat(X)| (= true in-degree of X here)
             "n_bound_b_viol": int(sum(1 for p in pp if "b_max" in p and p["max_SA"] > p["b_max"] + 1
-                                      + (int(A[:, p["pair"][0]].sum()) if name == "blanket_screened_shrink_union" else 0))),
+                                      + (int(A[:, p["pair"][0]].sum()) if name == "itpd_s_union" else 0))),
             "n_bound_glob_viol": int(sum(1 for p in pp if p["max_SA"] > din * (1 + dout) + 1)),
             "glob_bound": din * (1 + dout) + 1,
             "excess_by_t": {str(k): v[0] for k, v in sorted(by_t.items())},
@@ -327,7 +327,7 @@ def shrink_oracle_task(a):
     return path, "done", time.time() - t0
 
 
-# ------------------------------------------------------------------------------------------------ blanket-screened shrink: finite data
+# ------------------------------------------------------------------------------------------------ ITPD-S and ITPD-S+: finite data
 
 def _pcorr(Sig, a, b, S):
     idx = [a, b] + [int(s) for s in S]
@@ -380,7 +380,7 @@ def _shrink_path(mode, t):
 
 def _run(a, fn, tasks, cost, path_of, drop_done):
     """Biggest tasks first, optionally one shard of the list, stop starting tasks after the budget; the closing line reports errors,
-    remaining and tasks. known_order lists only the tasks still to do (so shards are cut from that list), shrink shards the full list."""
+    remaining and tasks. known_order lists only the tasks still to do (so shards are cut from that list), itpd_s shards the full list."""
     if drop_done:
         tasks = [t for t in tasks if not os.path.exists(path_of(t))]
     tasks.sort(key=lambda t: -cost(t))
@@ -450,7 +450,7 @@ def _family_args(sp, mode_choices, N, T, tau, specs_help):
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="python -m itpd.experiments stored_instances", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    fam = ap.add_subparsers(dest="family", required=True, metavar="{known_order,shrink}")
+    fam = ap.add_subparsers(dest="family", required=True, metavar="{known_order,itpd_s}")
     ko = fam.add_parser("known_order", help="IAMB, lasso and ITPD + marginal-first on stored instances")
     _family_args(ko, ["oracle", "finite", "timing", "lasso_ebic_fixed"], "5,10,20", "4,8,16", "1,2,3",
                  "comma list of IAMB_MARGINAL_FIRST_SPECS names (finite mode); default all (use a new --out-dir)")
@@ -458,7 +458,7 @@ def main(argv=None):
     ko.add_argument("--cells", default=CELLS_DEFAULT)
     ko.add_argument("--no-lasso", action="store_true")
     ko.set_defaults(run=_known_order)
-    sh = fam.add_parser("shrink", help="blanket-screened shrink on stored instances")
+    sh = fam.add_parser("itpd_s", help="ITPD-S and ITPD-S+ on stored instances")
     _family_args(sh, ["oracle", "finite"], "10,20", "8,16", "1,2",
                  "comma list of SHRINK_FINITE_SPECS names (finite mode); default all")
     sh.add_argument("--graphs", type=int, default=20)

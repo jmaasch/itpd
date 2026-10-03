@@ -1,4 +1,6 @@
-"""Blanket-screened shrink on the unrolled time graph (S2), time-major.
+"""ITPD-S and ITPD-S+ (blanket-screened shrink) on the unrolled time graph (S2), time-major.
+
+ITPD-S is the single pass (S = shrink); ITPD-S+ is ITPD-S with the re-check (`recheck=True`).
 
 For each target Y = V^n_t (t >= 1), with X = V^n_{t-1} (self edge assumed, never tested, as in ITPD and the full-conditioning
 baseline), candidates C = every earlier node except X (full history), forced set F = {X}:
@@ -37,7 +39,7 @@ Infeasible tests (the recorder raises `InfeasibleTest`; never answered "independ
                                       full-conditioning baseline.
 Recorder labels: "A" (screening step), "B" (shrink step), "C" (re-check), "V" (final shrink); unique tests are attributed to
 the label that issued them first, so "V" tests that repeat shrink-step tests count as raw calls only.
-Blanket-screened shrink has no lazy / non-lazy distinction: every issued test can change the output.
+ITPD-S and ITPD-S+ have no lazy / non-lazy distinction: every issued test can change the output.
 """
 from __future__ import annotations
 

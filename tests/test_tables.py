@@ -9,7 +9,7 @@ from itpd.tables import common, oracle_counts
 from itpd.tables.__main__ import NAMES, main
 
 COMMANDS = [(n,) for n in NAMES] + [("oracle_counts", m) for m in ("cells", "large", "slopes")] + \
-           [("stored_instances", m) for m in ("known_order", "shrink")]
+           [("stored_instances", m) for m in ("known_order", "itpd_s")]
 
 
 @pytest.mark.parametrize("command", COMMANDS, ids=[" ".join(c) for c in COMMANDS])

@@ -1,9 +1,9 @@
-"""Tables of the blanket-screened shrink runs: the oracle runs against the stored oracle-run rows of ITPD, ITPD_naive and the full-conditioning baseline, the
+"""Tables of the ITPD-S and ITPD-S+ runs: the oracle runs against the stored oracle-run rows of ITPD, ITPD_naive and the full-conditioning baseline, the
 finite-data runs against the stored finite-data rows, and the pooled recall-false-positive curves with the recall at matched false positives.
-Reads, under the results directory R (`--results`, default $ITPD_RESULTS or ./results): R/blanket_screened_shrink/oracle
-(`itpd.experiments stored_instances shrink oracle`), R/blanket_screened_shrink/single_pass and R/blanket_screened_shrink/recheck
-(`stored_instances shrink finite`, the latter with `--specs blanket_screened_shrink_recheck,blanket_screened_shrink_recheck_lenient`),
-R/oracle and R/finite/window (the earlier runs, with their instances). Writes in `--out` (default R/blanket_screened_shrink):
+Reads, under the results directory R (`--results`, default $ITPD_RESULTS or ./results): R/itpd_s/oracle
+(`itpd.experiments stored_instances itpd_s oracle`), R/itpd_s/single_pass and R/itpd_s/recheck
+(`stored_instances itpd_s finite`, the latter with `--specs itpd_s_plus,itpd_s_plus_lenient`),
+R/oracle and R/finite/window (the earlier runs, with their instances). Writes in `--out` (default R/itpd_s):
 
   --only oracle    tables_oracle.md
   --only finite    tables_finite.md
@@ -11,7 +11,7 @@ R/oracle and R/finite/window (the earlier runs, with their instances). Writes in
   --only curves    curves.csv (pooled recall-FP curves, one row per cell, M, method and alpha), matched_fp.csv (recall and F1
                    interpolated in log FP at the declared FP levels, an oracle-tuned diagnostic), tables.md, aggregates_curves.json
 
-    python -m itpd.tables stored_instances shrink [--results DIR] [--out DIR] [--only oracle,finite,curves]
+    python -m itpd.tables stored_instances itpd_s [--results DIR] [--out DIR] [--only oracle,finite,curves]
         [--arm time,window] [--N 10,20] [--T 8,16] [--tau 1,2] [--M 50,100,200,500,2000] [--graphs 20]
 
 The default of `--only` is `oracle,finite`. The grid is the one of the runs: `oracle` uses --arm, --N, --T, --tau and --graphs (the files
@@ -39,27 +39,27 @@ from itpd.instances import load_instance
 
 from .common import ALPHA, CORE, RESULTS, interp, md, ncand, new_name
 
-FINITE_SHRINK = ("blanket_screened_shrink", "blanket_screened_shrink_lenient", "blanket_screened_shrink_oracle_blanket", "blanket_screened_shrink_oracle_blanket_lenient",
-         "blanket_screened_shrink_recheck_lenient")
-LABEL = {"blanket_screened_shrink": "blanket-screened shrink", "blanket_screened_shrink_lenient": "blanket-screened shrink lenient",
-         "blanket_screened_shrink_oracle_blanket": "blanket-screened shrink oracle blanket",
-         "blanket_screened_shrink_oracle_blanket_lenient": "blanket-screened shrink oracle blanket lenient",
-         "blanket_screened_shrink_recheck_lenient": "blanket-screened shrink re-check lenient", "itpd": "ITPD",
+FINITE_SHRINK = ("itpd_s", "itpd_s_lenient", "itpd_s_oracle_blanket", "itpd_s_oracle_blanket_lenient",
+         "itpd_s_plus_lenient")
+LABEL = {"itpd_s": "ITPD-S", "itpd_s_lenient": "ITPD-S, lenient screen",
+         "itpd_s_oracle_blanket": "ITPD-S, oracle-blanket screen",
+         "itpd_s_oracle_blanket_lenient": "ITPD-S, lenient oracle-blanket screen",
+         "itpd_s_plus_lenient": "ITPD-S+, lenient screen", "itpd": "ITPD",
          "itpd_naive": "ITPD_naive", "full_conditioning": "full conditioning"}
 BINS = (0.0, 0.05, 0.1, 0.2, 0.3, np.inf)
 # key -> (source, name in the JSON, display label)
 METH = {
-    "eq": ("single_pass", "blanket_screened_shrink", "blanket-screened shrink"),
-    "rc_eq": ("recheck", "blanket_screened_shrink_recheck", "blanket-screened shrink re-check"),
-    "len": ("single_pass", "blanket_screened_shrink_lenient", "blanket-screened shrink lenient"),
-    "rc_len": ("recheck", "blanket_screened_shrink_recheck_lenient", "blanket-screened shrink re-check lenient"),
+    "eq": ("single_pass", "itpd_s", "ITPD-S"),
+    "rc_eq": ("recheck", "itpd_s_plus", "ITPD-S+"),
+    "len": ("single_pass", "itpd_s_lenient", "ITPD-S, lenient screen"),
+    "rc_len": ("recheck", "itpd_s_plus_lenient", "ITPD-S+, lenient screen"),
     "itpd": ("finite", "itpd", "ITPD"),
     "naive": ("finite", "itpd_naive", "ITPD_naive"),
     "full_conditioning": ("finite", "full_conditioning", "full conditioning"),
 }
 KEYS = list(METH)
-LEVELS = {"a": ("full_conditioning", "full conditioning's FP at alpha 0.01"), "b": ("eq", "blanket-screened shrink's own FP (alpha 0.01)"),
-          "c": ("itpd", "ITPD's own FP (alpha 0.01)"), "d": ("rc_eq", "blanket-screened shrink re-check's own FP (alpha 0.01)")}
+LEVELS = {"a": ("full_conditioning", "full conditioning's FP at alpha 0.01"), "b": ("eq", "ITPD-S's own FP (alpha 0.01)"),
+          "c": ("itpd", "ITPD's own FP (alpha 0.01)"), "d": ("rc_eq", "ITPD-S+'s own FP (alpha 0.01)")}
 UNDECIDABLE_MS = (50, 100)                 # the M of the undecidable-target tables
 NEAR_CANCELLED_MS = (200, 500, 2000)       # the M of the near-cancelled-parents table
 
@@ -99,7 +99,7 @@ def mr(x, fmt="{:.3f}"):
 # ============================================================================================ oracle runs
 
 def collect_oracle(res, out, grid):
-    lines = ["# Blanket-screened shrink oracle runs: tables", "",
+    lines = ["# ITPD-S and ITPD-S+ oracle runs: tables", "",
              "Conditions: S2, instances of the oracle runs (sha1 checked per graph), exact d-separation oracle on the full graph, full "
              f"history, F = {{X}}, d = 2, {grid.graphs} graphs per cell. tpc = unique tests / Sum|C| (whole graph); per-target tpc = mean "
              "over targets of new unique tests / |C|; share = mean over targets of (largest set / |C|). Stored methods: "
@@ -112,7 +112,7 @@ def collect_oracle(res, out, grid):
             for T in grid.Ts:
                 for tau in grid.taus:
                     cell = f"N{N}_T{T}_tau{tau}_d2"
-                    files = sorted(glob.glob(os.path.join(res, "blanket_screened_shrink", "oracle", arm, cell, "g*.json")))
+                    files = sorted(glob.glob(os.path.join(res, "itpd_s", "oracle", arm, cell, "g*.json")))
                     if not files:
                         continue
                     D = [json.load(open(f)) for f in files]
@@ -145,16 +145,16 @@ def collect_oracle(res, out, grid):
                                                      "exact": int(sum(r["exact"] for r in rr)), "n": len(rr)}
                         tflat[(arm, N, tau, nm)][T] = float(np.median([r["max_size"] for r in rr]))
                     # shift excess by target time (window)
-                    if arm == "window" and "blanket_screened_shrink_shifted_parents" in by:
+                    if arm == "window" and "itpd_s_shifted_parents" in by:
                         ex = defaultdict(int)
-                        for r in by["blanket_screened_shrink_shifted_parents"]:
+                        for r in by["itpd_s_shifted_parents"]:
                             for k, v in r["excess_by_t"].items():
                                 ex[int(k)] += v
                         agg[f"{arm}|{cell}|shift_excess_by_t"] = {str(k): v for k, v in sorted(ex.items())}
                     # per-candidate overhead bound check for the single-pass variant
-                    if "blanket_screened_shrink" in by:
+                    if "itpd_s" in by:
                         agg[f"{arm}|{cell}|overhead_bound_ok"] = int(sum((r["raw"] - r["n_cand"]) / r["n_cand"] <= r["overhead_bound"] - 1 + 1e-12
-                                                                for r in by["blanket_screened_shrink"]))
+                                                                for r in by["itpd_s"]))
     lines.append(md(["arm", "N", "T", "tau", "method", "exact", "tpc", "raw/cand", "per-target tpc", "largest set",
                      "share", "calls = Sum|C| + |E| - |E_F|", "bound viol. (b, global)", "excess survivors",
                      "A' (re-check adds)", "unique tpc by step (A, B, C)"], rows))
@@ -167,7 +167,7 @@ def collect_oracle(res, out, grid):
         if 8 in v and 16 in v:
             trows.append([arm, N, tau, nm, f"{v[16]:.0f} / {v[8]:.0f} = {v[16] / v[8]:.2f}"])
     lines.append(md(["arm", "N", "tau", "method", "ratio"], trows))
-    lines += ["", "#### Per-candidate overhead bound 1 + 2(d_in - 1)/(NT - 2), single-pass blanket-screened shrink: graphs within bound", ""]
+    lines += ["", "#### Per-candidate overhead bound 1 + 2(d_in - 1)/(NT - 2), ITPD-S: graphs within bound", ""]
     lines.append(md(["cell", "graphs within"], [[k.rsplit("|", 1)[0], v] for k, v in agg.items() if k.endswith("overhead_bound_ok")]))
     open(os.path.join(out, "tables_oracle.md"), "w").write("\n".join(lines) + "\n")
     return agg
@@ -201,10 +201,10 @@ def _recall_at_fp(points, target):
 
 def collect_finite(res, out, grid):
     fin = os.path.join(res, "finite", "window")
-    lines = ["# Blanket-screened shrink finite-data runs: tables", "",
+    lines = ["# ITPD-S and ITPD-S+ finite-data runs: tables", "",
              "Conditions: S2 window arm (stationary lag weights, spectral radius <= 0.9), tau = 1, d = 2, linear-Gaussian, "
              "Fisher-z, full history, the instances g00-g19 per (N, T) of the finite-data runs (sha1, data_seed and data_sha1 checked), data = "
-             "first M rows (paired across M and methods). Blanket-screened shrink: equal = alpha_A = alpha_B; lenient = alpha_A 0.10; alpha_B = 0.01 "
+             "first M rows (paired across M and methods). ITPD-S and ITPD-S+: equal = alpha_A = alpha_B; lenient = alpha_A 0.10; alpha_B = 0.01 "
              "unless stated. Stored rows (ITPD paper variant, ITPD_naive, full conditioning) at alpha 0.01, lazy. Common targets: "
              f"t <= (M - 3)/N. Medians [Q1, Q3] over {grid.graphs} graphs; totals are sums over the {grid.graphs} graphs.", ""]
     edge_cache = {}
@@ -225,7 +225,7 @@ def collect_finite(res, out, grid):
                 rows_by = defaultdict(list)      # method -> list of rows at alpha_B = 0.01 (one per graph)
                 sweep = defaultdict(lambda: defaultdict(lambda: np.zeros(3)))   # method -> alpha -> [tp, fp, fn] pooled
                 for g in range(grid.graphs):
-                    fh = os.path.join(res, "blanket_screened_shrink", "single_pass", cell, f"g{g:02d}_M{M}.json")
+                    fh = os.path.join(res, "itpd_s", "single_pass", cell, f"g{g:02d}_M{M}.json")
                     fs = os.path.join(fin, cell, f"g{g:02d}_M{M}.json")
                     if not os.path.exists(fh):
                         continue
@@ -303,14 +303,14 @@ def collect_finite(res, out, grid):
                                 "fp_tot": int(tot[1]), "fn_tot": int(tot[2]), "tp_tot": int(tot[0]),
                                 "f1_by_g": {int(r["_g"]): r["metrics_common"]["f1"] for r in rr if r.get("metrics_common")},
                                 "tpc_by_g": {int(r["_g"]): r["unique"] / nc for r in rr}}
-                    if nm.startswith("blanket_screened_shrink"):
+                    if nm.startswith("itpd_s"):
                         hs = [r["shrink_stats"] for r in rr]
                         agg[key].update({k: int(sum(h[k] for h in hs)) for k in
                                          ("excess", "lost", "sum_R", "sum_Aprime", "targets_Aprime", "shortcut_diff", "a_inf", "n_capped")})
                         H_rows.append([N, T, M, LABEL[nm], agg[key]["excess"], agg[key]["lost"], agg[key]["sum_Aprime"],
                                        agg[key]["targets_Aprime"], agg[key]["shortcut_diff"], agg[key]["a_inf"]])
                 # error propagation: learned blanket vs true blanket
-                for a, b in (("blanket_screened_shrink", "blanket_screened_shrink_oracle_blanket"), ("blanket_screened_shrink_lenient", "blanket_screened_shrink_oracle_blanket_lenient")):
+                for a, b in (("itpd_s", "itpd_s_oracle_blanket"), ("itpd_s_lenient", "itpd_s_oracle_blanket_lenient")):
                     ka, kb = f"{cell}|M{M}|{a}", f"{cell}|M{M}|{b}"
                     if ka in agg and kb in agg:
                         gs = sorted(set(agg[ka]["f1_by_g"]) & set(agg[kb]["f1_by_g"]))
@@ -330,8 +330,8 @@ def collect_finite(res, out, grid):
     lines.append(md(["N", "T", "M", "method", "recall", "precision", "F1", "infeasible share"], C_rows))
     lines += ["", "#### Matched FP, oracle-tuned diagnostic (needs the truth; not a usable procedure). Common targets, pooled over "
               f"the {grid.graphs} graphs. Recall of each swept method interpolated linearly in log(FP) at full conditioning's pooled FP at alpha 0.01; "
-              "'not reached' if that FP lies outside the method's swept FP range (no extrapolation). Sweeps: blanket-screened shrink "
-              "alpha in 13 values 0.2-1e-6; blanket-screened shrink lenient alpha_B in 12 values 0.1-1e-6 (alpha_A 0.1); ITPD, ITPD_naive 13 values. "
+              "'not reached' if that FP lies outside the method's swept FP range (no extrapolation). Sweeps: ITPD-S "
+              "alpha in 13 values 0.2-1e-6; ITPD-S, lenient screen alpha_B in 12 values 0.1-1e-6 (alpha_A 0.1); ITPD, ITPD_naive 13 values. "
               "Last column: alpha:FP/recall.", ""]
     lines.append(md(["N", "T", "M", "method", "full conditioning FP", "full conditioning recall", "recall at full conditioning FP", "swept FP range", "curve"], D_rows))
     lines += ["", "#### Error propagation: learned-graph screening set (learned_blanket) vs true-blanket screening set (oracle_blanket), same alphas. "
@@ -339,13 +339,13 @@ def collect_finite(res, out, grid):
               "excess = non-parents surviving the screening step; lost = true parents removed in the screening step (all targets)", ""]
     lines.append(md(["N", "T", "M", "alphas", "dF1", "dtpc", "excess learned", "excess oracle", "lost learned", "lost oracle",
                      "FN learned", "FN oracle", "FP learned", "FP oracle"], E_rows))
-    lines += ["", f"#### Blanket-screened shrink internals (totals over {grid.graphs} graphs, all targets): excess survivors, lost parents, re-check adds "
+    lines += ["", f"#### ITPD-S and ITPD-S+ internals (totals over {grid.graphs} graphs, all targets): excess survivors, lost parents, re-check adds "
               "(A' members, targets with A' non-empty), always-verify vs shortcut output differences, screening-step tests that were "
               "infeasible (candidate kept)", ""]
     lines.append(md(["N", "T", "M", "method", "excess", "lost", "A' total", "targets with A'", "shortcut diff", "screening-step infeasible"], H_rows))
     lines += ["", f"#### False negatives by population |rho| (common targets, alpha 0.01, pooled over the {len(grid.cells)} (N, T) cell{'' if len(grid.cells) == 1 else 's'}): FN / true "
               "edges in the bin. marg = |corr(Z, Y)|, cond_x = |pcorr(Z, Y | X)|, cond_pa = |pcorr(Z, Y | other parents)|, "
-              "rho_A = |pcorr(Z, Y | screening set actually used)| (blanket-screened shrink only)", ""]
+              "rho_A = |pcorr(Z, Y | screening set actually used)| (ITPD-S and ITPD-S+ only)", ""]
     bl = [f"[{BINS[i]:g}, {BINS[i + 1]:g})" for i in range(len(BINS) - 1)]
     G_rows = []
     for (M, nm), d in sorted(fnbins.items(), key=lambda x: (x[0][0], x[0][1])):
@@ -369,8 +369,8 @@ def load_all(res, grid):
             per = {}
             for g in range(grid.graphs):
                 d = {"finite": json.load(open(f"{fin}/{cell}/g{g:02d}_M{M}.json")),
-                     "single_pass": json.load(open(f"{res}/blanket_screened_shrink/single_pass/{cell}/g{g:02d}_M{M}.json")),
-                     "recheck": json.load(open(f"{res}/blanket_screened_shrink/recheck/{cell}/g{g:02d}_M{M}.json"))}
+                     "single_pass": json.load(open(f"{res}/itpd_s/single_pass/{cell}/g{g:02d}_M{M}.json")),
+                     "recheck": json.load(open(f"{res}/itpd_s/recheck/{cell}/g{g:02d}_M{M}.json"))}
                 for k in ("single_pass", "recheck"):
                     assert d[k]["sha1"] == d["finite"]["sha1"] and d[k]["common_tmax"] == d["finite"]["common_tmax"], (cell, g, M, k)
                     assert d[k]["n_true_edges_nonself"] == d["finite"]["n_true_edges_nonself"]
@@ -568,7 +568,7 @@ def recheck_table(data, grid):
                          f"{sum(h['sum_Aprime'] for h in hs)} ({sum(h['targets_Aprime'] for h in hs)})", sum(h["shortcut_diff"] for h in hs),
                          f"{r[2][0]} -> {r[3][0]}", f"{r[2][1]} -> {r[3][1]}",
                          f"{sum(h['sum_Aprime'] for h in hl)} ({sum(h['targets_Aprime'] for h in hl)})", sum(h["shortcut_diff"] for h in hl)])
-    return ["##### Re-check (always-verify) against single-pass blanket-screened shrink, same alpha: FN and FP totals (common targets), A' members (targets with A' non-empty), "
+    return ["##### Re-check (always-verify) against ITPD-S, same alpha: FN and FP totals (common targets), A' members (targets with A' non-empty), "
             f"always-verify vs shortcut output differences (all targets), pooled over {grid.graphs} graphs", "",
             md(["N", "T", "M", "FN equal -> re-check", "FP equal -> re-check", "A' (targets) re-check equal", "shortcut diff equal", "FN lenient -> re-check",
                 "FP lenient -> re-check", "A' (targets) re-check lenient", "shortcut diff lenient"], rows), ""]
@@ -604,7 +604,7 @@ def near_cancelled(res, data, grid):
 
 def add_args(ap):
     ap.add_argument("--results", default=RESULTS)
-    ap.add_argument("--out", default=None, help="output directory (default: <results>/blanket_screened_shrink)")
+    ap.add_argument("--out", default=None, help="output directory (default: <results>/itpd_s)")
     ap.add_argument("--only", default="oracle,finite", help="comma list of the parts to write: oracle, finite, curves")
     ap.add_argument("--arm", default="time,window", help="oracle part only")
     ap.add_argument("--N", default="10,20")
@@ -616,7 +616,7 @@ def add_args(ap):
 
 def run(a):
     grid = Grid(a.arm.split(","), ints(a.N), ints(a.T), ints(a.tau), ints(a.M), a.graphs)
-    out = a.out or os.path.join(a.results, "blanket_screened_shrink")
+    out = a.out or os.path.join(a.results, "itpd_s")
     os.makedirs(out, exist_ok=True)
     parts = a.only.split(",")
     agg = {}
@@ -628,11 +628,11 @@ def run(a):
         json.dump(agg, open(os.path.join(out, "aggregates.json"), "w"), default=lambda o: o.tolist() if hasattr(o, "tolist") else str(o))
     if "curves" in parts:
         data, agg = build_curves(a.results, out, grid)
-        L = ["# Blanket-screened shrink tables", "",
+        L = ["# ITPD-S and ITPD-S+ tables", "",
              f"Conditions: S2 window arm, tau = 1, d = 2, linear-Gaussian, Fisher-z, full history, instances g00-g{grid.graphs - 1:02d} per (N, T) of the finite-data runs, data = first M rows "
-             f"(sha1, data_seed, data_sha1 checked; the blanket-screened shrink runs join the same tasks; common_tmax and true-edge counts equal). Pooled = sums over the {grid.graphs} "
-             "graphs, common targets t <= (M - 3)/N. Blanket-screened shrink = single pass, learned-blanket screening set, alpha_A = alpha_B; blanket-screened shrink re-check = the same plus the "
-             "always-verify re-check (alpha 0.01 in both steps unless a sweep is stated); blanket-screened shrink lenient = alpha_A 0.1 with alpha_B swept; blanket-screened shrink re-check lenient = the same "
+             f"(sha1, data_seed, data_sha1 checked; the ITPD-S and ITPD-S+ runs join the same tasks; common_tmax and true-edge counts equal). Pooled = sums over the {grid.graphs} "
+             "graphs, common targets t <= (M - 3)/N. ITPD-S = single pass, learned-blanket screening set, alpha_A = alpha_B; ITPD-S+ = the same plus the "
+             "always-verify re-check (alpha 0.01 in both steps unless a sweep is stated); ITPD-S, lenient screen = alpha_A 0.1 with alpha_B swept; ITPD-S+, lenient screen = the same "
              "with the re-check. Sweeps: 13 alphas (0.2 to 1e-6) for the equal-alpha variants, ITPD, ITPD_naive and full conditioning; 12 alpha_B (0.1 to 1e-6) for the lenient variants. "
              "Matched-FP tables are an oracle-tuned diagnostic (the level is chosen with the truth).", ""]
         L += ["#### Matched FP (oracle-tuned diagnostic): recall interpolated in log FP", ""] + matched_tables(agg, grid)

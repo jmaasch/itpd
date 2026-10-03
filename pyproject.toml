@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "itpd"
 version = "0.2.0"
-description = "Instrumented ITPD, ITPD_naive and a full-conditioning baseline on one CI-test foundation"
+description = "Instrumented ITPD, ITPD_naive, ITPD-S, ITPD-S+ and a full-conditioning baseline on one CI-test foundation"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = ["numpy", "scipy", "scikit-learn", "networkx>=3.3", "pandas", "causal-learn"]

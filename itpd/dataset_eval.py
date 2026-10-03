@@ -1,4 +1,4 @@
-"""Finite-data harness shared by the finite-data, robustness, nonlinear, baseline and blanket-screened shrink drivers: run the methods of a spec list on
+"""Finite-data harness shared by the finite-data, robustness, nonlinear, baseline and ITPD-S drivers: run the methods of a spec list on
 one dataset (one test object, one shared p-value memo), per target feasibility, scoring on own-feasible and on common-feasible targets.
 Spec lists (name, method, variant, lazy, alphas) are built from methods_registry.py.
 
@@ -79,7 +79,7 @@ def run_dataset(A_truth: np.ndarray, X: np.ndarray, tau: int, specs=ITPD_AND_ORD
     for name, method, variant, lazy, alphas in specs:
         for alpha in alphas:
             detail = abs(alpha - PRIMARY) < 1e-12
-            hk = variant if method == "blanket_screened_shrink" else None   # `variant` is the dict of shrink options, alpha = alpha_B
+            hk = variant if method == "itpd_s" else None   # `variant` is the dict of shrink options, alpha = alpha_B
             o = method_runner.run_s2_method(method, None, graph=tg, ci=ci, alpha=alpha,
                                      variant="paper" if hk is not None else (variant or "paper"), order=order,
                                      lazy=lazy, infeasible="raise", shared=shared, keep_graph=True, per_target=True, shrink=hk)

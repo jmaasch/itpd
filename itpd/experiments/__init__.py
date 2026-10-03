@@ -18,6 +18,6 @@ after `--budget-sec` seconds (`--start-by-sec` for `oracle_counts large`): repea
 | `stored_instances known_order finite` | IAMB, ITPD + marginal-first and lasso on the stored finite-data instances | `R/finite/window` | `OUT/<cell>/g<idx>_M<M>.json` |
 | `stored_instances known_order lasso_ebic_fixed` | extended-BIC and fixed-penalty lasso on the same instances | `R/finite/window` | `OUT/<cell>/g<idx>_M<M>.json` |
 | `stored_instances known_order timing` | wall-clock per method with a fresh test object for each method | `R/finite/window` | `OUT/<cell>/g<idx>_M<M>.json` |
-| `stored_instances shrink oracle` | blanket-screened shrink variants with the oracle on stored instances | `R/oracle`, `R/instances/<arm>` | `OUT/<arm>/N<N>_T<T>_tau<tau>_d2/g<idx>.json` |
-| `stored_instances shrink finite` | blanket-screened shrink on the stored finite-data instances | `R/finite/window` | `OUT/<cell>/g<idx>_M<M>.json` |
+| `stored_instances itpd_s oracle` | ITPD-S variants with the oracle on stored instances | `R/oracle`, `R/instances/<arm>` | `OUT/<arm>/N<N>_T<T>_tau<tau>_d2/g<idx>.json` |
+| `stored_instances itpd_s finite` | ITPD-S and ITPD-S+ on the stored finite-data instances | `R/finite/window` | `OUT/<cell>/g<idx>_M<M>.json` |
 """

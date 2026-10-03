@@ -1,9 +1,9 @@
-"""Blanket-screened shrink (itpd/blanket_screened_shrink.py): screening-set construction, oracle exactness for every screening
+"""ITPD-S and ITPD-S+ (itpd/itpd_s.py): screening-set construction, oracle exactness for every screening
 set, call counts and set sizes, re-check, cap and infeasible-test handling, finite-data harness."""
 import numpy as np
 import pytest
 
-from itpd import blanket_screened_shrink as shrink, ci, sim
+from itpd import itpd_s as shrink, ci, sim
 from itpd import dataset_eval as finite, method_runner as runlib
 from itpd.graphs import TimeGraph, unroll
 
@@ -18,7 +18,7 @@ def _graph(kind, N, T, tau, d, rng):
 
 
 def _run(g, **kw):
-    return runlib.run_s2_method("blanket_screened_shrink", None, graph=g, alpha=0.01, per_target=True, shrink=kw)
+    return runlib.run_s2_method("itpd_s", None, graph=g, alpha=0.01, per_target=True, shrink=kw)
 
 
 class Spy:
@@ -148,13 +148,13 @@ def test_cap_never_issues_infeasible_screening_test():
     # the true-blanket screening is used so that the blankets are large (a learned graph at M = 14 is nearly empty)
     r = _dense_data(14)
     X = r.X.reshape(r.X.shape[0], -1)
-    o_cap = runlib.run_s2_method("blanket_screened_shrink", None, graph=r.graph, ci=ci.FisherZ(X), alpha=0.05, per_target=True,
+    o_cap = runlib.run_s2_method("itpd_s", None, graph=r.graph, ci=ci.FisherZ(X), alpha=0.05, per_target=True,
                                  shrink={"screening": "oracle_blanket", "alpha_A": 0.2, "cap": "auto"})
     st = o_cap["shrink_stats"]
     assert st["n_capped"] > 0 and st["a_inf"] == 0
     for p in o_cap["per_pair"]:
         assert p.get("max_SA", 0) <= 14 - 4
-    o_unc = runlib.run_s2_method("blanket_screened_shrink", None, graph=r.graph, ci=ci.FisherZ(X), alpha=0.05, per_target=True,
+    o_unc = runlib.run_s2_method("itpd_s", None, graph=r.graph, ci=ci.FisherZ(X), alpha=0.05, per_target=True,
                                  shrink={"screening": "oracle_blanket", "alpha_A": 0.2})
     assert o_unc["shrink_stats"]["a_inf"] > 0               # uncapped: infeasible screening-step tests happen, are counted
     for p in o_unc["per_pair"]:                          # ... and the candidate is kept, never pruned
@@ -187,18 +187,18 @@ def test_infeasible_shrink_step_marks_target_never_independent():
 
 def test_finite_harness_shrink_rows():
     r = _dense_data(300, seed=1)
-    specs = (("blanket_screened_shrink", "blanket_screened_shrink", {"screening": "learned_blanket"}, True, (0.01, 0.05)),
-             ("blanket_screened_shrink_lenient", "blanket_screened_shrink", {"screening": "learned_blanket", "alpha_A": 0.1}, True, (0.01,)),
-             ("blanket_screened_shrink_oracle_blanket_lenient", "blanket_screened_shrink", {"screening": "oracle_blanket", "alpha_A": 0.1, "keep_parent_tests": True}, True, (0.01,)),
-             ("blanket_screened_shrink_recheck_lenient", "blanket_screened_shrink", {"screening": "learned_blanket", "alpha_A": 0.1, "recheck": True}, True, (0.01,)),
+    specs = (("itpd_s", "itpd_s", {"screening": "learned_blanket"}, True, (0.01, 0.05)),
+             ("itpd_s_lenient", "itpd_s", {"screening": "learned_blanket", "alpha_A": 0.1}, True, (0.01,)),
+             ("itpd_s_oracle_blanket_lenient", "itpd_s", {"screening": "oracle_blanket", "alpha_A": 0.1, "keep_parent_tests": True}, True, (0.01,)),
+             ("itpd_s_plus_lenient", "itpd_s", {"screening": "learned_blanket", "alpha_A": 0.1, "recheck": True}, True, (0.01,)),
              ("full_conditioning", "full_conditioning", None, False, (0.01,)))
     from itpd.observed_data import true_edge_list
     out = finite.run_dataset(r.graph.A, r.X, 2, specs, order="time", edges=true_edge_list(r.graph.A, 6, 6))
     rows = {(x["name"], x["alpha"]): x for x in out["runs"]}
-    a = rows[("blanket_screened_shrink_lenient", 0.01)]
+    a = rows[("itpd_s_lenient", 0.01)]
     assert a["alpha_A"] == 0.1 and a["metrics_common"] is not None and "A" in a["by_label_unique"]
     assert len(a["target_n_R"]) == 30 and "fn_idx" in a
-    assert rows[("blanket_screened_shrink", 0.05)]["alpha_A"] == 0.05 and "target_n_R" not in rows[("blanket_screened_shrink", 0.05)]
-    assert rows[("blanket_screened_shrink_oracle_blanket_lenient", 0.01)]["screening_parent_tests"]
-    rc = rows[("blanket_screened_shrink_recheck_lenient", 0.01)]
+    assert rows[("itpd_s", 0.05)]["alpha_A"] == 0.05 and "target_n_R" not in rows[("itpd_s", 0.05)]
+    assert rows[("itpd_s_oracle_blanket_lenient", 0.01)]["screening_parent_tests"]
+    rc = rows[("itpd_s_plus_lenient", 0.01)]
     assert rc["shrink_stats"]["shortcut_diff"] == 0 and rc["unique"] >= a["unique"]

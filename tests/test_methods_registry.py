@@ -1,5 +1,5 @@
 """Method registry: every name is defined once, old names translate, and the spec tables built from the registry equal the tables
-that were written out by hand before the rename (copied here as literals, translated with OLD_TO_NEW / OLD_SCREENING_TO_NEW)."""
+that were written out by hand before the renames (copied here as literals, translated with OLD_TO_NEW / OLD_SCREENING_TO_NEW)."""
 import os
 
 import numpy as np
@@ -40,14 +40,41 @@ def test_every_registry_name_is_in_the_readme():
     assert not missing, missing
 
 
+def test_every_itpd_s_name_is_in_the_readme():
+    txt = open(README).read()
+    names = [m.name for m in METHODS if m.name.startswith("itpd_s")]
+    assert len(names) == 9, names
+    assert [n for n in names if f"`{n}`" not in txt] == []
+
+
+def test_both_generations_of_shrink_names_translate_to_the_itpd_s_names():
+    first = {"hpv_mb_eq": "itpd_s", "hpv_mb_len": "itpd_s_lenient", "hpv_rc_eq": "itpd_s_plus", "hpv_safe_eq": "itpd_s_plus",
+             "hpv_rc_len": "itpd_s_plus_lenient", "hpv_omb_eq": "itpd_s_oracle_blanket", "hpv_omb_len": "itpd_s_oracle_blanket_lenient"}
+    second = {"hpv": "itpd_s", "hpv_single_pass": "itpd_s", "hpv_single_pass_lenient": "itpd_s_lenient", "hpv_safe": "itpd_s_plus",
+              "hpv_safe_lenient": "itpd_s_plus_lenient", "hpv_single_pass_oracle_blanket": "itpd_s_oracle_blanket",
+              "hpv_single_pass_oracle_blanket_lenient": "itpd_s_oracle_blanket_lenient", "hpv_single_pass_no_hint": "itpd_s_x_only",
+              "hpv_single_pass_union": "itpd_s_union", "hpv_single_pass_shifted_parents": "itpd_s_shifted_parents"}
+    third = {"blanket_screened_shrink": "itpd_s", "blanket_screened_shrink_lenient": "itpd_s_lenient",
+             "blanket_screened_shrink_recheck": "itpd_s_plus", "blanket_screened_shrink_recheck_lenient": "itpd_s_plus_lenient",
+             "blanket_screened_shrink_oracle_blanket": "itpd_s_oracle_blanket",
+             "blanket_screened_shrink_oracle_blanket_lenient": "itpd_s_oracle_blanket_lenient",
+             "blanket_screened_shrink_x_only": "itpd_s_x_only", "blanket_screened_shrink_union": "itpd_s_union",
+             "blanket_screened_shrink_shifted_parents": "itpd_s_shifted_parents"}
+    for table in (first, second, third):
+        for old, new_ in table.items():
+            assert OLD_TO_NEW[old] == new_ and new_ in BY_NAME, (old, new_)
+    assert set(third.values()) == {m.name for m in METHODS if m.name.startswith("itpd_s")}
+    assert not any(v.startswith(("hpv", "blanket_screened_shrink")) for v in OLD_TO_NEW.values())
+
+
 def test_shrink_rows_carry_screening_and_alpha_rule_consistently():
     for m in METHODS:
-        if m.function != "blanket_screened_shrink":
+        if m.function != "itpd_s":
             continue
         o = m.options["shrink"]
         assert o["screening"] == m.screening
         assert (o.get("alpha_A") == 0.1) == (m.alpha_rule == "lenient")
-        assert m.name.startswith("blanket_screened_shrink_recheck") == bool(o.get("recheck"))
+        assert m.name.startswith("itpd_s_plus") == bool(o.get("recheck"))
         assert m.name.endswith("_lenient") == (m.alpha_rule == "lenient")
 
 
@@ -88,11 +115,11 @@ def test_spec_tables_equal_the_hand_written_tables_before_the_rename():
         ("iamb_known_order_tie_random", "iamb_known_order", {"lazy": False, "tie": "random:7"}),
         ("itpd_marginal_first", "itpd_marginal_first", {"lazy": True}), ("itpd_marginal_first_nonlazy", "itpd_marginal_first", {"lazy": False}))
     assert dict(stored_instances.SHRINK_ORACLE_VARIANTS) == {
-        "blanket_screened_shrink": {"screening": "learned_blanket"}, "blanket_screened_shrink_oracle_blanket": {"screening": "oracle_blanket"},
-        "blanket_screened_shrink_x_only": {"screening": "none"}, "blanket_screened_shrink_union": {"screening": "union"},
-        "blanket_screened_shrink_recheck": {"screening": "learned_blanket", "recheck": True}, "blanket_screened_shrink_shifted_parents": {"screening": "shifted_parents"}}
-    assert [n for n, _ in stored_instances.SHRINK_ORACLE_VARIANTS] == ["blanket_screened_shrink", "blanket_screened_shrink_oracle_blanket", "blanket_screened_shrink_x_only",
-                                                           "blanket_screened_shrink_union", "blanket_screened_shrink_recheck", "blanket_screened_shrink_shifted_parents"]
+        "itpd_s": {"screening": "learned_blanket"}, "itpd_s_oracle_blanket": {"screening": "oracle_blanket"},
+        "itpd_s_x_only": {"screening": "none"}, "itpd_s_union": {"screening": "union"},
+        "itpd_s_plus": {"screening": "learned_blanket", "recheck": True}, "itpd_s_shifted_parents": {"screening": "shifted_parents"}}
+    assert [n for n, _ in stored_instances.SHRINK_ORACLE_VARIANTS] == ["itpd_s", "itpd_s_oracle_blanket", "itpd_s_x_only",
+                                                           "itpd_s_union", "itpd_s_plus", "itpd_s_shifted_parents"]
 
 
 def test_every_name_used_by_a_driver_is_in_the_registry():
@@ -121,4 +148,6 @@ def test_old_and_new_runner_strings_and_screening_strings_give_identical_outputs
     for old, new_ in (("mb", "learned_blanket"), ("oracle_mb", "oracle_blanket"), ("shift", "shifted_parents")):
         a = method_runner.run_s2_method("hpv", None, graph=g, shrink={"screening": old}, order="time", per_target=True)
         b = method_runner.run_s2_method("blanket_screened_shrink", None, graph=g, shrink={"screening": new_}, order="time", per_target=True)
-        assert a["shrink"] == b["shrink"] == {"screening": new_} and a["method"] == b["method"] and _same(a, b)
+        c = method_runner.run_s2_method("itpd_s", None, graph=g, shrink={"screening": new_}, order="time", per_target=True)
+        assert a["shrink"] == b["shrink"] == c["shrink"] == {"screening": new_} and a["method"] == b["method"] == c["method"] == "itpd_s"
+        assert _same(a, c) and _same(b, c)
