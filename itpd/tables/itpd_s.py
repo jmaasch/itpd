@@ -41,18 +41,18 @@ from .common import ALPHA, CORE, RESULTS, interp, md, ncand, new_name
 
 FINITE_SHRINK = ("itpd_s", "itpd_s_lenient", "itpd_s_oracle_blanket", "itpd_s_oracle_blanket_lenient",
          "itpd_s_plus_lenient")
-LABEL = {"itpd_s": "ITPD-S", "itpd_s_lenient": "ITPD-S, lenient screen",
-         "itpd_s_oracle_blanket": "ITPD-S, oracle-blanket screen",
-         "itpd_s_oracle_blanket_lenient": "ITPD-S, lenient oracle-blanket screen",
-         "itpd_s_plus_lenient": "ITPD-S+, lenient screen", "itpd": "ITPD",
+LABEL = {"itpd_s": "ITPD-S", "itpd_s_lenient": "ITPD-S lenient screen",
+         "itpd_s_oracle_blanket": "ITPD-S oracle-blanket screen",
+         "itpd_s_oracle_blanket_lenient": "ITPD-S lenient oracle-blanket screen",
+         "itpd_s_plus_lenient": "ITPD-S+ lenient screen", "itpd": "ITPD",
          "itpd_naive": "ITPD_naive", "full_conditioning": "full conditioning"}
 BINS = (0.0, 0.05, 0.1, 0.2, 0.3, np.inf)
 # key -> (source, name in the JSON, display label)
 METH = {
     "eq": ("single_pass", "itpd_s", "ITPD-S"),
     "rc_eq": ("recheck", "itpd_s_plus", "ITPD-S+"),
-    "len": ("single_pass", "itpd_s_lenient", "ITPD-S, lenient screen"),
-    "rc_len": ("recheck", "itpd_s_plus_lenient", "ITPD-S+, lenient screen"),
+    "len": ("single_pass", "itpd_s_lenient", "ITPD-S lenient screen"),
+    "rc_len": ("recheck", "itpd_s_plus_lenient", "ITPD-S+ lenient screen"),
     "itpd": ("finite", "itpd", "ITPD"),
     "naive": ("finite", "itpd_naive", "ITPD_naive"),
     "full_conditioning": ("finite", "full_conditioning", "full conditioning"),
@@ -331,7 +331,7 @@ def collect_finite(res, out, grid):
     lines += ["", "#### Matched FP, oracle-tuned diagnostic (needs the truth; not a usable procedure). Common targets, pooled over "
               f"the {grid.graphs} graphs. Recall of each swept method interpolated linearly in log(FP) at full conditioning's pooled FP at alpha 0.01; "
               "'not reached' if that FP lies outside the method's swept FP range (no extrapolation). Sweeps: ITPD-S "
-              "alpha in 13 values 0.2-1e-6; ITPD-S, lenient screen alpha_B in 12 values 0.1-1e-6 (alpha_A 0.1); ITPD, ITPD_naive 13 values. "
+              "alpha in 13 values 0.2-1e-6; ITPD-S lenient screen alpha_B in 12 values 0.1-1e-6 (alpha_A 0.1); ITPD, ITPD_naive 13 values. "
               "Last column: alpha:FP/recall.", ""]
     lines.append(md(["N", "T", "M", "method", "full conditioning FP", "full conditioning recall", "recall at full conditioning FP", "swept FP range", "curve"], D_rows))
     lines += ["", "#### Error propagation: learned-graph screening set (learned_blanket) vs true-blanket screening set (oracle_blanket), same alphas. "
@@ -632,7 +632,7 @@ def run(a):
              f"Conditions: S2 window arm, tau = 1, d = 2, linear-Gaussian, Fisher-z, full history, instances g00-g{grid.graphs - 1:02d} per (N, T) of the finite-data runs, data = first M rows "
              f"(sha1, data_seed, data_sha1 checked; the ITPD-S and ITPD-S+ runs join the same tasks; common_tmax and true-edge counts equal). Pooled = sums over the {grid.graphs} "
              "graphs, common targets t <= (M - 3)/N. ITPD-S = single pass, learned-blanket screening set, alpha_A = alpha_B; ITPD-S+ = the same plus the "
-             "always-verify re-check (alpha 0.01 in both steps unless a sweep is stated); ITPD-S, lenient screen = alpha_A 0.1 with alpha_B swept; ITPD-S+, lenient screen = the same "
+             "always-verify re-check (alpha 0.01 in both steps unless a sweep is stated); ITPD-S lenient screen = alpha_A 0.1 with alpha_B swept; ITPD-S+ lenient screen = the same "
              "with the re-check. Sweeps: 13 alphas (0.2 to 1e-6) for the equal-alpha variants, ITPD, ITPD_naive and full conditioning; 12 alpha_B (0.1 to 1e-6) for the lenient variants. "
              "Matched-FP tables are an oracle-tuned diagnostic (the level is chosen with the truth).", ""]
         L += ["#### Matched FP (oracle-tuned diagnostic): recall interpolated in log FP", ""] + matched_tables(agg, grid)
