@@ -6,9 +6,8 @@ Iterative Temporal Parent Discovery (ITPD) is a constraint-based causal discover
 
 ```
 .
-├── itpd/                # Instrumented implementation of ITPD, ITPD_naive and baselines (package; see itpd/README.md).
+├── itpd/                # Instrumented implementation of ITPD, ITPD_naive and baselines (package; see itpd/README.md). itpd/experiments and itpd/tables hold the experiment drivers and the collectors.
 ├── tests/                # Tests of the package, including parity tests against legacy/.
-├── scripts/              # Run scripts and collectors for the experiments.
 ├── pyproject.toml
 ├── legacy/
 │   ├── itpd.py               # ITPD with CI test reduction.
@@ -59,7 +58,7 @@ python -m pytest -q
 
 ## Experiments
 
-`itpd/README.md` has the module map, the table of method names and the table "Experiment -> command" with the driver and the collector of every experiment. The drivers are `itpd/run_*.py`. The scripts in `scripts/` run the grid experiments and turn the JSON output of the drivers into tables. Put your cluster job scripts in the ignored folder `jobs/`; they are not part of the repository.
+`itpd/README.md` has the module map, the table of method names and the table "Experiment -> command" with the driver and the collector of every experiment. The drivers run with `python -m itpd.experiments <name>`; the collectors turn their JSON output into tables with `python -m itpd.tables <name>`. Put your cluster job scripts in the ignored folder `jobs/`; they are not part of the repository.
 
 ## Legacy code
 

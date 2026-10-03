@@ -18,8 +18,8 @@ Conventions: time is 0-based, the process starts at t = 0 (those nodes are roots
 8. `metrics.py` precision, recall, F1, SHD on directed time-indexed edges (self edges excluded unless asked).
 9. `methods_registry.py` the one table of method names (below) and `OLD_TO_NEW`, the names used in result files written before the rename.
 10. `method_runner.py` run one method by name and score it; `dataset_eval.py` run a list of methods on one dataset (one shared p-value memo).
-11. Drivers, one per kind of experiment (table below): `run_oracle_counts.py`, `run_finite_data.py`, `run_nonlinear.py`,
-    `run_single_series.py`, `run_robustness.py`, `run_known_order_baselines.py`, `run_blanket_screened_shrink.py`. Collectors that turn their JSON into tables are in `scripts/`.
+11. `experiments/` the drivers, one module per kind of experiment (table below), one command line `python -m itpd.experiments <name>`;
+    `tables/` the collectors that turn their JSON into tables, one command line `python -m itpd.tables <name>`.
 
 ## Counting conventions
 
@@ -32,7 +32,7 @@ Conventions: time is 0-based, the process starts at t = 0 (those nodes are roots
 ## Methods
 
 Every method name written to a result file is defined once in `methods_registry.py`. Names in files written before the rename are translated with
-`OLD_TO_NEW` (for example `itpd_nl` is `itpd_nonlazy`, `order` and `order_based` are `full_conditioning`, `hpv_rc_eq` and `hpv_safe` are `blanket_screened_shrink_recheck`); every collector in `scripts/` reads both.
+`OLD_TO_NEW` (for example `itpd_nl` is `itpd_nonlazy`, `order` and `order_based` are `full_conditioning`, `hpv_rc_eq` and `hpv_safe` are `blanket_screened_shrink_recheck`); every collector in `itpd/tables/` reads both.
 Blanket-screened shrink names are `blanket_screened_shrink[_recheck][_<screening>][_lenient]`: screening `learned_blanket` and equal alpha are the defaults and are omitted. `screening` is the set a candidate is screened given besides X; the screening set of a candidate Z is this set (for `learned_blanket`, the Markov blanket of Z in the graph learned for earlier steps) plus X.
 
 | name | function | screening | alpha rule | counting | meaning |
@@ -72,30 +72,30 @@ Blanket-screened shrink names are `blanket_screened_shrink[_recheck][_<screening
 
 ## Experiment -> command
 
-Run from the repository root, after `pip install -e '.[test]'` or with `PYTHONPATH=.`. Put your cluster job scripts in the ignored folder `jobs/`; they are not part of the repository. The drivers and collectors that read earlier runs (layout below) look for them in the directory named by the environment variable `ITPD_RESULTS`, or in `results` when it is not set; the option `--results` overrides this where a script has it.
+Run from the repository root, after `pip install -e '.[test]'` or with `PYTHONPATH=.`. Every driver is `python -m itpd.experiments <name> [args]` and every collector is `python -m itpd.tables <name> [args]`; `<name> --help` shows the arguments, and the docstrings of `itpd/experiments/__init__.py` and `itpd/tables/__init__.py` list what each one reads and writes. Put your cluster job scripts in the ignored folder `jobs/`; they are not part of the repository. The drivers and collectors that read earlier runs (layout below) look for them in the directory named by the environment variable `ITPD_RESULTS`, or in `results` when it is not set; the option `--results` overrides this where a command has it.
 
-The drivers write one file per task and skip a task whose file exists, so a stopped run resumes when you run the same command again. `--workers K` sets the number of processes and `--budget-sec S` stops starting new tasks after S seconds. The last line a driver prints ends with `remaining N`; `remaining 0` means that all tasks are finished.
+The drivers write one file per task and skip a task whose file exists, so a stopped run resumes when you run the same command again. `--workers K` sets the number of processes and `--budget-sec S` stops starting new tasks after S seconds. The last line a driver prints ends with `remaining N`; `remaining 0` means that all tasks are finished. A task that raises an error is printed as `error ...`, counted, and does not stop the other tasks.
 
-| experiment | command | collector |
+| experiment | driver (`python -m itpd.experiments ...`) | collector (`python -m itpd.tables ...`) |
 |---|---|---|
-| oracle exactness and counts | `python -m itpd.run_oracle_counts --N 20 --T 16 --tau 2 --d 2 --graphs 20 --out OUT.json` or the grid `python scripts/oracle_grid.py --out-dir results/oracle/window --graph window --instances-dir results/instances/window` | `scripts/oracle_collect.py DIR`, `scripts/oracle_scaling_slopes.py DIR` |
-| large oracle cells | `python scripts/large_oracle_run.py OUT --cells 80x25 --graphs 0-4` | `scripts/large_oracle_collect.py OUT --oracle DIR` |
-| finite data (Fisher-z) | `python -m itpd.run_finite_data --out-dir results/finite/window --arm window --N 10,20 --T 8,16 --M 50,100,200,500,2000 --graphs 20` | `scripts/finite_collect.py DIR` |
-| nonlinear data (GCM) | `python -m itpd.run_nonlinear --out-dir DIR --N 10 --T 8 --M 500,2000 --graphs 20` | `scripts/nonlinear_collect.py DIR` |
-| single series (S1) | `python -m itpd.run_single_series --out-dir DIR` | `scripts/single_series_collect.py DIR` |
-| robustness | `python -m itpd.run_robustness --out-dir DIR --exp nonstationary` or `--exp violations` | `scripts/robustness_collect.py DIR --exp nonstationary` or `--exp violations` |
-| baselines IAMB, lasso, ITPD + marginal-first | `python -m itpd.run_known_order_baselines oracle\|finite\|lasso_ebic_fixed\|timing --out-dir DIR` | `scripts/known_order_baselines_collect.py` |
-| blanket-screened shrink | `python -m itpd.run_blanket_screened_shrink oracle\|finite --out-dir DIR` | `scripts/blanket_screened_shrink_collect.py`, `scripts/blanket_screened_shrink_tables.py` |
+| oracle exactness and counts | `oracle_counts cell --N 20 --T 16 --tau 2 --d 2 --graphs 20 --out OUT.json`, or the grid `oracle_counts grid --out-dir results/oracle/window --graph window --instances-dir results/instances/window` | `oracle_counts cells DIR`, `oracle_counts slopes DIR` |
+| large oracle cells | `oracle_counts large OUT --cells 80x25 --graphs 0-4` | `oracle_counts large OUT --oracle DIR` |
+| finite data (Fisher-z) | `finite_data --out-dir results/finite/window --arm window --N 10,20 --T 8,16 --M 50,100,200,500,2000 --graphs 20` | `finite_data DIR` |
+| nonlinear data (GCM) | `nonlinear_data --out-dir DIR --N 10 --T 8 --M 500,2000 --graphs 20` | `nonlinear_data DIR` |
+| single series (S1) | `single_series --out-dir DIR` | `single_series DIR` |
+| robustness | `robustness --out-dir DIR --exp nonstationary` or `--exp violations` | `robustness DIR --exp nonstationary` or `--exp violations` |
+| baselines IAMB, lasso, ITPD + marginal-first | `stored_instances known_order oracle\|finite\|lasso_ebic_fixed\|timing --out-dir DIR` | `stored_instances known_order` |
+| blanket-screened shrink | `stored_instances shrink oracle\|finite --out-dir DIR` | `stored_instances shrink` (oracle and finite tables), `stored_instances shrink --only curves` (recall-false-positive curves) |
 | tests | `python -m pytest -q` | |
 
-`run_blanket_screened_shrink`, `run_known_order_baselines` and the collectors `blanket_screened_shrink_collect.py`, `blanket_screened_shrink_tables.py` and `known_order_baselines_collect.py` read the output of earlier runs from the results directory `R`. They expect this layout:
+`stored_instances` runs on the instances of earlier runs and on the results directory `R` they wrote; its collectors read the same layout:
 
 | directory under `R` | written by |
 |---|---|
-| `oracle/<arm>/N<N>_T<T>_tau<tau>_d<d>.json` | `scripts/oracle_grid.py --out-dir R/oracle/<arm> --graph <arm>` (arm `time` or `window`) |
+| `oracle/<arm>/N<N>_T<T>_tau<tau>_d<d>.json` | `oracle_counts grid --out-dir R/oracle/<arm> --graph <arm>` (arm `time` or `window`) |
 | `instances/<arm>/*.npz` | the same command with `--instances-dir R/instances/<arm>` |
-| `finite/window/<cell>/` and `finite/window/instances/<cell>/` | `run_finite_data --out-dir R/finite/window --arm window` |
-| `blanket_screened_shrink/oracle/`, `blanket_screened_shrink/single_pass/`, `blanket_screened_shrink/recheck/` | `run_blanket_screened_shrink oracle`, `run_blanket_screened_shrink finite`, `run_blanket_screened_shrink finite --specs blanket_screened_shrink_recheck,blanket_screened_shrink_recheck_lenient` |
-| `baselines/{oracle,finite,lasso_ebic_fixed,timing}/` | `run_known_order_baselines` with the mode of the same name |
+| `finite/window/<cell>/` and `finite/window/instances/<cell>/` | `finite_data --out-dir R/finite/window --arm window` |
+| `blanket_screened_shrink/oracle/`, `blanket_screened_shrink/single_pass/`, `blanket_screened_shrink/recheck/` | `stored_instances shrink oracle`, `stored_instances shrink finite`, `stored_instances shrink finite --specs blanket_screened_shrink_recheck,blanket_screened_shrink_recheck_lenient` |
+| `baselines/{oracle,finite,lasso_ebic_fixed,timing}/` | `stored_instances known_order` with the mode of the same name |
 
-Simulated data can differ at the 1e-15 level between CPU generations (for example AMD Zen 3 and Zen 4). `run_blanket_screened_shrink` and `run_known_order_baselines` regenerate the data of a stored instance and assert that its hash equals the hash stored with the instance, so run them on the CPU type that wrote the instances.
+Simulated data can differ at the 1e-15 level between CPU generations (for example AMD Zen 3 and Zen 4). `stored_instances` regenerates the data of a stored instance and asserts that its hash equals the hash stored with the instance, so run it on the CPU type that wrote the instances.
