@@ -100,7 +100,7 @@ def test_iamb_infeasible_targets_flagged():
     N, T, M = 3, 4, 5
     X = rng.standard_normal((M, T, N))
     rec = ci.Recorder(ci.FisherZ(X.reshape(M, T * N)), cache="run", infeasible="raise")
-    res = iamb.run_s2(rec, N, T, 0.5, per_target=True)           # lenient alpha: grow adds members, sets of size 2 are infeasible (n = 5)
+    res = iamb.run_s2(rec, N, T, 0.5, per_target=True)           # a liberal alpha: grow adds members, sets of size 2 are infeasible (n = 5)
     assert len(res.infeasible_targets) > 0
     for y in res.infeasible_targets:
         assert y not in res.pa

@@ -11,11 +11,13 @@ Columns
   function    `method` string of `method_runner.run_s2_method` (or the lasso function, or the S1 / last-slice runner)
   options     fixed options of that call: variant (PaDL step 4: "paper" | "repo"), lazy (bool recorded in the row),
               shrink (options of `itpd_s.run_s2`), tie (IAMB tie rule)
-  screening   ITPD-S and ITPD-S+ rows only, the set a candidate is screened given, besides X: learned_blanket (Markov blanket in
-              the graph learned so far), oracle_blanket (blanket in the TRUE graph, an upper bound that reads the truth),
-              shifted_parents (the learned parents of X, shifted one step forward), union (learned_blanket plus
-              shifted_parents), none (X only); "-" for the other methods
-  alpha_rule  single (one alpha for every test), equal (ITPD-S, ITPD-S+: alpha_A = alpha_B), lenient (ITPD-S, ITPD-S+: alpha_A = 0.1, alpha_B swept),
+  screening   ITPD-S and ITPD-S+ rows only, the screening conditioning set, the set a candidate is screened given, besides X:
+              learned_blanket (estimated Markov blanket in the graph learned so far), true_blanket (blanket in the TRUE graph, an upper
+              bound that reads the truth), shifted_parents (the learned parents of X, shifted one step forward), blanket_shifted
+              (learned_blanket plus shifted_parents), own_lag (X only, the previous value of the series: an autoregressive,
+              Granger-style test); "-" for the other methods
+  alpha_rule  single (one alpha for every test), equal (ITPD-S, ITPD-S+: alpha_scr = alpha_shr), screen_clean (ITPD-S, ITPD-S+: a
+              liberal screening level alpha_scr = 0.1 and a strict elimination level alpha_shr, swept),
               penalty (lasso: a penalty rule, no alpha)
   counting    lazy (a test is issued only when its result can change a label), nonlazy (both tests of every step are issued, as
               in the original code in legacy/; the same graphs), every_issued_test (the method has no lazy rule: every test it issues
@@ -45,8 +47,8 @@ def _itpd(name, function, counting, meaning, **options):
 
 def _shrink(name, screening, alpha_rule, recheck, meaning):
     opts = {"screening": screening}
-    if alpha_rule == "lenient":
-        opts["alpha_A"] = 0.1
+    if alpha_rule == "screen_clean":
+        opts["alpha_scr"] = 0.1
     if recheck:
         opts["recheck"] = True
     return Method(name, "itpd_s", {"shrink": opts, "lazy": True}, screening, alpha_rule, "every_issued_test", meaning)
@@ -81,19 +83,23 @@ METHODS = (
     Method("iamb_known_order_tie_random", "iamb_known_order", {"lazy": False, "tie": "random:7"}, "-", "single", "every_issued_test",
            "iamb_known_order with ties broken by a fixed random order, seed 7 (oracle check of the tie rule)"),
     _shrink("itpd_s", "learned_blanket", "equal", False,
-         "ITPD-S: screen each candidate given its learned blanket and X, then shrink the survivors (single pass, no re-check)"),
-    _shrink("itpd_s_lenient", "learned_blanket", "lenient", False, "itpd_s with a lenient screen (alpha_A = 0.1)"),
+         "ITPD-S: screen each candidate given its estimated blanket and X, then shrink the survivors (single pass, no second pass)"),
+    _shrink("itpd_s_screen_clean", "learned_blanket", "screen_clean", False,
+         "itpd_s with screen-and-clean levels (screening level alpha_scr = 0.1, elimination level alpha_shr)"),
     _shrink("itpd_s_plus", "learned_blanket", "equal", True,
-         "ITPD-S+: itpd_s plus the re-check of the pruned candidates and a final verification (always-verify)"),
-    _shrink("itpd_s_plus_lenient", "learned_blanket", "lenient", True, "itpd_s_plus with a lenient screen (alpha_A = 0.1)"),
-    _shrink("itpd_s_oracle_blanket", "oracle_blanket", "equal", False,
-         "itpd_s with the blanket of the TRUE graph as the screening set (reads the truth; upper bound)"),
-    _shrink("itpd_s_oracle_blanket_lenient", "oracle_blanket", "lenient", False,
-         "itpd_s_oracle_blanket with a lenient screen (alpha_A = 0.1)"),
-    _shrink("itpd_s_x_only", "none", "equal", False, "itpd_s with the screening set X only"),
-    _shrink("itpd_s_union", "union", "equal", False, "itpd_s with the learned blanket plus the shifted parents as screening set"),
+         "ITPD-S+: itpd_s plus the forward-backward second pass (re-check of the screened-out candidates, then a final shrink)"),
+    _shrink("itpd_s_plus_screen_clean", "learned_blanket", "screen_clean", True,
+         "itpd_s_plus with screen-and-clean levels (alpha_scr = 0.1)"),
+    _shrink("itpd_s_true_blanket", "true_blanket", "equal", False,
+         "itpd_s with the blanket of the TRUE graph as the screening conditioning set (an oracle: reads the truth)"),
+    _shrink("itpd_s_true_blanket_screen_clean", "true_blanket", "screen_clean", False,
+         "itpd_s_true_blanket with screen-and-clean levels (alpha_scr = 0.1)"),
+    _shrink("itpd_s_own_lag", "own_lag", "equal", False,
+         "itpd_s with the previous value of the series alone as the screening conditioning set (autoregressive, Granger-style test)"),
+    _shrink("itpd_s_blanket_shifted", "blanket_shifted", "equal", False,
+         "itpd_s with the estimated blanket plus the time-shifted parents as the screening conditioning set"),
     _shrink("itpd_s_shifted_parents", "shifted_parents", "equal", False,
-         "itpd_s with the learned parents of X shifted one step forward as screening set"),
+         "itpd_s with the learned parents of X shifted one step forward as the screening conditioning set"),
     Method("lasso_cv", "lasso.lasso_s2", {}, "-", "penalty", "no_ci_tests", "known-order lasso, penalty by 5-fold cross-validation"),
     Method("lasso_path", "lasso.lasso_s2", {}, "-", "penalty", "no_ci_tests",
            "known-order lasso at one of 13 fixed penalties (one point of a recall / false-positive curve)"),
@@ -131,16 +137,16 @@ OLD_TO_NEW = {
     "iamb_tie_rand": "iamb_known_order_tie_random",
     "hpv_mb_eq": "itpd_s",
     "mb": "itpd_s",
-    "hpv_mb_len": "itpd_s_lenient",
+    "hpv_mb_len": "itpd_s_screen_clean",
     "hpv_rc_eq": "itpd_s_plus",
     "hpv_safe_eq": "itpd_s_plus",
     "mb_recheck": "itpd_s_plus",
-    "hpv_rc_len": "itpd_s_plus_lenient",
-    "hpv_omb_eq": "itpd_s_oracle_blanket",
-    "oracle_mb": "itpd_s_oracle_blanket",
-    "hpv_omb_len": "itpd_s_oracle_blanket_lenient",
-    "none": "itpd_s_x_only",
-    "union": "itpd_s_union",
+    "hpv_rc_len": "itpd_s_plus_screen_clean",
+    "hpv_omb_eq": "itpd_s_true_blanket",
+    "oracle_mb": "itpd_s_true_blanket",
+    "hpv_omb_len": "itpd_s_true_blanket_screen_clean",
+    "none": "itpd_s_own_lag",
+    "union": "itpd_s_blanket_shifted",
     "shift": "itpd_s_shifted_parents",
     "lasso_path_13": "lasso_path_all_lambdas",
     "itpd_last": "itpd_last_slice",
@@ -152,28 +158,49 @@ OLD_TO_NEW = {
     "order_based": "full_conditioning",
     "order_based_last_slice": "full_conditioning_last_slice",
     "hpv_single_pass": "itpd_s",
-    "hpv_single_pass_lenient": "itpd_s_lenient",
+    "hpv_single_pass_lenient": "itpd_s_screen_clean",
     "hpv_safe": "itpd_s_plus",
-    "hpv_safe_lenient": "itpd_s_plus_lenient",
-    "hpv_single_pass_oracle_blanket": "itpd_s_oracle_blanket",
-    "hpv_single_pass_oracle_blanket_lenient": "itpd_s_oracle_blanket_lenient",
-    "hpv_single_pass_no_hint": "itpd_s_x_only",
-    "hpv_single_pass_union": "itpd_s_union",
+    "hpv_safe_lenient": "itpd_s_plus_screen_clean",
+    "hpv_single_pass_oracle_blanket": "itpd_s_true_blanket",
+    "hpv_single_pass_oracle_blanket_lenient": "itpd_s_true_blanket_screen_clean",
+    "hpv_single_pass_no_hint": "itpd_s_own_lag",
+    "hpv_single_pass_union": "itpd_s_blanket_shifted",
     "hpv_single_pass_shifted_parents": "itpd_s_shifted_parents",
     # names of the release before ITPD-S and ITPD-S+
     "blanket_screened_shrink": "itpd_s",
-    "blanket_screened_shrink_lenient": "itpd_s_lenient",
+    "blanket_screened_shrink_lenient": "itpd_s_screen_clean",
     "blanket_screened_shrink_recheck": "itpd_s_plus",
-    "blanket_screened_shrink_recheck_lenient": "itpd_s_plus_lenient",
-    "blanket_screened_shrink_oracle_blanket": "itpd_s_oracle_blanket",
-    "blanket_screened_shrink_oracle_blanket_lenient": "itpd_s_oracle_blanket_lenient",
-    "blanket_screened_shrink_x_only": "itpd_s_x_only",
-    "blanket_screened_shrink_union": "itpd_s_union",
+    "blanket_screened_shrink_recheck_lenient": "itpd_s_plus_screen_clean",
+    "blanket_screened_shrink_oracle_blanket": "itpd_s_true_blanket",
+    "blanket_screened_shrink_oracle_blanket_lenient": "itpd_s_true_blanket_screen_clean",
+    "blanket_screened_shrink_x_only": "itpd_s_own_lag",
+    "blanket_screened_shrink_union": "itpd_s_blanket_shifted",
     "blanket_screened_shrink_shifted_parents": "itpd_s_shifted_parents",
+    # interim names of the variants of ITPD-S (before the standard-term names)
+    "itpd_s_lenient": "itpd_s_screen_clean",
+    "itpd_s_plus_lenient": "itpd_s_plus_screen_clean",
+    "itpd_s_oracle_blanket": "itpd_s_true_blanket",
+    "itpd_s_oracle_blanket_lenient": "itpd_s_true_blanket_screen_clean",
+    "itpd_s_x_only": "itpd_s_own_lag",
+    "itpd_s_union": "itpd_s_blanket_shifted",
 }
 
-# Screening values (argument `screening`) written before the rename -> current values.
-OLD_SCREENING_TO_NEW = {"mb": "learned_blanket", "oracle_mb": "oracle_blanket", "shift": "shifted_parents"}
+# Screening values (argument `screening`) written before the renames -> current values.
+OLD_SCREENING_TO_NEW = {"mb": "learned_blanket", "oracle_mb": "true_blanket", "shift": "shifted_parents", "none": "own_lag",
+                        "union": "blanket_shifted", "oracle_blanket": "true_blanket"}
+
+# Keys of the `shrink` options (and the key of a row of the finite-data results) written before the renames -> current keys:
+# the level of the screening step and the level of the shrink step.
+OLD_OPTION_KEYS = {"alpha_A": "alpha_scr", "alpha_B": "alpha_shr"}
+
+
+def current_shrink_options(opts: dict) -> dict:
+    """`shrink` options of `itpd_s.run_s2` as written before the renames (keys `alpha_A`, `alpha_B`, earlier screening strings)
+    -> the current keys and strings; the one place that reads the old keys. Current options come back unchanged (a copy)."""
+    out = {OLD_OPTION_KEYS.get(k, k): v for k, v in opts.items()}
+    if "screening" in out:
+        out["screening"] = OLD_SCREENING_TO_NEW.get(out["screening"], out["screening"])
+    return out
 
 
 def spec(name: str, alphas, **shrink_extra) -> tuple:

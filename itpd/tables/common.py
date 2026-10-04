@@ -1,14 +1,14 @@
 """Helpers shared by the table collectors: per-task JSON loading, number formats, markdown tables, bootstrap intervals, log-log slopes
 and the recall-at-matched-false-positives interpolation. Results written before the method-name rename carry old row names;
 `new_name`, `rename_rows` and `load_tasks` translate them with methods_registry.OLD_TO_NEW, so every collector reads old and new
-files with the new names."""
+files with the new names; the same functions translate the `shrink` options and the `alpha_A` key of a row (OLD_OPTION_KEYS)."""
 import glob
 import json
 import os
 
 import numpy as np
 
-from itpd.methods_registry import OLD_TO_NEW
+from itpd.methods_registry import OLD_OPTION_KEYS, OLD_TO_NEW, current_shrink_options
 
 RESULTS = os.environ.get("ITPD_RESULTS", "results")        # results directory of the earlier runs
 ALPHA = 0.01                                               # the operating point of every table
@@ -23,12 +23,19 @@ def new_name(name):
 
 
 def rename_rows(task):
-    """Old row names -> current names in the lists of rows a task JSON can hold (runs, rows, lasso rows)."""
+    """Old row names, `shrink` options and level keys -> current ones in the lists of rows a task JSON can hold (runs, rows, lasso rows)."""
     lists = [task.get("runs"), task.get("rows"), (task.get("lasso") or {}).get("rows")]
     for lst in lists:
         for r in lst or []:
-            if isinstance(r, dict) and r.get("name") in OLD_TO_NEW:
+            if not isinstance(r, dict):
+                continue
+            if r.get("name") in OLD_TO_NEW:
                 r["name"] = OLD_TO_NEW[r["name"]]
+            if isinstance(r.get("shrink"), dict):
+                r["shrink"] = current_shrink_options(r["shrink"])
+            for old, new_ in OLD_OPTION_KEYS.items():
+                if old in r:
+                    r[new_] = r.pop(old)
     return task
 
 

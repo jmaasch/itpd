@@ -1,6 +1,6 @@
 # itpd
 
-Instrumented implementation of ITPD (Iterative Temporal Parent Discovery), ITPD_naive, the full-conditioning baseline, ITPD-S (blanket-screened shrink, single pass), ITPD-S+ (ITPD-S with a re-check) and the other
+Instrumented implementation of ITPD (Iterative Temporal Parent Discovery), ITPD_naive, the full-conditioning baseline, ITPD-S (blanket-screened shrink, single pass), ITPD-S+ (ITPD-S with a forward-backward second pass) and the other
 known-order methods, on one CI-test foundation: every method calls the same counting wrapper, so the numbers of tests are comparable.
 Conventions: time is 0-based, the process starts at t = 0 (those nodes are roots); node (variable n, time t) has column t * N + n;
 `A[i, j] = 1` iff i -> j. Setting S1 = one long series, setting S2 = M replicates of a T-step process.
@@ -33,7 +33,7 @@ Conventions: time is 0-based, the process starts at t = 0 (those nodes are roots
 
 Every method name written to a result file is defined once in `methods_registry.py`. Names in files written before the rename are translated with
 `OLD_TO_NEW` (for example `itpd_nl` is `itpd_nonlazy`, `order` and `order_based` are `full_conditioning`, `blanket_screened_shrink_recheck` is `itpd_s_plus`); every collector in `itpd/tables/` reads both.
-ITPD-S names are `itpd_s[_<screening>][_lenient]` and ITPD-S+ names are `itpd_s_plus[_lenient]`: screening `learned_blanket` and equal alpha are the defaults and are omitted. `screening` is the set a candidate is screened given besides X; the screening set of a candidate Z is this set (for `learned_blanket`, the Markov blanket of Z in the graph learned for earlier steps) plus X.
+ITPD-S names are `itpd_s[_<screening>][_screen_clean]` and ITPD-S+ names are `itpd_s_plus[_screen_clean]`: the screening `learned_blanket` and one level for both steps are the defaults and are omitted. `screening` is the screening conditioning set, the set a candidate is screened given besides X: `learned_blanket` (the estimated Markov blanket of Z in the graph learned for earlier steps), `true_blanket` (the blanket in the TRUE graph, an oracle), `shifted_parents`, `blanket_shifted` (blanket plus time-shifted parents) or `own_lag` (the previous value of the same series alone, an autoregressive, Granger-style test); the screening conditioning set of a candidate Z is this set plus X. `screen_clean` is screen-and-clean: a liberal level `alpha_scr` = 0.1 for the screening step and a strict level `alpha_shr` for the elimination (shrink) step. ITPD-S+ adds the forward-backward second pass (`recheck`): after the shrink step, every candidate the screening removed is tested given the selected set, those that test dependent are added, and the shrink step runs again on the enlarged survivor set.
 
 | name | function | screening | alpha rule | counting | meaning |
 |---|---|---|---|---|---|
@@ -51,15 +51,15 @@ ITPD-S names are `itpd_s[_<screening>][_lenient]` and ITPD-S+ names are `itpd_s_
 | `iamb_known_order` | `iamb_known_order` | - | single | every_issued_test | IAMB per target, self edge known; ties in the grow step go to the latest candidate |
 | `iamb_known_order_tie_first` | `iamb_known_order` | - | single | every_issued_test | iamb_known_order with ties going to the first candidate (oracle check of the tie rule) |
 | `iamb_known_order_tie_random` | `iamb_known_order` | - | single | every_issued_test | iamb_known_order with ties broken by a fixed random order, seed 7 (oracle check of the tie rule) |
-| `itpd_s` | `itpd_s` | learned_blanket | equal | every_issued_test | ITPD-S: screen each candidate given its learned blanket and X, then shrink the survivors (single pass, no re-check) |
-| `itpd_s_lenient` | `itpd_s` | learned_blanket | lenient | every_issued_test | itpd_s with a lenient screen (alpha_A = 0.1) |
-| `itpd_s_plus` | `itpd_s` | learned_blanket | equal | every_issued_test | ITPD-S+: itpd_s plus the re-check of the pruned candidates and a final verification (always-verify) |
-| `itpd_s_plus_lenient` | `itpd_s` | learned_blanket | lenient | every_issued_test | itpd_s_plus with a lenient screen (alpha_A = 0.1) |
-| `itpd_s_oracle_blanket` | `itpd_s` | oracle_blanket | equal | every_issued_test | itpd_s with the blanket of the TRUE graph as the screening set (reads the truth; upper bound) |
-| `itpd_s_oracle_blanket_lenient` | `itpd_s` | oracle_blanket | lenient | every_issued_test | itpd_s_oracle_blanket with a lenient screen (alpha_A = 0.1) |
-| `itpd_s_x_only` | `itpd_s` | none | equal | every_issued_test | itpd_s with the screening set X only |
-| `itpd_s_union` | `itpd_s` | union | equal | every_issued_test | itpd_s with the learned blanket plus the shifted parents as screening set |
-| `itpd_s_shifted_parents` | `itpd_s` | shifted_parents | equal | every_issued_test | itpd_s with the learned parents of X shifted one step forward as screening set |
+| `itpd_s` | `itpd_s` | learned_blanket | equal | every_issued_test | ITPD-S: screen each candidate given its estimated blanket and X, then shrink the survivors (single pass, no second pass) |
+| `itpd_s_screen_clean` | `itpd_s` | learned_blanket | screen_clean | every_issued_test | itpd_s with screen-and-clean levels (screening level alpha_scr = 0.1, elimination level alpha_shr) |
+| `itpd_s_plus` | `itpd_s` | learned_blanket | equal | every_issued_test | ITPD-S+: itpd_s plus the forward-backward second pass (re-check of the screened-out candidates, then a final shrink) |
+| `itpd_s_plus_screen_clean` | `itpd_s` | learned_blanket | screen_clean | every_issued_test | itpd_s_plus with screen-and-clean levels (alpha_scr = 0.1) |
+| `itpd_s_true_blanket` | `itpd_s` | true_blanket | equal | every_issued_test | itpd_s with the blanket of the TRUE graph as the screening conditioning set (an oracle: reads the truth) |
+| `itpd_s_true_blanket_screen_clean` | `itpd_s` | true_blanket | screen_clean | every_issued_test | itpd_s_true_blanket with screen-and-clean levels (alpha_scr = 0.1) |
+| `itpd_s_own_lag` | `itpd_s` | own_lag | equal | every_issued_test | itpd_s with the previous value of the series alone as the screening conditioning set (autoregressive, Granger-style test) |
+| `itpd_s_blanket_shifted` | `itpd_s` | blanket_shifted | equal | every_issued_test | itpd_s with the estimated blanket plus the time-shifted parents as the screening conditioning set |
+| `itpd_s_shifted_parents` | `itpd_s` | shifted_parents | equal | every_issued_test | itpd_s with the learned parents of X shifted one step forward as the screening conditioning set |
 | `lasso_cv` | `lasso.lasso_s2` | - | penalty | no_ci_tests | known-order lasso, penalty by 5-fold cross-validation |
 | `lasso_path` | `lasso.lasso_s2` | - | penalty | no_ci_tests | known-order lasso at one of 13 fixed penalties (one point of a recall / false-positive curve) |
 | `lasso_ebic` | `lasso.lasso_s2` | - | penalty | no_ci_tests | known-order lasso, penalty by extended BIC (the headline lasso) |
@@ -95,7 +95,7 @@ The drivers write one file per task and skip a task whose file exists, so a stop
 | `oracle/<arm>/N<N>_T<T>_tau<tau>_d<d>.json` | `oracle_counts grid --out-dir R/oracle/<arm> --graph <arm>` (arm `time` or `window`) |
 | `instances/<arm>/*.npz` | the same command with `--instances-dir R/instances/<arm>` |
 | `finite/window/<cell>/` and `finite/window/instances/<cell>/` | `finite_data --out-dir R/finite/window --arm window` |
-| `itpd_s/oracle/`, `itpd_s/single_pass/` (ITPD-S), `itpd_s/recheck/` (ITPD-S+) | `stored_instances itpd_s oracle`, `stored_instances itpd_s finite`, `stored_instances itpd_s finite --specs itpd_s_plus,itpd_s_plus_lenient` |
+| `itpd_s/oracle/`, `itpd_s/single_pass/` (ITPD-S), `itpd_s/recheck/` (ITPD-S+) | `stored_instances itpd_s oracle`, `stored_instances itpd_s finite`, `stored_instances itpd_s finite --specs itpd_s_plus,itpd_s_plus_screen_clean` |
 | `baselines/{oracle,finite,lasso_ebic_fixed,timing}/` | `stored_instances known_order` with the mode of the same name |
 
 Simulated data can differ at the 1e-15 level between CPU generations (for example AMD Zen 3 and Zen 4). `stored_instances` regenerates the data of a stored instance and asserts that its hash equals the hash stored with the instance, so run it on the CPU type that wrote the instances.

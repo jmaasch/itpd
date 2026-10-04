@@ -13,7 +13,7 @@ $ITPD_RESULTS or ./results): `python -m itpd.experiments oracle_counts cell ... 
     python -m itpd.experiments stored_instances itpd_s oracle --out-dir OUT/oracle --workers 12 [--arm time,window --N 10,20 --T 8,16 --tau 1,2 --graphs 20]
     python -m itpd.experiments stored_instances itpd_s finite --out-dir OUT/finite --workers 12 [--N 10,20 --T 8,16 --M 50,100,200,500,2000 --graphs 20]
         [--budget-sec S]   (start no new task after S seconds)
-        [--specs itpd_s_plus,itpd_s_plus_lenient]   (run only these entries of SHRINK_FINITE_SPECS; default all; use a new --out-dir)
+        [--specs itpd_s_plus,itpd_s_plus_screen_clean]   (run only these entries of SHRINK_FINITE_SPECS; default all; use a new --out-dir)
         [--shard K/NSH]    (this process runs tasks K, K + NSH, ... of the cost-sorted list; one shard per batch job)
         [--summary FILE]   (one-line summary written at the end)
 
@@ -33,7 +33,7 @@ after another, perf_counter and process CPU time.
 
 itpd_s oracle: instances R/instances/<arm>/N<N>_T<T>_tau<tau>_d2_<arm>_g<g>.npz, sha1 checked against the stored oracle-run row of the same
 graph (R/oracle/<arm>/N<N>_T<T>_tau<tau>_d2.json, graph_stats.sha1) and Sum|C| against its n_cand. ITPD-S variants (`SHRINK_ORACLE_VARIANTS`):
-screening sets learned_blanket, oracle_blanket, none, union, learned_blanket + re-check (itpd_s_plus), and shifted_parents (window arm only); exact
+screening conditioning sets learned_blanket, true_blanket, own_lag, blanket_shifted, learned_blanket + second pass (itpd_s_plus), and shifted_parents (window arm only); exact
 d-separation oracle on the full graph.
 itpd_s finite: instances R/finite/window/instances/window_N<N>_T<T>_tau1_d2/g<g>.npz, sha1 and data_seed checked against the stored finite-data task
 JSON, data regenerated and checked against data_sha1 (M = 2000), the first M rows used (paired across M).
@@ -252,17 +252,17 @@ ALPHAS = dataset_eval.ALPHAS
 ALPHAS_LEN = tuple(a for a in ALPHAS if a <= 0.1 + 1e-12)
 SHRINK_FINITE_SPECS = (                      # built from methods_registry.spec; set by main(--specs); forked workers inherit it
     spec("itpd_s", ALPHAS, keep_parent_tests=True),
-    spec("itpd_s_lenient", ALPHAS_LEN, keep_parent_tests=True),
-    spec("itpd_s_oracle_blanket", (dataset_eval.PRIMARY,), keep_parent_tests=True),
-    spec("itpd_s_oracle_blanket_lenient", (dataset_eval.PRIMARY,), keep_parent_tests=True),
-    # the re-check (always-verify) at equal alpha with the full 13-point sweep (matched-false-positive curves); the lenient
-    # row sweeps alpha_B with alpha_A = 0.1
+    spec("itpd_s_screen_clean", ALPHAS_LEN, keep_parent_tests=True),
+    spec("itpd_s_true_blanket", (dataset_eval.PRIMARY,), keep_parent_tests=True),
+    spec("itpd_s_true_blanket_screen_clean", (dataset_eval.PRIMARY,), keep_parent_tests=True),
+    # the re-check (always-verify) at equal alpha with the full 13-point sweep (matched-false-positive curves); the screen-and-clean
+    # row sweeps alpha_shr with alpha_scr = 0.1
     spec("itpd_s_plus", ALPHAS),
-    spec("itpd_s_plus_lenient", ALPHAS_LEN),
+    spec("itpd_s_plus_screen_clean", ALPHAS_LEN),
 )
 ACTIVE_SHRINK_SPECS = SHRINK_FINITE_SPECS
 SHRINK_ORACLE_VARIANTS = tuple((n, shrink_options(n)) for n in (
-    "itpd_s", "itpd_s_oracle_blanket", "itpd_s_x_only", "itpd_s_union", "itpd_s_plus",
+    "itpd_s", "itpd_s_true_blanket", "itpd_s_own_lag", "itpd_s_blanket_shifted", "itpd_s_plus",
     "itpd_s_shifted_parents"))
 
 
@@ -315,9 +315,9 @@ def shrink_oracle_task(a):
             "max_SA": max(p["max_SA"] for p in pp), "max_SB": max(p["max_SB"] for p in pp),
             "calls_identity": t["raw_calls"] == sum_c + e_nonself,
             "overhead_bound": 1 + 2 * (din - 1) / (N * T - 2),
-            # learned_blanket / oracle_blanket: |S_A| <= b(Z) + |F|; union adds |pa_hat(X)| (= true in-degree of X here)
+            # learned_blanket / true_blanket: |S_A| <= b(Z) + |F|; blanket_shifted adds |pa_hat(X)| (= true in-degree of X here)
             "n_bound_b_viol": int(sum(1 for p in pp if "b_max" in p and p["max_SA"] > p["b_max"] + 1
-                                      + (int(A[:, p["pair"][0]].sum()) if name == "itpd_s_union" else 0))),
+                                      + (int(A[:, p["pair"][0]].sum()) if name == "itpd_s_blanket_shifted" else 0))),
             "n_bound_glob_viol": int(sum(1 for p in pp if p["max_SA"] > din * (1 + dout) + 1)),
             "glob_bound": din * (1 + dout) + 1,
             "excess_by_t": {str(k): v[0] for k, v in sorted(by_t.items())},

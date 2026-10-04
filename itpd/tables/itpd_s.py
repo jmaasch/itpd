@@ -2,7 +2,7 @@
 finite-data runs against the stored finite-data rows, and the pooled recall-false-positive curves with the recall at matched false positives.
 Reads, under the results directory R (`--results`, default $ITPD_RESULTS or ./results): R/itpd_s/oracle
 (`itpd.experiments stored_instances itpd_s oracle`), R/itpd_s/single_pass and R/itpd_s/recheck
-(`stored_instances itpd_s finite`, the latter with `--specs itpd_s_plus,itpd_s_plus_lenient`),
+(`stored_instances itpd_s finite`, the latter with `--specs itpd_s_plus,itpd_s_plus_screen_clean`),
 R/oracle and R/finite/window (the earlier runs, with their instances). Writes in `--out` (default R/itpd_s):
 
   --only oracle    tables_oracle.md
@@ -39,20 +39,20 @@ from itpd.instances import load_instance
 
 from .common import ALPHA, CORE, RESULTS, interp, md, ncand, new_name
 
-FINITE_SHRINK = ("itpd_s", "itpd_s_lenient", "itpd_s_oracle_blanket", "itpd_s_oracle_blanket_lenient",
-         "itpd_s_plus_lenient")
-LABEL = {"itpd_s": "ITPD-S", "itpd_s_lenient": "ITPD-S lenient screen",
-         "itpd_s_oracle_blanket": "ITPD-S oracle-blanket screen",
-         "itpd_s_oracle_blanket_lenient": "ITPD-S lenient oracle-blanket screen",
-         "itpd_s_plus_lenient": "ITPD-S+ lenient screen", "itpd": "ITPD",
+FINITE_SHRINK = ("itpd_s", "itpd_s_screen_clean", "itpd_s_true_blanket", "itpd_s_true_blanket_screen_clean",
+         "itpd_s_plus_screen_clean")
+LABEL = {"itpd_s": "ITPD-S", "itpd_s_screen_clean": "ITPD-S screen-and-clean",
+         "itpd_s_true_blanket": "ITPD-S true-blanket screen",
+         "itpd_s_true_blanket_screen_clean": "ITPD-S true-blanket screen-and-clean",
+         "itpd_s_plus_screen_clean": "ITPD-S+ screen-and-clean", "itpd": "ITPD",
          "itpd_naive": "ITPD_naive", "full_conditioning": "full conditioning"}
 BINS = (0.0, 0.05, 0.1, 0.2, 0.3, np.inf)
 # key -> (source, name in the JSON, display label)
 METH = {
     "eq": ("single_pass", "itpd_s", "ITPD-S"),
     "rc_eq": ("recheck", "itpd_s_plus", "ITPD-S+"),
-    "len": ("single_pass", "itpd_s_lenient", "ITPD-S lenient screen"),
-    "rc_len": ("recheck", "itpd_s_plus_lenient", "ITPD-S+ lenient screen"),
+    "len": ("single_pass", "itpd_s_screen_clean", "ITPD-S screen-and-clean"),
+    "rc_len": ("recheck", "itpd_s_plus_screen_clean", "ITPD-S+ screen-and-clean"),
     "itpd": ("finite", "itpd", "ITPD"),
     "naive": ("finite", "itpd_naive", "ITPD_naive"),
     "full_conditioning": ("finite", "full_conditioning", "full conditioning"),
@@ -204,7 +204,7 @@ def collect_finite(res, out, grid):
     lines = ["# ITPD-S and ITPD-S+ finite-data runs: tables", "",
              "Conditions: S2 window arm (stationary lag weights, spectral radius <= 0.9), tau = 1, d = 2, linear-Gaussian, "
              "Fisher-z, full history, the instances g00-g19 per (N, T) of the finite-data runs (sha1, data_seed and data_sha1 checked), data = "
-             "first M rows (paired across M and methods). ITPD-S and ITPD-S+: equal = alpha_A = alpha_B; lenient = alpha_A 0.10; alpha_B = 0.01 "
+             "first M rows (paired across M and methods). ITPD-S and ITPD-S+: equal = alpha_scr = alpha_shr; screen-and-clean = alpha_scr 0.10; alpha_shr = 0.01 "
              "unless stated. Stored rows (ITPD paper variant, ITPD_naive, full conditioning) at alpha 0.01, lazy. Common targets: "
              f"t <= (M - 3)/N. Medians [Q1, Q3] over {grid.graphs} graphs; totals are sums over the {grid.graphs} graphs.", ""]
     edge_cache = {}
@@ -222,7 +222,7 @@ def collect_finite(res, out, grid):
                     edge_cache[(cell, g)] = st
             for M in grid.Ms:
                 ct = common_tmax(N, T, M)
-                rows_by = defaultdict(list)      # method -> list of rows at alpha_B = 0.01 (one per graph)
+                rows_by = defaultdict(list)      # method -> list of rows at alpha_shr = 0.01 (one per graph)
                 sweep = defaultdict(lambda: defaultdict(lambda: np.zeros(3)))   # method -> alpha -> [tp, fp, fn] pooled
                 for g in range(grid.graphs):
                     fh = os.path.join(res, "itpd_s", "single_pass", cell, f"g{g:02d}_M{M}.json")
@@ -310,13 +310,13 @@ def collect_finite(res, out, grid):
                         H_rows.append([N, T, M, LABEL[nm], agg[key]["excess"], agg[key]["lost"], agg[key]["sum_Aprime"],
                                        agg[key]["targets_Aprime"], agg[key]["shortcut_diff"], agg[key]["a_inf"]])
                 # error propagation: learned blanket vs true blanket
-                for a, b in (("itpd_s", "itpd_s_oracle_blanket"), ("itpd_s_lenient", "itpd_s_oracle_blanket_lenient")):
+                for a, b in (("itpd_s", "itpd_s_true_blanket"), ("itpd_s_screen_clean", "itpd_s_true_blanket_screen_clean")):
                     ka, kb = f"{cell}|M{M}|{a}", f"{cell}|M{M}|{b}"
                     if ka in agg and kb in agg:
                         gs = sorted(set(agg[ka]["f1_by_g"]) & set(agg[kb]["f1_by_g"]))
                         df = [agg[kb]["f1_by_g"][g] - agg[ka]["f1_by_g"][g] for g in gs]
                         dt = [agg[ka]["tpc_by_g"][g] - agg[kb]["tpc_by_g"][g] for g in gs]
-                        E_rows.append([N, T, M, "lenient" if a.endswith("lenient") else "equal",
+                        E_rows.append([N, T, M, "screen-and-clean" if a.endswith("screen_clean") else "equal",
                                        f"{np.mean(df):+.3f} [{np.min(df):+.3f}, {np.max(df):+.3f}]" if df else "-",
                                        f"{np.mean(dt):+.3f}", agg[ka]["excess"], agg[kb]["excess"], agg[ka]["lost"], agg[kb]["lost"],
                                        agg[ka]["fn_tot"], agg[kb]["fn_tot"], agg[ka]["fp_tot"], agg[kb]["fp_tot"]])
@@ -324,18 +324,18 @@ def collect_finite(res, out, grid):
               "it abandoned them). tpc = unique / Sum|C|; share = mean over feasible targets of largest set / |C|", ""]
     lines.append(md(["N", "T", "M", "method", "unique tpc", "raw tpc", "unique tpc by step (A, B, C)", "largest set per graph",
                      "largest-set share", "infeasible-target share (graphs with any)"], A_rows))
-    lines += ["", "#### Common targets (t <= (M-3)/N; comparable across methods), alpha (alpha_B) 0.01", ""]
+    lines += ["", "#### Common targets (t <= (M-3)/N; comparable across methods), alpha (alpha_shr) 0.01", ""]
     lines.append(md(["N", "T", "M", "common t", "method", "recall", "precision", "F1", "FP total", "FN total"], B_rows))
     lines += ["", "#### Own-feasible targets (each method on the targets it could decide; NOT comparable across methods)", ""]
     lines.append(md(["N", "T", "M", "method", "recall", "precision", "F1", "infeasible share"], C_rows))
     lines += ["", "#### Matched FP, oracle-tuned diagnostic (needs the truth; not a usable procedure). Common targets, pooled over "
               f"the {grid.graphs} graphs. Recall of each swept method interpolated linearly in log(FP) at full conditioning's pooled FP at alpha 0.01; "
               "'not reached' if that FP lies outside the method's swept FP range (no extrapolation). Sweeps: ITPD-S "
-              "alpha in 13 values 0.2-1e-6; ITPD-S lenient screen alpha_B in 12 values 0.1-1e-6 (alpha_A 0.1); ITPD, ITPD_naive 13 values. "
+              "alpha in 13 values 0.2-1e-6; ITPD-S screen-and-clean alpha_shr in 12 values 0.1-1e-6 (alpha_scr 0.1); ITPD, ITPD_naive 13 values. "
               "Last column: alpha:FP/recall.", ""]
     lines.append(md(["N", "T", "M", "method", "full conditioning FP", "full conditioning recall", "recall at full conditioning FP", "swept FP range", "curve"], D_rows))
-    lines += ["", "#### Error propagation: learned-graph screening set (learned_blanket) vs true-blanket screening set (oracle_blanket), same alphas. "
-              "dF1 = F1(oracle_blanket) - F1(learned_blanket), mean [min, max] over graphs (common targets); dtpc = tpc(learned_blanket) - tpc(oracle_blanket); "
+    lines += ["", "#### Error propagation: learned-graph screening set (learned_blanket) vs true-blanket screening set (true_blanket), same alphas. "
+              "dF1 = F1(true_blanket) - F1(learned_blanket), mean [min, max] over graphs (common targets); dtpc = tpc(learned_blanket) - tpc(true_blanket); "
               "excess = non-parents surviving the screening step; lost = true parents removed in the screening step (all targets)", ""]
     lines.append(md(["N", "T", "M", "alphas", "dF1", "dtpc", "excess learned", "excess oracle", "lost learned", "lost oracle",
                      "FN learned", "FN oracle", "FP learned", "FP oracle"], E_rows))
@@ -435,7 +435,7 @@ def build_curves(res, out, grid):
                 agg["matched"][f"{lv}|{cell}|{M}|{k}"] = {"fp0": fp0, "status": st, "recall": rec, "f1": f1, "bracket": br}
     with open(os.path.join(out, "curves.csv"), "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["cell", "N", "T", "M", "method", "alpha_or_alpha_B", "alpha_A", "fp", "tp", "fn", "recall", "precision", "f1",
+        w.writerow(["cell", "N", "T", "M", "method", "alpha_or_alpha_shr", "alpha_scr", "fp", "tp", "fn", "recall", "precision", "f1",
                     "undecidable_targets", "targets"])
         w.writerows(curves_rows)
     with open(os.path.join(out, "matched_fp.csv"), "w", newline="") as f:
@@ -491,7 +491,7 @@ def pm(vals):
 
 
 def summary_tables(data, agg, grid):
-    """Medians over the graphs at alpha (alpha_B) = 0.01 on common targets: tpc, largest set, undecidable share, recall, precision, F1."""
+    """Medians over the graphs at alpha (alpha_shr) = 0.01 on common targets: tpc, largest set, undecidable share, recall, precision, F1."""
     lines = []
     keys = KEYS
     T = {q: [] for q in ("tpc", "max", "inf", "rec", "prec", "f1", "fp", "fn")}
@@ -536,7 +536,7 @@ def summary_tables(data, agg, grid):
 
 
 def undecidable_tables(data, agg, grid):
-    """Undecidable targets / all targets, pooled over the graphs, across alpha (alpha_B), at M 50, 100."""
+    """Undecidable targets / all targets, pooled over the graphs, across alpha (alpha_shr), at M 50, 100."""
     lines = []
     for N, Tt in grid.cells:
         for M in [M for M in UNDECIDABLE_MS if M in grid.Ms]:
@@ -546,7 +546,7 @@ def undecidable_tables(data, agg, grid):
             for k in KEYS:
                 C = pooled_curves(per, k)
                 rows.append([METH[k][2]] + [("-" if a not in C else f"{C[a][3]}/{C[a][4]}") for a in alphas])
-            lines += [f"##### Undecidable targets / targets, N{N} T{Tt} M{M} (pooled over {grid.graphs} graphs; alpha, or alpha_B for the lenient variants)", "",
+            lines += [f"##### Undecidable targets / targets, N{N} T{Tt} M{M} (pooled over {grid.graphs} graphs; alpha, or alpha_shr for the screen-and-clean variants)", "",
                       md(["method"] + [f"{a:g}" for a in alphas], rows), ""]
     return lines
 
@@ -570,8 +570,8 @@ def recheck_table(data, grid):
                          f"{sum(h['sum_Aprime'] for h in hl)} ({sum(h['targets_Aprime'] for h in hl)})", sum(h["shortcut_diff"] for h in hl)])
     return ["##### Re-check (always-verify) against ITPD-S, same alpha: FN and FP totals (common targets), A' members (targets with A' non-empty), "
             f"always-verify vs shortcut output differences (all targets), pooled over {grid.graphs} graphs", "",
-            md(["N", "T", "M", "FN equal -> re-check", "FP equal -> re-check", "A' (targets) re-check equal", "shortcut diff equal", "FN lenient -> re-check",
-                "FP lenient -> re-check", "A' (targets) re-check lenient", "shortcut diff lenient"], rows), ""]
+            md(["N", "T", "M", "FN equal -> re-check", "FP equal -> re-check", "A' (targets) re-check equal", "shortcut diff equal", "FN screen-and-clean -> re-check",
+                "FP screen-and-clean -> re-check", "A' (targets) re-check screen-and-clean", "shortcut diff screen-and-clean"], rows), ""]
 
 
 def near_cancelled(res, data, grid):
@@ -631,9 +631,9 @@ def run(a):
         L = ["# ITPD-S and ITPD-S+ tables", "",
              f"Conditions: S2 window arm, tau = 1, d = 2, linear-Gaussian, Fisher-z, full history, instances g00-g{grid.graphs - 1:02d} per (N, T) of the finite-data runs, data = first M rows "
              f"(sha1, data_seed, data_sha1 checked; the ITPD-S and ITPD-S+ runs join the same tasks; common_tmax and true-edge counts equal). Pooled = sums over the {grid.graphs} "
-             "graphs, common targets t <= (M - 3)/N. ITPD-S = single pass, learned-blanket screening set, alpha_A = alpha_B; ITPD-S+ = the same plus the "
-             "always-verify re-check (alpha 0.01 in both steps unless a sweep is stated); ITPD-S lenient screen = alpha_A 0.1 with alpha_B swept; ITPD-S+ lenient screen = the same "
-             "with the re-check. Sweeps: 13 alphas (0.2 to 1e-6) for the equal-alpha variants, ITPD, ITPD_naive and full conditioning; 12 alpha_B (0.1 to 1e-6) for the lenient variants. "
+             "graphs, common targets t <= (M - 3)/N. ITPD-S = single pass, learned-blanket screening set, alpha_scr = alpha_shr; ITPD-S+ = the same plus the "
+             "always-verify re-check (alpha 0.01 in both steps unless a sweep is stated); ITPD-S screen-and-clean = alpha_scr 0.1 with alpha_shr swept; ITPD-S+ screen-and-clean = the same "
+             "with the re-check. Sweeps: 13 alphas (0.2 to 1e-6) for the equal-alpha variants, ITPD, ITPD_naive and full conditioning; 12 alpha_shr (0.1 to 1e-6) for the screen-and-clean variants. "
              "Matched-FP tables are an oracle-tuned diagnostic (the level is chosen with the truth).", ""]
         L += ["#### Matched FP (oracle-tuned diagnostic): recall interpolated in log FP", ""] + matched_tables(agg, grid)
         L += ["#### Alpha = 0.01 operating point", ""] + summary_tables(data, agg, grid)

@@ -19,7 +19,7 @@ import numpy as np
 from . import method_runner
 from .ci import FisherZ
 from .graphs import TimeGraph
-from .methods_registry import spec
+from .methods_registry import current_shrink_options, spec
 from .metrics import edge_metrics
 
 ALPHAS = (0.2, 0.1, 0.05, 0.02, 0.01, 0.005, 0.002, 0.001, 5e-4, 2e-4, 1e-4, 1e-5, 1e-6)
@@ -79,7 +79,7 @@ def run_dataset(A_truth: np.ndarray, X: np.ndarray, tau: int, specs=ITPD_AND_ORD
     for name, method, variant, lazy, alphas in specs:
         for alpha in alphas:
             detail = abs(alpha - PRIMARY) < 1e-12
-            hk = variant if method == "itpd_s" else None   # `variant` is the dict of shrink options, alpha = alpha_B
+            hk = current_shrink_options(variant) if method == "itpd_s" else None   # `variant` is the dict of shrink options, alpha = alpha_shr
             o = method_runner.run_s2_method(method, None, graph=tg, ci=ci, alpha=alpha,
                                      variant="paper" if hk is not None else (variant or "paper"), order=order,
                                      lazy=lazy, infeasible="raise", shared=shared, keep_graph=True, per_target=True, shrink=hk)
@@ -90,7 +90,7 @@ def run_dataset(A_truth: np.ndarray, X: np.ndarray, tau: int, specs=ITPD_AND_ORD
                    "n_inf_targets": o["n_infeasible_targets"], "unique": t["unique_tests"], "raw": t["raw_calls"],
                    "p_nan_unique": t["p_nan_unique"], "seconds": o["seconds"], "metrics": o["metrics"]}
             if hk is not None:
-                row["alpha_A"] = alpha if hk.get("alpha_A") is None else hk["alpha_A"]
+                row["alpha_scr"] = alpha if hk.get("alpha_scr") is None else hk["alpha_scr"]
                 row["shrink"] = {k: v for k, v in hk.items() if k != "keep_parent_tests"}
                 row["shrink_stats"] = o["shrink_stats"]
                 row["by_label_unique"] = t["by_label_unique"]

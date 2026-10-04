@@ -7,7 +7,7 @@ from itpd import itpd_s as shrink, ci, sim
 from itpd import dataset_eval as finite, method_runner as runlib
 from itpd.graphs import TimeGraph, unroll
 
-SCREENING_SETS = ("learned_blanket", "shifted_parents", "union", "oracle_blanket", "none")
+SCREENING_SETS = ("learned_blanket", "shifted_parents", "blanket_shifted", "true_blanket", "own_lag")
 
 
 def _graph(kind, N, T, tau, d, rng):
@@ -77,8 +77,8 @@ def test_screening_sets_match_definition(screening):
                 for z in range(lo):
                     if z == x:
                         continue
-                    H = {"none": set(), "shifted_parents": shift, "learned_blanket": _true_mb(A, z, lo), "oracle_blanket": _true_mb(A, z, lo),
-                         "union": _true_mb(A, z, lo) | shift}[screening]
+                    H = {"own_lag": set(), "shifted_parents": shift, "learned_blanket": _true_mb(A, z, lo), "true_blanket": _true_mb(A, z, lo),
+                         "blanket_shifted": _true_mb(A, z, lo) | shift}[screening]
                     expect.add(ci.canonical_key(z, y, (H | {x}) - {z}))
         got = set(ci.canonical_key(*c) for c in spy.calls)
         assert expect <= got
@@ -110,7 +110,7 @@ def test_oracle_exact_every_screening_set_and_theorem4_on_500_graphs():
             for p in rc["per_pair"]:
                 assert p["raw"] == 2 * p["n_cand"] + p["n_R"]
             # calls identity for the blanket screening sets; perfect pruning
-            for screening in ("learned_blanket", "oracle_blanket", "union"):
+            for screening in ("learned_blanket", "true_blanket", "blanket_shifted"):
                 o = runs[screening]
                 assert o["tests"]["raw_calls"] == sum_c + E_nonself, screening
                 assert o["shrink_stats"]["excess"] == 0 and o["shrink_stats"]["lost"] == 0
@@ -118,15 +118,15 @@ def test_oracle_exact_every_screening_set_and_theorem4_on_500_graphs():
                     y = p["pair"][1]
                     npa = int(A[:, y].sum())
                     assert p["max_SB"] == (npa - 1 if npa > 1 else 0)
-                    if screening != "union":
+                    if screening != "blanket_shifted":
                         assert p["max_SA"] <= p["b_max"] + 1           # per target, b computed in G_hat = G
                         assert p["max_SA"] <= din * (1 + dout) + 1    # global degrees
             assert o["tests"]["unique_tests"] <= o["tests"]["raw_calls"]
             mb = runs["learned_blanket"]
             assert (mb["tests"]["raw_calls"] - sum_c) / sum_c <= 2 * (din - 1) / (N * T - 2) + 1e-12   # per-candidate overhead bound
-            # oracle_blanket == learned_blanket under the oracle
+            # true_blanket == learned_blanket under the oracle
             assert [(p["pair"], p["parents"], p["max_SA"], p["new_unique"]) for p in mb["per_pair"]] == \
-                   [(p["pair"], p["parents"], p["max_SA"], p["new_unique"]) for p in runs["oracle_blanket"]["per_pair"]]
+                   [(p["pair"], p["parents"], p["max_SA"], p["new_unique"]) for p in runs["true_blanket"]["per_pair"]]
             tpc.append(mb["tests"]["unique_tests"] / sum_c)
             # shift on stationary window graphs: perfect pruning except at targets of time 2..tau, whose lag-s parents
             # sit at time 0 and have no shifted copy among X's parents
@@ -149,13 +149,13 @@ def test_cap_never_issues_infeasible_screening_test():
     r = _dense_data(14)
     X = r.X.reshape(r.X.shape[0], -1)
     o_cap = runlib.run_s2_method("itpd_s", None, graph=r.graph, ci=ci.FisherZ(X), alpha=0.05, per_target=True,
-                                 shrink={"screening": "oracle_blanket", "alpha_A": 0.2, "cap": "auto"})
+                                 shrink={"screening": "true_blanket", "alpha_scr": 0.2, "cap": "auto"})
     st = o_cap["shrink_stats"]
     assert st["n_capped"] > 0 and st["a_inf"] == 0
     for p in o_cap["per_pair"]:
         assert p.get("max_SA", 0) <= 14 - 4
     o_unc = runlib.run_s2_method("itpd_s", None, graph=r.graph, ci=ci.FisherZ(X), alpha=0.05, per_target=True,
-                                 shrink={"screening": "oracle_blanket", "alpha_A": 0.2})
+                                 shrink={"screening": "true_blanket", "alpha_scr": 0.2})
     assert o_unc["shrink_stats"]["a_inf"] > 0               # uncapped: infeasible screening-step tests happen, are counted
     for p in o_unc["per_pair"]:                          # ... and the candidate is kept, never pruned
         if not p.get("infeasible"):
@@ -175,7 +175,7 @@ def test_infeasible_shrink_step_marks_target_never_independent():
     rng = np.random.default_rng(8)
     g = _graph("time", 5, 6, 2, 3, rng)
     rec = ci.Recorder(NanAbove(g.A, 2), infeasible="raise")
-    res = shrink.run_s2(rec, g.N, g.T, 0.01, screening="none", A_true=g.A)
+    res = shrink.run_s2(rec, g.N, g.T, 0.01, screening="own_lag", A_true=g.A)
     assert res.infeasible_targets                      # some shrink-step set has more than 2 members
     for p in res.per_pair:
         y = p["pair"][1]
@@ -188,17 +188,17 @@ def test_infeasible_shrink_step_marks_target_never_independent():
 def test_finite_harness_shrink_rows():
     r = _dense_data(300, seed=1)
     specs = (("itpd_s", "itpd_s", {"screening": "learned_blanket"}, True, (0.01, 0.05)),
-             ("itpd_s_lenient", "itpd_s", {"screening": "learned_blanket", "alpha_A": 0.1}, True, (0.01,)),
-             ("itpd_s_oracle_blanket_lenient", "itpd_s", {"screening": "oracle_blanket", "alpha_A": 0.1, "keep_parent_tests": True}, True, (0.01,)),
-             ("itpd_s_plus_lenient", "itpd_s", {"screening": "learned_blanket", "alpha_A": 0.1, "recheck": True}, True, (0.01,)),
+             ("itpd_s_screen_clean", "itpd_s", {"screening": "learned_blanket", "alpha_scr": 0.1}, True, (0.01,)),
+             ("itpd_s_true_blanket_screen_clean", "itpd_s", {"screening": "true_blanket", "alpha_scr": 0.1, "keep_parent_tests": True}, True, (0.01,)),
+             ("itpd_s_plus_screen_clean", "itpd_s", {"screening": "learned_blanket", "alpha_scr": 0.1, "recheck": True}, True, (0.01,)),
              ("full_conditioning", "full_conditioning", None, False, (0.01,)))
     from itpd.observed_data import true_edge_list
     out = finite.run_dataset(r.graph.A, r.X, 2, specs, order="time", edges=true_edge_list(r.graph.A, 6, 6))
     rows = {(x["name"], x["alpha"]): x for x in out["runs"]}
-    a = rows[("itpd_s_lenient", 0.01)]
-    assert a["alpha_A"] == 0.1 and a["metrics_common"] is not None and "A" in a["by_label_unique"]
+    a = rows[("itpd_s_screen_clean", 0.01)]
+    assert a["alpha_scr"] == 0.1 and a["metrics_common"] is not None and "A" in a["by_label_unique"]
     assert len(a["target_n_R"]) == 30 and "fn_idx" in a
-    assert rows[("itpd_s", 0.05)]["alpha_A"] == 0.05 and "target_n_R" not in rows[("itpd_s", 0.05)]
-    assert rows[("itpd_s_oracle_blanket_lenient", 0.01)]["screening_parent_tests"]
-    rc = rows[("itpd_s_plus_lenient", 0.01)]
+    assert rows[("itpd_s", 0.05)]["alpha_scr"] == 0.05 and "target_n_R" not in rows[("itpd_s", 0.05)]
+    assert rows[("itpd_s_true_blanket_screen_clean", 0.01)]["screening_parent_tests"]
+    rc = rows[("itpd_s_plus_screen_clean", 0.01)]
     assert rc["shrink_stats"]["shortcut_diff"] == 0 and rc["unique"] >= a["unique"]

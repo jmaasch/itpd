@@ -6,7 +6,8 @@ import numpy as np
 
 from itpd import dataset_eval, method_runner, sim
 from itpd.experiments import nonlinear_data, oracle_counts, robustness, stored_instances
-from itpd.methods_registry import BY_NAME, METHODS, OLD_SCREENING_TO_NEW, OLD_TO_NEW
+from itpd.methods_registry import BY_NAME, METHODS, OLD_OPTION_KEYS, OLD_SCREENING_TO_NEW, OLD_TO_NEW, current_shrink_options
+from itpd.tables.common import rename_rows
 
 README = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "itpd", "README.md")
 ALPHAS = dataset_eval.ALPHAS
@@ -19,9 +20,10 @@ def new(name):
 
 
 def new_variant(v):
-    """Shrink options written with the old key `hint` and old strings -> current."""
+    """Shrink options written with the old key `hint`, the old strings and the old key `alpha_A` -> current."""
     if isinstance(v, dict) and "hint" in v:
-        return {**{k: x for k, x in v.items() if k != "hint"}, "screening": OLD_SCREENING_TO_NEW.get(v["hint"], v["hint"])}
+        out = {**{k: x for k, x in v.items() if k != "hint"}, "screening": OLD_SCREENING_TO_NEW.get(v["hint"], v["hint"])}
+        return {("alpha_scr" if k == "alpha_A" else k): x for k, x in out.items()}
     return v
 
 
@@ -31,7 +33,7 @@ def test_names_are_unique_and_old_names_translate_to_registry_names():
     assert set(OLD_TO_NEW.values()) <= set(names)
     assert not (set(OLD_TO_NEW) & set(names) - {"none", "union"}), "an old name must not also be a current name"
     assert {m.counting for m in METHODS} <= {"lazy", "nonlazy", "every_issued_test", "no_ci_tests"}
-    assert {m.alpha_rule for m in METHODS} <= {"single", "equal", "lenient", "penalty"}
+    assert {m.alpha_rule for m in METHODS} <= {"single", "equal", "screen_clean", "penalty"}
 
 
 def test_every_registry_name_is_in_the_readme():
@@ -47,24 +49,46 @@ def test_every_itpd_s_name_is_in_the_readme():
     assert [n for n in names if f"`{n}`" not in txt] == []
 
 
-def test_both_generations_of_shrink_names_translate_to_the_itpd_s_names():
-    first = {"hpv_mb_eq": "itpd_s", "hpv_mb_len": "itpd_s_lenient", "hpv_rc_eq": "itpd_s_plus", "hpv_safe_eq": "itpd_s_plus",
-             "hpv_rc_len": "itpd_s_plus_lenient", "hpv_omb_eq": "itpd_s_oracle_blanket", "hpv_omb_len": "itpd_s_oracle_blanket_lenient"}
-    second = {"hpv": "itpd_s", "hpv_single_pass": "itpd_s", "hpv_single_pass_lenient": "itpd_s_lenient", "hpv_safe": "itpd_s_plus",
-              "hpv_safe_lenient": "itpd_s_plus_lenient", "hpv_single_pass_oracle_blanket": "itpd_s_oracle_blanket",
-              "hpv_single_pass_oracle_blanket_lenient": "itpd_s_oracle_blanket_lenient", "hpv_single_pass_no_hint": "itpd_s_x_only",
-              "hpv_single_pass_union": "itpd_s_union", "hpv_single_pass_shifted_parents": "itpd_s_shifted_parents"}
-    third = {"blanket_screened_shrink": "itpd_s", "blanket_screened_shrink_lenient": "itpd_s_lenient",
-             "blanket_screened_shrink_recheck": "itpd_s_plus", "blanket_screened_shrink_recheck_lenient": "itpd_s_plus_lenient",
-             "blanket_screened_shrink_oracle_blanket": "itpd_s_oracle_blanket",
-             "blanket_screened_shrink_oracle_blanket_lenient": "itpd_s_oracle_blanket_lenient",
-             "blanket_screened_shrink_x_only": "itpd_s_x_only", "blanket_screened_shrink_union": "itpd_s_union",
+def test_every_generation_of_shrink_names_translates_to_the_itpd_s_names():
+    first = {"hpv_mb_eq": "itpd_s", "hpv_mb_len": "itpd_s_screen_clean", "hpv_rc_eq": "itpd_s_plus", "hpv_safe_eq": "itpd_s_plus",
+             "hpv_rc_len": "itpd_s_plus_screen_clean", "hpv_omb_eq": "itpd_s_true_blanket", "hpv_omb_len": "itpd_s_true_blanket_screen_clean"}
+    second = {"hpv": "itpd_s", "hpv_single_pass": "itpd_s", "hpv_single_pass_lenient": "itpd_s_screen_clean", "hpv_safe": "itpd_s_plus",
+              "hpv_safe_lenient": "itpd_s_plus_screen_clean", "hpv_single_pass_oracle_blanket": "itpd_s_true_blanket",
+              "hpv_single_pass_oracle_blanket_lenient": "itpd_s_true_blanket_screen_clean", "hpv_single_pass_no_hint": "itpd_s_own_lag",
+              "hpv_single_pass_union": "itpd_s_blanket_shifted", "hpv_single_pass_shifted_parents": "itpd_s_shifted_parents"}
+    third = {"blanket_screened_shrink": "itpd_s", "blanket_screened_shrink_lenient": "itpd_s_screen_clean",
+             "blanket_screened_shrink_recheck": "itpd_s_plus", "blanket_screened_shrink_recheck_lenient": "itpd_s_plus_screen_clean",
+             "blanket_screened_shrink_oracle_blanket": "itpd_s_true_blanket",
+             "blanket_screened_shrink_oracle_blanket_lenient": "itpd_s_true_blanket_screen_clean",
+             "blanket_screened_shrink_x_only": "itpd_s_own_lag", "blanket_screened_shrink_union": "itpd_s_blanket_shifted",
              "blanket_screened_shrink_shifted_parents": "itpd_s_shifted_parents"}
-    for table in (first, second, third):
+    fourth = {"itpd_s_lenient": "itpd_s_screen_clean", "itpd_s_plus_lenient": "itpd_s_plus_screen_clean",
+              "itpd_s_oracle_blanket": "itpd_s_true_blanket", "itpd_s_oracle_blanket_lenient": "itpd_s_true_blanket_screen_clean",
+              "itpd_s_x_only": "itpd_s_own_lag", "itpd_s_union": "itpd_s_blanket_shifted"}
+    for table in (first, second, third, fourth):
         for old, new_ in table.items():
             assert OLD_TO_NEW[old] == new_ and new_ in BY_NAME, (old, new_)
     assert set(third.values()) == {m.name for m in METHODS if m.name.startswith("itpd_s")}
-    assert not any(v.startswith(("hpv", "blanket_screened_shrink")) for v in OLD_TO_NEW.values())
+    assert set(fourth.values()) <= set(third.values())
+    assert not any(v.startswith(("hpv", "blanket_screened_shrink")) or v.endswith(("lenient", "x_only", "union", "oracle_blanket"))
+                   for v in OLD_TO_NEW.values())
+
+
+def test_screening_strings_and_option_keys_of_every_generation_translate():
+    assert OLD_SCREENING_TO_NEW == {"mb": "learned_blanket", "oracle_mb": "true_blanket", "shift": "shifted_parents", "none": "own_lag",
+                                    "union": "blanket_shifted", "oracle_blanket": "true_blanket"}
+    assert OLD_OPTION_KEYS == {"alpha_A": "alpha_scr", "alpha_B": "alpha_shr"}
+    assert current_shrink_options({"screening": "oracle_blanket", "alpha_A": 0.1, "recheck": True, "cap": "auto"}) == \
+        {"screening": "true_blanket", "alpha_scr": 0.1, "recheck": True, "cap": "auto"}
+    cur = {"screening": "own_lag", "alpha_scr": 0.1}
+    assert current_shrink_options(cur) == cur and current_shrink_options(cur) is not cur
+    # a stored finite-data task of an earlier release: names, `shrink` options and the level key of a row are read with the current ones
+    task = {"runs": [{"name": "itpd_s_oracle_blanket_lenient", "alpha": 0.01, "alpha_A": 0.1,
+                      "shrink": {"screening": "oracle_blanket", "alpha_A": 0.1}},
+                     {"name": "itpd_s", "alpha": 0.05, "alpha_A": 0.05, "shrink": {"screening": "learned_blanket"}}]}
+    assert rename_rows(task)["runs"] == [
+        {"name": "itpd_s_true_blanket_screen_clean", "alpha": 0.01, "alpha_scr": 0.1, "shrink": {"screening": "true_blanket", "alpha_scr": 0.1}},
+        {"name": "itpd_s", "alpha": 0.05, "alpha_scr": 0.05, "shrink": {"screening": "learned_blanket"}}]
 
 
 def test_shrink_rows_carry_screening_and_alpha_rule_consistently():
@@ -73,9 +97,9 @@ def test_shrink_rows_carry_screening_and_alpha_rule_consistently():
             continue
         o = m.options["shrink"]
         assert o["screening"] == m.screening
-        assert (o.get("alpha_A") == 0.1) == (m.alpha_rule == "lenient")
+        assert (o.get("alpha_scr") == 0.1) == (m.alpha_rule == "screen_clean")
         assert m.name.startswith("itpd_s_plus") == bool(o.get("recheck"))
-        assert m.name.endswith("_lenient") == (m.alpha_rule == "lenient")
+        assert m.name.endswith("_screen_clean") == (m.alpha_rule == "screen_clean")
 
 
 def test_spec_tables_equal_the_hand_written_tables_before_the_rename():
@@ -115,11 +139,11 @@ def test_spec_tables_equal_the_hand_written_tables_before_the_rename():
         ("iamb_known_order_tie_random", "iamb_known_order", {"lazy": False, "tie": "random:7"}),
         ("itpd_marginal_first", "itpd_marginal_first", {"lazy": True}), ("itpd_marginal_first_nonlazy", "itpd_marginal_first", {"lazy": False}))
     assert dict(stored_instances.SHRINK_ORACLE_VARIANTS) == {
-        "itpd_s": {"screening": "learned_blanket"}, "itpd_s_oracle_blanket": {"screening": "oracle_blanket"},
-        "itpd_s_x_only": {"screening": "none"}, "itpd_s_union": {"screening": "union"},
+        "itpd_s": {"screening": "learned_blanket"}, "itpd_s_true_blanket": {"screening": "true_blanket"},
+        "itpd_s_own_lag": {"screening": "own_lag"}, "itpd_s_blanket_shifted": {"screening": "blanket_shifted"},
         "itpd_s_plus": {"screening": "learned_blanket", "recheck": True}, "itpd_s_shifted_parents": {"screening": "shifted_parents"}}
-    assert [n for n, _ in stored_instances.SHRINK_ORACLE_VARIANTS] == ["itpd_s", "itpd_s_oracle_blanket", "itpd_s_x_only",
-                                                           "itpd_s_union", "itpd_s_plus", "itpd_s_shifted_parents"]
+    assert [n for n, _ in stored_instances.SHRINK_ORACLE_VARIANTS] == ["itpd_s", "itpd_s_true_blanket", "itpd_s_own_lag",
+                                                           "itpd_s_blanket_shifted", "itpd_s_plus", "itpd_s_shifted_parents"]
 
 
 def test_every_name_used_by_a_driver_is_in_the_registry():
@@ -145,9 +169,20 @@ def test_old_and_new_runner_strings_and_screening_strings_give_identical_outputs
         a = method_runner.run_s2_method(old, None, graph=g, order="time")
         b = method_runner.run_s2_method(new_, None, graph=g, order="time")
         assert a["method"] == b["method"] == new_ and _same(a, b)
-    for old, new_ in (("mb", "learned_blanket"), ("oracle_mb", "oracle_blanket"), ("shift", "shifted_parents")):
+    for old, new_ in (("mb", "learned_blanket"), ("oracle_mb", "true_blanket"), ("shift", "shifted_parents"), ("none", "own_lag"),
+                      ("union", "blanket_shifted"), ("oracle_blanket", "true_blanket")):
         a = method_runner.run_s2_method("hpv", None, graph=g, shrink={"screening": old}, order="time", per_target=True)
         b = method_runner.run_s2_method("blanket_screened_shrink", None, graph=g, shrink={"screening": new_}, order="time", per_target=True)
         c = method_runner.run_s2_method("itpd_s", None, graph=g, shrink={"screening": new_}, order="time", per_target=True)
         assert a["shrink"] == b["shrink"] == c["shrink"] == {"screening": new_} and a["method"] == b["method"] == c["method"] == "itpd_s"
         assert _same(a, c) and _same(b, c)
+    # the keys of the options: the old `alpha_A` and the current `alpha_scr` give the same run and the same stored options
+    a = method_runner.run_s2_method("itpd_s", None, graph=g, shrink={"screening": "none", "alpha_A": 0.2}, order="time", per_target=True)
+    b = method_runner.run_s2_method("itpd_s", None, graph=g, shrink={"screening": "own_lag", "alpha_scr": 0.2}, order="time", per_target=True)
+    assert a["shrink"] == b["shrink"] == {"screening": "own_lag", "alpha_scr": 0.2} and _same(a, b)
+    # the finite-data harness reads the same old options: the row carries the current level key and options
+    old = dataset_eval.run_dataset(g.A, s.X, 1, (("itpd_s_screen_clean", "itpd_s", {"screening": "none", "alpha_A": 0.1}, True, (0.01,)),), order="time")
+    cur = dataset_eval.run_dataset(g.A, s.X, 1, (("itpd_s_screen_clean", "itpd_s", {"screening": "own_lag", "alpha_scr": 0.1}, True, (0.01,)),), order="time")
+    ro, rc = old["runs"][0], cur["runs"][0]
+    assert ro["alpha_scr"] == rc["alpha_scr"] == 0.1 and ro["shrink"] == rc["shrink"] == {"screening": "own_lag", "alpha_scr": 0.1}
+    assert ro["metrics"] == rc["metrics"] and ro["unique"] == rc["unique"]

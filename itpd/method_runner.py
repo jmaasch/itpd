@@ -4,9 +4,10 @@
 "iamb_known_order", "itpd_s" (the `function` column of methods_registry.py); the strings of earlier releases
 ("order", "order_based", "itpd_adjself", ...; `OLD_TO_NEW`) are still accepted and written back under the new name.
 `run_s1_method` is the single-series setting.
-"itpd_s" (itpd/itpd_s.py: ITPD-S, and ITPD-S+ with recheck=True) takes its options as `shrink=dict(screening=..., alpha_A=...,
-recheck=..., cap=..., keep_parent_tests=...)`; `alpha` is alpha_B (alpha_A defaults to alpha). The truth graph is passed to
-it for screening="oracle_blanket" and for diagnostics only. "iamb_known_order" (itpd/iamb.py) is IAMB per target with the self
+"itpd_s" (itpd/itpd_s.py: ITPD-S, and ITPD-S+ with recheck=True) takes its options as `shrink=dict(screening=..., alpha_scr=...,
+recheck=..., cap=..., keep_parent_tests=...)`; `alpha` is alpha_shr, the level of the shrink step (alpha_scr, the level of the screening
+step, defaults to alpha). Options written before the renames (`alpha_A`, earlier screening strings) are accepted. The truth graph is passed to
+it for screening="true_blanket" and for diagnostics only. "iamb_known_order" (itpd/iamb.py) is IAMB per target with the self
 edge known and has no options. "itpd_marginal_first" is ITPD with the Z8 step never skipped and the Y-marginal
 evaluated first (`marginal_first` in itpd/padl.py); it uses the Z4 rules of "itpd".
 CI kinds: "oracle" (d-separation on the full graph), "fisherz", "gcm". The shared cache policy is `cache`
@@ -24,7 +25,7 @@ from . import itpd as _itpd
 from .baselines import full_conditioning as _full_conditioning
 from .ci import DSepCI, FisherZ, GCM, InfeasibleTest, MappedCI, Recorder
 from .metrics import edge_metrics, lag_metrics
-from .methods_registry import OLD_SCREENING_TO_NEW, OLD_TO_NEW
+from .methods_registry import OLD_TO_NEW, current_shrink_options
 from .sim import SimResult, windows
 
 ADJACENCY_SELF_RULES = _itpd.RULES + ("adjacency_self",)
@@ -47,8 +48,8 @@ def run_s2_method(method: str, sim: SimResult | None, *, graph=None, ci_kind: st
                   keep_graph: bool = False, per_target: bool = False, shrink: dict | None = None) -> dict:
     """`itpd_adjacency_self` = ITPD plus the optional adjacency_self rule; `rules` overrides the rule set of "itpd"."""
     method = OLD_TO_NEW.get(method, method)
-    if shrink is not None and shrink.get("screening") in OLD_SCREENING_TO_NEW:
-        shrink = {**shrink, "screening": OLD_SCREENING_TO_NEW[shrink["screening"]]}
+    if shrink is not None:
+        shrink = current_shrink_options(shrink)
     g = graph if graph is not None else sim.graph
     N, T = g.N, g.T
     if ci is None:
@@ -73,8 +74,8 @@ def run_s2_method(method: str, sim: SimResult | None, *, graph=None, ci_kind: st
             res = _iamb.run_s2(rec, N, T, alpha, tau_max=tau_max, order=order, per_target=per_target)
         elif method == "itpd_s":
             kw = dict(shrink or {})
-            aA = kw.pop("alpha_A", None)
-            res = _shrink.run_s2(rec, N, T, alpha if aA is None else aA, alpha, A_true=g.A, per_target=per_target, **kw)
+            a_scr = kw.pop("alpha_scr", None)
+            res = _shrink.run_s2(rec, N, T, alpha if a_scr is None else a_scr, alpha, A_true=g.A, per_target=per_target, **kw)
         else:
             raise ValueError(method)
     except InfeasibleTest:
