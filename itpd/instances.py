@@ -22,8 +22,8 @@ Data and truth of a finite-data instance, bit-identical for every runner:
   inst = instances.load_instance(path); X = observed_data.observed_data(inst, M)  # (M, T, N_obs) observed data
   tr = observed_data.observed_truth(inst)   # tr["A_fwd"] = headline truth (observed nodes, no same-time edges, column
                                          # t * N_obs + n'), tr["A_obs"] incl. same-time edges, tr["n_lag0"], tr["obs"]
-S1 instances (`itpd.run_single_series`, kind = "s1"): no unrolled graph (T up to 10,000); keys B (tau+1, N, N), Wl (tau+1, N, N) lag weights,
-T, N, tau, d, data_seed, burn = 0, meta_json; data from `run_single_series.s1_data(inst)`; truth = B.
+S1 instances (`itpd.experiments.single_series`, kind = "s1"): no unrolled graph (T up to 10,000); keys B (tau+1, N, N), Wl (tau+1, N, N) lag weights,
+T, N, tau, d, data_seed, burn = 0, meta_json; data from `single_series.s1_data(inst)`; truth = B.
 The process starts at t = 0 (those nodes are roots); the self edge V^n_t -> V^n_{t+1} is in A for all n, t.
 Oracle: `itpd.ci.DSepCI(A)` (d-separation on the full graph); every method uses it for the oracle tests.
 Data for a finite-data run: `itpd.sim.data_from_instance(inst, M, rng)`.

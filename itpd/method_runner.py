@@ -1,11 +1,13 @@
 """Run one method on one instance and return a JSON-able summary (config, metrics, recorder summary, rules fired).
 
-`run_s2_method(method, ...)`: `method` is one of "itpd_naive", "itpd", "itpd_adjacency_self", "itpd_marginal_first", "order_based",
-"iamb_known_order", "hpv" (the `function` column of methods_registry.py); the pre-rename strings "order" and "itpd_adjself" are
-still accepted and written back under the new name. `run_s1_method` is the single-series setting.
-"hpv" (hint-pruned verification, itpd/hpv.py) takes its options as `hpv=dict(hint=..., alpha_A=..., recheck=...,
-cap=..., keep_parent_tests=...)`; `alpha` is alpha_B (alpha_A defaults to alpha). The truth graph is passed to it for
-hint="oracle_blanket" and for diagnostics only. "iamb_known_order" (itpd/iamb.py) is IAMB per target with the self
+`run_s2_method(method, ...)`: `method` is one of "itpd_naive", "itpd", "itpd_adjacency_self", "itpd_marginal_first", "full_conditioning",
+"iamb_known_order", "itpd_s" (the `function` column of methods_registry.py); the strings of earlier releases
+("order", "order_based", "itpd_adjself", ...; `OLD_TO_NEW`) are still accepted and written back under the new name.
+`run_s1_method` is the single-series setting.
+"itpd_s" (itpd/itpd_s.py: ITPD-S, and ITPD-S+ with recheck=True) takes its options as `shrink=dict(screening=..., alpha_scr=...,
+recheck=..., cap=..., keep_parent_tests=...)`; `alpha` is alpha_shr, the level of the shrink step (alpha_scr, the level of the screening
+step, defaults to alpha). Options written before the renames (`alpha_A`, earlier screening strings) are accepted. The truth graph is passed to
+it for screening="true_blanket" and for diagnostics only. "iamb_known_order" (itpd/iamb.py) is IAMB per target with the self
 edge known and has no options. "itpd_marginal_first" is ITPD with the Z8 step never skipped and the Y-marginal
 evaluated first (`marginal_first` in itpd/padl.py); it uses the Z4 rules of "itpd".
 CI kinds: "oracle" (d-separation on the full graph), "fisherz", "gcm". The shared cache policy is `cache`
@@ -17,13 +19,13 @@ import time
 
 import numpy as np
 
-from . import hpv as _hpv
+from . import itpd_s as _shrink
 from . import iamb as _iamb
 from . import itpd as _itpd
-from .baselines import order_based as _order
+from .baselines import full_conditioning as _full_conditioning
 from .ci import DSepCI, FisherZ, GCM, InfeasibleTest, MappedCI, Recorder
 from .metrics import edge_metrics, lag_metrics
-from .methods_registry import OLD_HINT_TO_NEW, OLD_TO_NEW
+from .methods_registry import OLD_TO_NEW, current_shrink_options
 from .sim import SimResult, windows
 
 ADJACENCY_SELF_RULES = _itpd.RULES + ("adjacency_self",)
@@ -43,11 +45,11 @@ def make_ci(kind: str, graph=None, data: np.ndarray | None = None):
 def run_s2_method(method: str, sim: SimResult | None, *, graph=None, ci_kind: str = "oracle", alpha: float = 0.01,
                   tau_max: int | None = None, variant: str = "paper", order: str = "variable", cache: str = "run",
                   ci=None, lazy: bool = False, infeasible: str = "raise", rules=None, shared: dict | None = None,
-                  keep_graph: bool = False, per_target: bool = False, hpv: dict | None = None) -> dict:
+                  keep_graph: bool = False, per_target: bool = False, shrink: dict | None = None) -> dict:
     """`itpd_adjacency_self` = ITPD plus the optional adjacency_self rule; `rules` overrides the rule set of "itpd"."""
     method = OLD_TO_NEW.get(method, method)
-    if hpv is not None and hpv.get("hint") in OLD_HINT_TO_NEW:
-        hpv = {**hpv, "hint": OLD_HINT_TO_NEW[hpv["hint"]]}
+    if shrink is not None:
+        shrink = current_shrink_options(shrink)
     g = graph if graph is not None else sim.graph
     N, T = g.N, g.T
     if ci is None:
@@ -63,17 +65,17 @@ def run_s2_method(method: str, sim: SimResult | None, *, graph=None, ci_kind: st
             rl = rules if rules is not None else (ADJACENCY_SELF_RULES if method == "itpd_adjacency_self" else _itpd.RULES)
             res = _itpd.run_s2(rec, N, T, alpha, reuse=True, tau_max=tau_max, variant=variant, order=order, lazy=lazy,
                                rules=rl, per_target=per_target)
-        elif method == "order_based":
-            res = _order.run_s2(rec, N, T, alpha, tau_max=tau_max, order=order, per_target=per_target)
+        elif method == "full_conditioning":
+            res = _full_conditioning.run_s2(rec, N, T, alpha, tau_max=tau_max, order=order, per_target=per_target)
         elif method == "itpd_marginal_first":
             res = _itpd.run_s2(rec, N, T, alpha, reuse=True, tau_max=tau_max, variant=variant, order=order, lazy=lazy,
                                rules=_itpd.RULES, per_target=per_target, marginal_first=True)
         elif method == "iamb_known_order":
             res = _iamb.run_s2(rec, N, T, alpha, tau_max=tau_max, order=order, per_target=per_target)
-        elif method == "hpv":
-            kw = dict(hpv or {})
-            aA = kw.pop("alpha_A", None)
-            res = _hpv.run_s2(rec, N, T, alpha if aA is None else aA, alpha, A_true=g.A, per_target=per_target, **kw)
+        elif method == "itpd_s":
+            kw = dict(shrink or {})
+            a_scr = kw.pop("alpha_scr", None)
+            res = _shrink.run_s2(rec, N, T, alpha if a_scr is None else a_scr, alpha, A_true=g.A, per_target=per_target, **kw)
         else:
             raise ValueError(method)
     except InfeasibleTest:
@@ -87,12 +89,12 @@ def run_s2_method(method: str, sim: SimResult | None, *, graph=None, ci_kind: st
         n_bad = len(bad)
         out = {"status": "ok" if n_bad == 0 else ("infeasible" if n_bad == n_scored_targets else "partial"),
                "method": method, "setting": "S2", "N": N, "T": T, "tau_max": tau_max, "alpha": alpha, "ci": ci_kind,
-               "variant": variant if method not in ("order_based", "iamb_known_order") else None, "order": order, "lazy": lazy,
+               "variant": variant if method not in ("full_conditioning", "iamb_known_order") else None, "order": order, "lazy": lazy,
                "metrics": None if n_bad == n_scored_targets else edge_metrics(g.A, res.A_hat, N, T, targets=tmask),
                "n_targets": n_scored_targets, "n_infeasible_targets": n_bad, "infeasible_targets": bad,
                "tests": res.summary, "skips": res.skips, "seconds": res.seconds, "per_pair": res.per_pair}
-        if method == "hpv":
-            out["variant"], out["hpv"], out["hpv_stats"] = None, dict(hpv or {}), res.stats
+        if method == "itpd_s":
+            out["variant"], out["shrink"], out["shrink_stats"] = None, dict(shrink or {}), res.stats
         if method == "iamb_known_order":
             out["iamb_stats"] = res.stats
         if keep_graph:
@@ -108,11 +110,11 @@ def run_s2_method(method: str, sim: SimResult | None, *, graph=None, ci_kind: st
             out["A_hat"] = res.A_hat
         return out
     out = {"status": "ok", "method": method, "setting": "S2", "N": N, "T": T, "tau_max": tau_max, "alpha": alpha, "ci": ci_kind,
-           "variant": variant if method not in ("order_based", "iamb_known_order") else None, "order": order, "lazy": lazy,
+           "variant": variant if method not in ("full_conditioning", "iamb_known_order") else None, "order": order, "lazy": lazy,
            "metrics": edge_metrics(g.A, res.A_hat, N, T), "tests": res.summary, "skips": res.skips,
            "seconds": res.seconds, "per_pair": res.per_pair}
-    if method == "hpv":
-        out["variant"], out["hpv"], out["hpv_stats"] = None, dict(hpv or {}), res.stats
+    if method == "itpd_s":
+        out["variant"], out["shrink"], out["shrink_stats"] = None, dict(shrink or {}), res.stats
     if method == "iamb_known_order":
         out["iamb_stats"] = res.stats
     if keep_graph:
@@ -135,8 +137,8 @@ def run_s1_method(method: str, sim: SimResult, *, ci_kind: str = "oracle", alpha
     try:
         if method in ("itpd", "itpd_naive"):
             res = _itpd.run_s1(rec, N, tau, alpha, variant=variant)
-        elif method == "order_based":
-            res = _order.run_s1(rec, N, tau, alpha)
+        elif method == "full_conditioning":
+            res = _full_conditioning.run_s1(rec, N, tau, alpha)
         else:
             raise ValueError(method)
     except InfeasibleTest:
@@ -144,7 +146,7 @@ def run_s1_method(method: str, sim: SimResult, *, ci_kind: str = "oracle", alpha
                 "metrics": None, "tests": rec.summary()}
     bad = res.summary["infeasible"]
     return {"status": "infeasible" if bad else "ok", "method": method, "setting": "S1", "N": N, "T": T, "tau": tau,
-            "alpha": alpha, "ci": ci_kind, "variant": variant if method != "order_based" else None,
+            "alpha": alpha, "ci": ci_kind, "variant": variant if method != "full_conditioning" else None,
             "metrics": None if bad else lag_metrics(g.B, res.B_hat),
             "tests": res.summary, "seconds": res.seconds}
 

@@ -1,4 +1,4 @@
-"""PaDL / ITPD / ITPD_naive / order-based: regression tests for earlier bugs of the original code, and exact recovery with an oracle."""
+"""PaDL / ITPD / ITPD_naive / full-conditioning: regression tests for earlier bugs of the original code, and exact recovery with an oracle."""
 import numpy as np
 import pytest
 
@@ -31,7 +31,7 @@ def test_oracle_full_graph_with_tau_max():
     rng = np.random.default_rng(11)
     for _ in range(60):
         g = sim.sample_time_graph(3, 7, 2, 2, rng)
-        for m in ("itpd_naive", "itpd", "order"):
+        for m in ("itpd_naive", "itpd", "full_conditioning"):
             r = runlib.run_s2_method(m, None, graph=g, tau_max=2)
             assert r["metrics"]["exact"], m
 
@@ -67,7 +67,7 @@ def test_inputs_not_mutated():
 def test_order_baseline_one_test_per_candidate():
     rng = np.random.default_rng(1)
     g = sim.sample_time_graph(4, 6, 2, 2, rng)
-    r = _run(g, "order")
+    r = _run(g, "full_conditioning")
     n_cand = sum(N * t - 1 for N in (4,) for t in range(1, 6)) * 4
     assert r["tests"]["unique_tests"] == r["tests"]["raw_calls"] == n_cand
     assert r["metrics"]["exact"]
@@ -98,7 +98,7 @@ def test_itpd_skips_tests_and_reports_rules():
 
 
 def test_oracle_exact_recovery_500_graphs():
-    """ITPD, ITPD_naive and the order-based baseline recover the true graph; ITPD output == ITPD_naive output.
+    """ITPD, ITPD_naive and the full-conditioning baseline recover the true graph; ITPD output == ITPD_naive output.
     Both full history and tau_max = the true max lag (tau_max below the true lag is not expected to be exact)."""
     rng = np.random.default_rng(2026)
     n = 0
@@ -112,7 +112,7 @@ def test_oracle_exact_recovery_500_graphs():
         tm = None if n % 2 == 0 else tau
         outs = {m: I_ for m, I_ in ((m, runlib.run_s2_method(m, None, graph=g, tau_max=tm,
                                                              order="time" if n % 3 == 0 else "variable"))
-                                    for m in ("itpd_naive", "itpd", "order"))}
+                                    for m in ("itpd_naive", "itpd", "full_conditioning"))}
         for m, o in outs.items():
             assert o["metrics"]["exact"], (m, N, T, d, tau, tm)
         a = I.run_s2(ci.Recorder(ci.DSepCI(g.A)), N, T, ALPHA, reuse=True, tau_max=tm)
@@ -128,7 +128,7 @@ def test_s1_oracle_recovers_window_graph():
         N = int(rng.integers(2, 6))
         tau = int(rng.integers(1, 4))
         s = sim.simulate_s1(N, 25, float(rng.choice([1, 2, 3])), tau, rng)
-        for m in ("itpd_naive", "itpd", "order"):
+        for m in ("itpd_naive", "itpd", "full_conditioning"):
             r = runlib.run_s1_method(m, s)
             assert r["metrics"]["exact"], (m, N, tau)
         a = runlib.run_s1_method("itpd", s)
@@ -139,7 +139,7 @@ def test_s1_oracle_recovers_window_graph():
 def test_finite_data_pipeline_runs():
     rng = np.random.default_rng(0)
     r = sim.simulate_s2(3, 5, 400, 1, 2, rng)
-    for m in ("itpd_naive", "itpd", "order"):
+    for m in ("itpd_naive", "itpd", "full_conditioning"):
         o = runlib.run_s2_method(m, r, ci_kind="fisherz", tau_max=2)
         assert o["tests"]["raw_calls"] > 0 and "f1" in o["metrics"]
     s1 = sim.simulate_s1(3, 400, 1, 2, rng)
@@ -193,7 +193,7 @@ def test_metrics_conventions():
 
 
 def test_instance_export_with_weights_keeps_the_graph():
-    from itpd import run_oracle_counts as oracle_counts
+    from itpd.experiments import oracle_counts
     for kind in ("time", "window"):
         g1, W1 = oracle_counts.make_instance(4, 6, 2, 2.0, 0, 3, kind, with_weights=False)
         g2, W2 = oracle_counts.make_instance(4, 6, 2, 2.0, 0, 3, kind, with_weights=True)
@@ -203,9 +203,9 @@ def test_instance_export_with_weights_keeps_the_graph():
 
 
 def test_oracle_counts_methods_subset():
-    from itpd import run_oracle_counts as oracle_counts
+    from itpd.experiments import oracle_counts
     res = oracle_counts.run_cell(3, 4, 1, 1.0, 2, 0, None, methods=oracle_counts.select_methods("order,itpd_naive"))
-    assert {r["name"] for r in res["rows"]} == {"order_based", "itpd_naive"}
+    assert {r["name"] for r in res["rows"]} == {"full_conditioning", "itpd_naive"}
     assert all(r["exact"] for r in res["rows"])
 
 
@@ -264,7 +264,7 @@ def test_adjacency_self_saves_one_pair_of_tests_per_target_at_most():
 
 
 def test_adjacency_self_finite_data_runs_and_oracle_counts_selects_it():
-    from itpd import run_oracle_counts as oracle_counts
+    from itpd.experiments import oracle_counts
     rng = np.random.default_rng(3)
     r = sim.simulate_s2(3, 6, 600, 1.5, 2, rng)
     o = runlib.run_s2_method("itpd_adjself", r, ci_kind="fisherz", tau_max=None)

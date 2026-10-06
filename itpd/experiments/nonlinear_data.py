@@ -1,13 +1,13 @@
 """Nonlinear driver: nonlinear additive-noise S2 data, gradient-boosting GCM test, one JSON per (cell, graph, M), resumable.
 
-    python -m itpd.run_nonlinear --out-dir DIR --N 10 --T 8 --M 500,2000 --graphs 20 --workers 16 [--alphas 0.01,...]
+    python -m itpd.experiments nonlinear_data --out-dir DIR --N 10 --T 8 --M 500,2000 --graphs 20 --workers 16 [--alphas 0.01,...]
         [--tau 1 --d 2 --seed 0 --offset 0 --budget-sec 780 --small]
 
 Cell = (N, T, tau, d); the graph of index g is the stationary window graph of the window arm of the oracle and finite-data runs of the same cell (same
 sha1), the data are nonlinear (`itpd.nonlinear`: per-edge tanh / sine mixtures, noise sd 1, first M of 2,000 rows).
 Test: `itpd.ci.GCM` (generalized covariance measure, HistGradientBoostingRegressor, 2-fold cross-fitting); one GCM object and one
 p-value memo per dataset, shared by the methods and the alpha levels (a distinct test is computed once). Methods:
-itpd_naive, itpd (paper variant), order_based, lazy headline (`specs_for`); full history, process order = time. The GCM has no
+itpd_naive, itpd (paper variant), full_conditioning, lazy headline (`specs_for`); full history, process order = time. The GCM has no
 hard feasibility rule (only n < 8), so every target is a common target.
 Resume: a task file is never recomputed; the p-value memo of an unfinished task is checkpointed after every (method, alpha) run
 (DIR/memo/<task>.pkl, written every 90 s and after every run), so a job killed at the wall-clock limit resumes with the tests it already computed.
@@ -17,23 +17,22 @@ from __future__ import annotations
 
 import argparse
 import itertools
-import json
 import os
 import pickle
 import time
 
-
-from . import dataset_eval, nonlinear, observed_data
-from .ci import GCM
-from .instances import graph_hash
-from .methods_registry import spec
+from .. import dataset_eval, nonlinear, observed_data
+from ..ci import GCM
+from ..instances import graph_hash
+from ..methods_registry import spec
+from . import common
 
 NONLINEAR_ALPHAS = (0.1, 0.05, 0.02, 0.01, 0.005, 0.002, 0.001, 1e-4, 1e-6)
 PRIMARY = dataset_eval.PRIMARY
 
 
 def specs_for(alphas):
-    return (spec("itpd_naive", alphas), spec("itpd", alphas), spec("order_based", alphas))
+    return (spec("itpd_naive", alphas), spec("itpd", alphas), spec("full_conditioning", alphas))
 
 
 def cell_name(N, T, tau, d):
@@ -103,21 +102,10 @@ def run_task(a):
                 "gcm_calls_by_size": {int(k): v for k, v in sorted(gcm.calls_by_size.items())},
                 "gcm_sec_by_size": {int(k): v for k, v in sorted(gcm.sec_by_size.items())},
                 "seconds": time.time() - t0})
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    tmp = path + f".tmp{os.getpid()}"
-    with open(tmp, "w") as f:
-        json.dump(res, f, default=lambda o: o.item() if hasattr(o, "item") else str(o))
-    os.replace(tmp, path)
+    common.dump_json(path, res)
     if os.path.exists(mp):
         os.remove(mp)
     return path, "done", time.time() - t0
-
-
-def _worker(args):
-    a, deadline = args
-    if time.time() > deadline:
-        return a, "skipped", 0.0
-    return run_task(a)
 
 
 def main(argv=None):
@@ -132,14 +120,12 @@ def main(argv=None):
     ap.add_argument("--offset", type=int, default=0)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--alphas", default=",".join(f"{x:g}" for x in NONLINEAR_ALPHAS))
-    ap.add_argument("--workers", type=int, default=1)
     ap.add_argument("--task", default=None, help="run only the k-th task of the full sorted task list (array jobs)")
-    ap.add_argument("--budget-sec", type=float, default=1e9, help="start no new task after this many seconds")
+    common.add_pool_args(ap)
     a = ap.parse_args(argv)
-    ints = lambda s: [int(x) for x in s.split(",")]
     alphas = tuple(float(x) for x in a.alphas.split(","))
     tasks = []
-    for N, T, M in itertools.product(ints(a.N), ints(a.T), ints(a.M)):
+    for N, T, M in itertools.product(common.ints(a.N), common.ints(a.T), common.ints(a.M)):
         for g in range(a.offset, a.offset + a.graphs):
             tasks.append((a.out_dir, N, T, a.tau, a.d, a.seed, g, M, alphas))
     done = lambda t: os.path.exists(task_path(t[0], cell_name(*t[1:5]), t[6], t[7]))
@@ -148,19 +134,10 @@ def main(argv=None):
         tasks = tasks[int(a.task):int(a.task) + 1]
     todo = [t for t in tasks if not done(t)]
     print(f"tasks {len(tasks)} todo {len(todo)}", flush=True)
-    deadline = time.time() + a.budget_sec
     t0 = time.time()
-    if a.workers <= 1:
-        for t in todo:
-            r = _worker((t, deadline))
-            print(r[1], os.path.basename(r[0]) if isinstance(r[0], str) else "", round(r[2], 1), flush=True)
-    else:
-        import multiprocessing as mp
-        with mp.get_context("fork").Pool(a.workers) as pool:
-            for r in pool.imap_unordered(_worker, [(t, deadline) for t in todo], chunksize=1):
-                print(r[1], os.path.basename(r[0]) if isinstance(r[0], str) else "", round(r[2], 1), flush=True)
+    common.run_tasks(run_task, todo, a.workers, t0 + a.budget_sec, common.print_progress)
     left = len([t for t in tasks if not done(t)])
-    print(f"done in {time.time() - t0:.0f}s; remaining {left}", flush=True)
+    common.finish(t0, left)
 
 
 if __name__ == "__main__":

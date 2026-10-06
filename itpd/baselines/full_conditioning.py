@@ -1,8 +1,9 @@
-"""Order-based baseline: with the time order known, Z -> Y iff Z is dependent on Y given all other earlier nodes.
+"""Full-conditioning baseline: with the time order known, Z -> Y iff Z is dependent on Y given all other earlier nodes.
 
 One test per candidate: candidates are all earlier nodes (within tau_max) except X = V^n_{t-1}; the edge X -> Y is
 assumed as in ITPD. Conditioning set = (candidates minus Z) plus X, i.e. every other earlier node in the window.
-This is the one-test-per-candidate scheme of Shiragur et al. (2024) and Franquesa Mones et al. (2026).
+This is total conditioning (Pellet and Elisseeff 2008) with the time order known; the one-test-per-candidate scheme is
+also in Shiragur et al. (2024) and Franquesa Mones et al. (2026).
 """
 from __future__ import annotations
 

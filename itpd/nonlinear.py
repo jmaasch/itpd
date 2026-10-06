@@ -8,7 +8,7 @@ linear window arm): w = +-U(0.8, 1.6), a ~ U(0.4, 1.0) (tanh part dominant, so t
 nonzero correlation in general), s ~ U(0.7, 2.0), c ~ U(-0.5, 0.5), k ~ U(0.7, 2.0), phi ~ U(0, 2 pi). Every g is bounded
 (|g| <= 1.6), so the process cannot blow up; the self edge V^n_{t-1} -> V^n_t is a nonlinear edge of the same family.
 The graph and its sha1 are the ones of the window arm of the oracle and finite-data runs of the same cell and index
-(`run_oracle_counts.make_instance`), so every nonlinear graph pairs with the linear-Gaussian finite-data run of the same graph.
+(`experiments.oracle_counts.make_instance`), so every nonlinear graph pairs with the linear-Gaussian finite-data run of the same graph.
 
 Faithfulness guard (a proxy, stated as such): on a reference sample of GUARD_N = 20,000 rows, every true edge u -> v must have
 |marginal Pearson correlation(X_u, X_v)| >= MIN_STRENGTH and |partial Pearson correlation(X_u, X_v | the other parents of v)|
@@ -92,7 +92,7 @@ def guard_margins(A: np.ndarray, X: np.ndarray, N: int, T: int) -> tuple[float, 
 
 def build_instance(N: int, T: int, tau: int, d: float, seed: int, g: int) -> dict:
     """Window graph of the oracle and finite-data cell and index (same sha1), nonlinear functions, guard, data seed."""
-    from .run_oracle_counts import make_instance
+    from .experiments.oracle_counts import make_instance
     gr, _ = make_instance(N, T, tau, d, seed, g, "window", with_weights=False)
     A = gr.A
     rng = np.random.default_rng(np.random.SeedSequence([seed, N, T, tau, int(round(d * 10)), g, 11]))

@@ -6,9 +6,8 @@ Iterative Temporal Parent Discovery (ITPD) is a constraint-based causal discover
 
 ```
 .
-├── itpd/                # Instrumented implementation of ITPD, ITPD_naive and baselines (package; see itpd/README.md).
+├── itpd/                # Instrumented implementation of ITPD, ITPD_naive, ITPD-S (blanket-screened shrink), ITPD-S+ (ITPD-S with a forward-backward second pass) and baselines (package; see itpd/README.md). itpd/experiments and itpd/tables hold the experiment drivers and the collectors.
 ├── tests/                # Tests of the package, including parity tests against legacy/.
-├── scripts/              # Run scripts and collectors for the experiments.
 ├── pyproject.toml
 ├── legacy/
 │   ├── itpd.py               # ITPD with CI test reduction.
@@ -36,12 +35,12 @@ import numpy as np
 from itpd import method_runner, sim
 
 graph = sim.sample_time_graph(N=4, T=6, d=2, tau=2, rng=np.random.default_rng(0))   # random time graph, 4 series, 6 steps
-for method in ("itpd_naive", "itpd", "order_based"):
+for method in ("itpd_naive", "itpd", "full_conditioning"):
     out = method_runner.run_s2_method(method, None, graph=graph, ci_kind="oracle", alpha=0.01)
     print(method, "exact:", out["metrics"]["exact"], "unique tests:", out["tests"]["unique_tests"])
 ```
 
-The example runs ITPD_naive, ITPD and the order-based baseline with the d-separation oracle on the true graph and prints the number of unique CI tests of each method.
+The example runs ITPD_naive, ITPD and the full-conditioning baseline with the d-separation oracle on the true graph and prints the number of unique CI tests of each method.
 
 ## Tests
 
@@ -59,7 +58,7 @@ python -m pytest -q
 
 ## Experiments
 
-`itpd/README.md` has the module map, the table of method names and the table "Experiment -> command" with the driver and the collector of every experiment. The drivers are `itpd/run_*.py`. The scripts in `scripts/` run the grid experiments and turn the JSON output of the drivers into tables. Put your cluster job scripts in the ignored folder `jobs/`; they are not part of the repository.
+`itpd/README.md` has the module map, the table of method names and the table "Experiment -> command" with the driver and the collector of every experiment. The drivers run with `python -m itpd.experiments <name>`; the collectors turn their JSON output into tables with `python -m itpd.tables <name>`. Put your cluster job scripts in the ignored folder `jobs/`; they are not part of the repository.
 
 ## Legacy code
 

@@ -4,7 +4,8 @@ import numpy as np
 import pytest
 
 from itpd import ci, instances, itpd as I, sim
-from itpd import dataset_eval as finite, method_runner as runlib, observed_data as violations, run_single_series as s1x
+from itpd import dataset_eval as finite, method_runner as runlib, observed_data as violations
+from itpd.experiments import single_series as s1x
 from itpd.metrics import edge_metrics
 
 
@@ -19,7 +20,7 @@ def test_shared_memo_changes_nothing_but_the_work():
     g = inst["graph"]
     f = ci.FisherZ(X.reshape(X.shape[0], -1))
     shared = {}
-    for m in ("itpd_naive", "itpd", "order"):
+    for m in ("itpd_naive", "itpd", "full_conditioning"):
         a = runlib.run_s2_method(m, None, graph=g, ci=f, order="time", lazy=True, keep_graph=True)
         b = runlib.run_s2_method(m, None, graph=g, ci=f, order="time", lazy=True, keep_graph=True, shared=shared)
         assert (a["A_hat"] == b["A_hat"]).all() and a["tests"]["unique_tests"] == b["tests"]["unique_tests"]
@@ -33,11 +34,11 @@ def test_per_target_infeasibility_is_exact_for_order_and_never_independent():
     g = inst["graph"]
     f = ci.FisherZ(X.reshape(M, -1))
     assert finite.common_tmax(N, T, M) == 4
-    for m in ("order", "itpd", "itpd_naive"):
+    for m in ("full_conditioning", "itpd", "itpd_naive"):
         o = runlib.run_s2_method(m, None, graph=g, ci=f, order="time", lazy=True, keep_graph=True, per_target=True,
                                  infeasible="raise")
         bad = set(o["infeasible_targets"])
-        if m == "order":
+        if m == "full_conditioning":
             assert bad == {t * N + n for t in range(5, T) for n in range(N)}
             assert o["status"] == "partial" and o["n_infeasible_targets"] == len(bad)
         for y in bad:                                      # no parents are output for an infeasible target

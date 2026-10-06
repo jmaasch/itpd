@@ -1,13 +1,16 @@
-"""Tables from the per-task JSONs of itpd.run_single_series.   python scripts/single_series_collect.py DIR [--out FILE]   Numbers only."""
+"""Tables from the per-task JSONs of `itpd.experiments single_series`.
+
+    python -m itpd.tables single_series DIR [--out FILE]
+
+Numbers only.
+"""
 import argparse
 import os
-import sys
 from collections import defaultdict
 
 import numpy as np
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from finite_common import load_tasks, md, q  # noqa: E402
+from .common import load_tasks, md, q
 
 
 def get(t, name):
@@ -16,11 +19,12 @@ def get(t, name):
             return r
 
 
-def main():
-    ap = argparse.ArgumentParser()
+def main(argv=None):
+    ap = argparse.ArgumentParser(prog="python -m itpd.tables single_series", description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("dir")
     ap.add_argument("--out")
-    a = ap.parse_args()
+    a = ap.parse_args(argv)
     tasks = load_tasks(os.path.join(a.dir, "N*", "g*.json"))
     by = defaultdict(list)
     for t in tasks:
@@ -37,11 +41,11 @@ def main():
         gm = lambda n, key: [get(t, n)["metrics"][key] for t in ts if get(t, n)["status"] == "ok"]
         inf = sum(1 for t in ts for r in t["runs"] if r["status"] != "ok")
         rows.append([k[0], k[1], k[2], len(ts), q(gm("itpd_last_slice", "f1")), q(gm("itpd_last_slice", "recall")), q(gm("itpd_last_slice", "precision")),
-                     q(g("itpd_last_slice", "unique")), q(gm("order_based_last_slice", "f1")), q(g("order_based_last_slice", "unique")),
+                     q(g("itpd_last_slice", "unique")), q(gm("full_conditioning_last_slice", "f1")), q(g("full_conditioning_last_slice", "unique")),
                      q([get(t, "itpd_naive_every_slice")["metrics_union"]["f1"] for t in ts if get(t, "itpd_naive_every_slice")["status"] == "ok"]) if k[1] > 1 else "= last slice",
                      q(g("itpd_naive_every_slice", "unique")) if k[1] > 1 else "= last slice", inf])
     L += ["\n### Last slice vs every slice (F1 on the lag graph; unique tests per graph)\n",
-          md(["N", "tau", "T", "graphs", "itpd last F1", "recall", "precision", "itpd last unique", "order last F1", "order unique",
+          md(["N", "tau", "T", "graphs", "itpd last F1", "recall", "precision", "itpd last unique", "full conditioning last F1", "full conditioning unique",
               "every-slice F1 (union of slices)", "every-slice unique (naive)", "infeasible runs"], rows)]
     rows = []
     for k in keys:

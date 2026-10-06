@@ -1,7 +1,7 @@
 """Known-order IAMB per target on the unrolled time graph (S2), the "IAMB per target" baseline.
 
-For each target Y = V^n_t (t >= 1), with X = V^n_{t-1} (self edge known, never tested, as in ITPD, HPV and the order-based
-baseline) and candidates C = every strictly earlier node except X (full history), IAMB (Tsamardinos, Aliferis, Statnikov 2003)
+For each target Y = V^n_t (t >= 1), with X = V^n_{t-1} (self edge known, never tested, as in ITPD, ITPD-S and the
+full-conditioning baseline) and candidates C = every strictly earlier node except X (full history), IAMB (Tsamardinos, Aliferis, Statnikov 2003)
 runs with the known self edge in every conditioning set (F = {X}):
   grow    CMB = [].  Repeat: test every Z in C - CMB given F | CMB (one CI test each); among the dependent ones (p <= alpha)
           add the one with the smallest p (ties, see below); stop when none is dependent.
@@ -94,7 +94,7 @@ def iamb_target(rec, y: int, x: int, cand, alpha: float, rank, stats: dict | Non
 
 def run_s2(rec, N: int, T: int, alpha: float, *, tau_max: int | None = None, order: str = "time",
            per_target: bool = True, tie: str = "last") -> Result:
-    """Same interface as baselines.order_based.run_s2 (`rec` with infeasible="raise" when per_target)."""
+    """Same interface as baselines.full_conditioning.run_s2 (`rec` with infeasible="raise" when per_target)."""
     t0 = time.perf_counter()
     rank = _rank_key(tie, T * N)
     A = np.zeros((T * N, T * N), dtype=np.uint8)

@@ -1,29 +1,28 @@
 """Robustness drivers: nonstationary replicates with shared change times (`--exp nonstationary`) and assumption violations one at a
 time (`--exp violations`).
 
-    python -m itpd.run_robustness --out-dir DIR --exp nonstationary|violations [--N 10 --T 12 --tau 2 --d 2 --M 500,2000 --graphs 20 --workers 16]
+    python -m itpd.experiments robustness --out-dir DIR --exp nonstationary|violations [--N 10 --T 12 --tau 2 --d 2 --M 500,2000 --graphs 20 --workers 16]
 
 Nonstationary settings: frac in 0, 0.25, 0.5 (n_changes = 2 shared change times, lag weights fixed in t; frac = 0 is the stationary
 control). Violation settings: none, hidden k=1,2,3, contemp p=0.05,0.1,0.2, self_missing k=1,3, self_lag2 k=1,3, heavy laplace /
 student3, measurement r=0.1,0.5 (how each enters the simulator: itpd/observed_data.py docstring). Methods: itpd_naive, itpd (paper
-variant), order_based, plus the non-lazy rows of the first two (`ROBUSTNESS_SPECS`), all at alpha = 0.01, Fisher-z, full history, linear data, one
+variant), full_conditioning, plus the non-lazy rows of the first two (`ROBUSTNESS_SPECS`), all at alpha = 0.01, Fisher-z, full history, linear data, one
 shared p-value memo per dataset; scored with `dataset_eval.run_dataset` (own-feasible targets, common targets, self edges
 included in `metrics_self`). One file per (setting, graph, M): DIR/<exp>/<setting>/g<idx>_M<M>.json, instances in
-DIR/instances/<setting>/g<idx>.npz (format: itpd/instances.py; read them with
+DIR/instances/<exp>/<setting>/g<idx>.npz (format: itpd/instances.py; read them with
 observed_data.observed_data / observed_truth). Resumable.
 """
 from __future__ import annotations
 
 import argparse
 import itertools
-import json
 import os
 import time
 
-
-from . import dataset_eval, observed_data
-from .graphs import TimeGraph
-from .instances import graph_hash, save_instance
+from .. import dataset_eval, observed_data
+from ..graphs import TimeGraph
+from ..instances import graph_hash, save_instance
+from . import common
 
 NONSTATIONARY_SETTINGS = {f"frac{f:g}": {"nonstationary": {"n_changes": 2, "frac": f}} for f in (0.0, 0.25, 0.5)}
 VIOLATION_SETTINGS = {
@@ -82,17 +81,8 @@ def run_task(a):
                 "n_true_edges_nonself": int(len(edges)), "hidden": meta.get("hidden"), "series": meta.get("series"),
                 "change_times": meta.get("change_times"), "guard_ok": meta.get("guard_ok"),
                 "min_partial_corr": meta.get("min_partial_corr"), "seconds": time.time() - t0})
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    tmp = path + f".tmp{os.getpid()}"
-    with open(tmp, "w") as f:
-        json.dump(res, f, default=lambda o: o.item() if hasattr(o, "item") else str(o))
-    os.replace(tmp, path)
+    common.dump_json(path, res)
     return path, "done", time.time() - t0
-
-
-def _worker(args):
-    a, deadline = args
-    return (a, "skipped", 0.0) if time.time() > deadline else run_task(a)
 
 
 def main(argv=None):
@@ -106,8 +96,7 @@ def main(argv=None):
     ap.add_argument("--M", default="500,2000")
     ap.add_argument("--graphs", type=int, default=20)
     ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--workers", type=int, default=1)
-    ap.add_argument("--budget-sec", type=float, default=1e9)
+    common.add_pool_args(ap)
     ap.add_argument("--instances-only", action="store_true", help="(re)write the instance files only (overwrites)")
     a = ap.parse_args(argv)
     T = a.T or (12 if a.exp == "nonstationary" else 10)
@@ -115,21 +104,14 @@ def main(argv=None):
         for s_, g in itertools.product(SETTINGS[a.exp], range(a.graphs)):
             write_instance(a.out_dir, a.exp, s_, build(a.exp, s_, a.N, T, a.tau, a.d, a.seed, g), True)
         return
-    tasks = [(a.out_dir, a.exp, s, a.N, T, a.tau, a.d, a.seed, g, int(M))
-             for s, g, M in itertools.product(SETTINGS[a.exp], range(a.graphs), a.M.split(","))]
+    tasks = [(a.out_dir, a.exp, s, a.N, T, a.tau, a.d, a.seed, g, M)
+             for s, g, M in itertools.product(SETTINGS[a.exp], range(a.graphs), common.ints(a.M))]
     exists = lambda t: os.path.exists(os.path.join(t[0], t[1], t[2], f"g{t[8]:02d}_M{t[9]}.json"))
     todo = [t for t in tasks if not exists(t)]
     print(f"tasks {len(tasks)} todo {len(todo)}", flush=True)
-    deadline, t0 = time.time() + a.budget_sec, time.time()
-    if a.workers <= 1:
-        for t in todo:
-            _worker((t, deadline))
-    else:
-        import multiprocessing as mp
-        with mp.get_context("fork").Pool(a.workers) as pool:
-            for _ in pool.imap_unordered(_worker, [(t, deadline) for t in todo], chunksize=1):
-                pass
-    print(f"done in {time.time() - t0:.0f}s; remaining {len([t for t in tasks if not exists(t)])}", flush=True)
+    t0 = time.time()
+    common.run_tasks(run_task, todo, a.workers, t0 + a.budget_sec)
+    common.finish(t0, len([t for t in tasks if not exists(t)]))
 
 
 if __name__ == "__main__":
