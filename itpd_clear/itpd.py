@@ -247,10 +247,10 @@ class ITPD:
                                out=ancestor_prefix)
 
         # Phase II: fixed iteration set, mutable conditioning set including
-        # all known parents. Deterministic descending order is chosen here too.
+        # all known parents.
         parents = {z for z in S if z // self.N_ == t}
         remaining = S.copy()
-        for z in sorted(S - parents, reverse=True):
+        for z in S - parents:
             if self._independent(z, y, remaining - {z}, phase="II"):
                 remaining.remove(z)
             else:
