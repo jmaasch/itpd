@@ -1,4 +1,4 @@
-"""Iterative Temporal Parent Discovery (ITPD).
+"""Iterative Temporal Parent Discovery (ITPD), Algorithm 1 of the paper.
 
 Install: pip install numpy networkx matplotlib causal-learn tigramite
 
@@ -6,7 +6,7 @@ Run the reproducible oracle example: python itpd.py
 Optional: python itpd.py --seed 42 --output learned_graph.png
 The example requires only numpy, networkx, and matplotlib.
 
-    model = ITPD(ci_test="fisherz", alpha=0.05).fit(V)
+    model = ITPD(ci_test="fisherz", alpha=0.01).fit(V)
     parents = model.adjacency_                 # node -> frozenset of parents
     graph = model.graph_                      # networkx.DiGraph
 
@@ -22,6 +22,19 @@ V has shape (replicates, times, variables). CI observations are independent
 replicate trajectories, NOT pooled time points. Nodes use zero-based integer
 IDs t * N + n; node_label(node) returns (t, n).
 
+Line numbers in the comments are those of Algorithm 1. For a target Y at
+zero-based time step t + 1, let m = N * (t + 1) - 1 be its number of candidates.
+Phase I (Lines 8, 9, and 10) tests at the level
+alpha1 = max(alpha, min(gamma, kappa / m)); Phase II (Line 14) tests at the
+level alpha2 = alpha / m. A test returns "independent" iff p > level.
+Line 6 visits candidates in descending time and Line 13 in ascending time, both
+in increasing variable index within a time step.
+
+A CI test that returns a NaN p-value cannot be evaluated (for example
+itpd_aistats.ci.FisherZ when M - |S| - 3 <= 0; causal-learn's fisherz returns
+p = 1 at 0 and raises an error below 0). The target of such a test keeps only its lag-1 self edge,
+is listed in untested_targets_, and fit emits one warning; the run continues.
+
 Assumes a causally sufficient, faithful temporal DAG, no contemporaneous edges,
 empty first-slice parent sets, and every lag-1 self edge. Oracle correctness does
 not imply finite-sample correctness. Choose a CI test appropriate to the data.
@@ -34,12 +47,17 @@ bitsets replace repeated d-separation traversals. These caches describe the
 learned graph, not necessarily the true graph. Do not mutate graph_ after fit.
 """
 
+import warnings
 from collections import Counter
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
 import networkx as nx
 import numpy as np
+
+
+class _NotEvaluable(Exception):
+    """A CI test returned a NaN p-value."""
 
 
 class ITPD:
@@ -53,7 +71,13 @@ class ITPD:
         supply an instantiated test, e.g. ParCorr() or CMIknn().
     backend : {'causal-learn', 'tigramite', 'oracle'}
     alpha : float
-        Reject independence when p <= alpha.
+        Significance level (default 0.01). A test at a level rejects
+        independence when p <= level; see gamma and kappa for the two levels.
+    gamma, kappa : float
+        Constants of the level alpha1 (defaults 0.2 and 50). With m
+        candidates of a target, Phase I tests at
+        alpha1 = max(alpha, min(gamma, kappa / m)) and Phase II at
+        alpha2 = alpha / m.
     ci_kwargs : dict or None
         Options passed to causal-learn's CIT constructor. Configure Tigramite
         options on the supplied test object instead.
@@ -70,15 +94,24 @@ class ITPD:
     ci_queries_ : Counter
         Calls requested by phase. A backend may cache repeated calls internally.
     max_conditioning_size_ : int
+    untested_targets_ : list[int]
+        Targets with a CI test that returned NaN (not evaluable). Each has
+        only its lag-1 self edge in the output; fit warns when the list is
+        not empty.
 
     Graph-cache storage is O(N^2 T) prefix entries plus O(N^2 T) root bits.
     CI backends may allocate additional caches or dense matrices.
     """
 
     def __init__(self, ci_test="fisherz", *, backend="causal-learn",
-                 alpha=0.05, ci_kwargs=None, oracle_adjacency=None):
+                 alpha=0.01, gamma=0.2, kappa=50, ci_kwargs=None,
+                 oracle_adjacency=None):
         if not 0 < alpha < 1:
             raise ValueError("alpha must lie strictly between 0 and 1")
+        if not 0 < gamma < 1:
+            raise ValueError("gamma must lie strictly between 0 and 1")
+        if not kappa > 0:
+            raise ValueError("kappa must be positive")
         if backend not in {"causal-learn", "tigramite", "oracle"}:
             raise ValueError("backend must be 'causal-learn', 'tigramite', or 'oracle'")
         if backend != "oracle" and oracle_adjacency is not None:
@@ -86,6 +119,8 @@ class ITPD:
         self.ci_test = ci_test
         self.backend = backend
         self.alpha = alpha
+        self.gamma = gamma
+        self.kappa = kappa
         self.ci_kwargs = dict(ci_kwargs or {})
         self.oracle_adjacency = oracle_adjacency
 
@@ -125,6 +160,7 @@ class ITPD:
         self._roots = [0] * p
         self.ci_queries_ = Counter()
         self.max_conditioning_size_ = 0
+        self.untested_targets_ = []
         self._pvalue = self._make_test()
         for n in range(self.N_):
             self._record(n, set())
@@ -132,6 +168,12 @@ class ITPD:
             for n in range(self.N_):
                 x, y = t * self.N_ + n, (t + 1) * self.N_ + n
                 self._record(y, self._discover(x, y, t))
+        if self.untested_targets_:
+            warnings.warn(
+                f"{len(self.untested_targets_)} target(s) had a CI test that "
+                "could not be evaluated (NaN p-value); each keeps only its "
+                "lag-1 self edge. See untested_targets_.",
+                RuntimeWarning, stacklevel=2)
         self._fitted = True
         return self
 
@@ -226,48 +268,75 @@ class ITPD:
             self._prefix[node, pn] = max(self._prefix[node, pn], pt)
             self._roots[node] |= self._roots[parent]
 
-    def _discover(self, x: int, y: int, t: int) -> set[int]:
-        S = {x}
-        ancestor_prefix = self._prefix[x].copy()
-        # Phase I: descending time, increasing variable ID within each slice.
-        for s in range(t, -1, -1):
-            for n in range(self.N_):
-                z = s * self.N_ + n
-                if z in S:
-                    continue
-                if s > ancestor_prefix[n] and self._independent(z, y):
-                    continue
-                if (self.marginally_connected(z, x)
-                        and self._independent(z, y, (x,))):
-                    continue
-                if not self._independent(z, y, self.adjacency_[z]):
-                    S.update(self.ancestors(z))
-                    S.add(z)
-                    np.maximum(ancestor_prefix, self._prefix[z],
-                               out=ancestor_prefix)
+    def _levels(self, t: int) -> tuple[float, float]:
+        """Return (alpha1, alpha2) for a target at zero-based time step t + 1.
 
-        # Phase II: fixed iteration set, mutable conditioning set including
-        # all known parents.
-        parents = {z for z in S if z // self.N_ == t}
-        remaining = S.copy()
-        for z in S - parents:
-            if self._independent(z, y, remaining - {z}, phase="II"):
-                remaining.remove(z)
-            else:
-                parents.add(z)
+        m = N * (t + 1) - 1 is the number of candidates of the target. m = 0
+        only when N = 1 and t = 0, where no test is run; m is then set to 1.
+        """
+        m = max((t + 1) * self.N_ - 1, 1)
+        return max(self.alpha, min(self.gamma, self.kappa / m)), self.alpha / m
+
+    def _discover(self, x: int, y: int, t: int) -> set[int]:
+        alpha1, alpha2 = self._levels(t)
+        try:
+            # Line 5.
+            S = {x}
+            ancestor_prefix = self._prefix[x].copy()
+            # Phase I. Line 6: descending time, increasing variable index
+            # within a time step.
+            for s in range(t, -1, -1):
+                for n in range(self.N_):
+                    z = s * self.N_ + n
+                    if z == x:
+                        continue
+                    # Lines 7 and 8: Z is not a learned ancestor of S.
+                    if (s > ancestor_prefix[n]
+                            and self._independent(z, y, level=alpha1)):
+                        continue
+                    # Line 9: S as it is when Z is visited.
+                    if self._independent(z, y, tuple(S), level=alpha1):
+                        continue
+                    # Line 10: local Markov test given the learned parents of Z.
+                    if not self._independent(z, y, self.adjacency_[z],
+                                             level=alpha1):
+                        S.add(z)
+                        np.maximum(ancestor_prefix, self._prefix[z],
+                                   out=ancestor_prefix)
+
+            # Phase II. Line 11: only the known parent, untested.
+            parents = {x}
+            # Line 12.
+            remaining = S.copy()
+            # Line 13: ascending time, increasing variable index within a
+            # time step (ascending node ID).
+            for z in sorted(S - parents):
+                # Line 14.
+                if self._independent(z, y, remaining - {z}, phase="II",
+                                     level=alpha2):
+                    # Line 15.
+                    remaining.remove(z)
+                else:
+                    parents.add(z)
+        except _NotEvaluable:
+            self.untested_targets_.append(y)
+            return {x}
+        # Line 16 (the caller stores the parent set).
         return parents
 
     def _independent(self, x: int, y: int, conditions: Iterable[int] = (),
-                     *, phase="I") -> bool:
+                     *, phase="I", level: float | None = None) -> bool:
         conditions = tuple(sorted(conditions))
         self.ci_queries_[phase] += 1
         self.max_conditioning_size_ = max(self.max_conditioning_size_,
                                           len(conditions))
         p = float(self._pvalue(x, y, conditions))
+        if np.isnan(p):
+            raise _NotEvaluable
         if not np.isfinite(p) or not 0 <= p <= 1:
             raise ValueError(f"CI test returned invalid p-value {p} for "
                              f"({x}, {y} | {conditions})")
-        return p > self.alpha
+        return p > (self.alpha if level is None else level)
 
     def _make_test(self) -> Callable:
         if self.backend == "oracle":

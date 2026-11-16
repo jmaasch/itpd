@@ -7,6 +7,7 @@ Iterative Temporal Parent Discovery (ITPD) is a constraint-based causal discover
 ```
 .
 ├── itpd/                # Instrumented implementation of ITPD, ITPD_naive, ITPD-S (blanket-screened shrink), ITPD-S+ (ITPD-S with a forward-backward second pass) and baselines (package; see itpd/README.md). itpd/experiments and itpd/tables hold the experiment drivers and the collectors.
+├── itpd_clear/          # ITPD, Algorithm 1 of the paper, in one file (itpd_clear/itpd.py); see the section below.
 ├── tests/                # Tests of the package, including parity tests against legacy/.
 ├── pyproject.toml
 ├── legacy/
@@ -47,6 +48,40 @@ The example runs ITPD_naive, ITPD and the full-conditioning baseline with the d-
 ```
 python -m pytest -q
 ```
+
+## ITPD, Algorithm 1 of the paper (`itpd_clear/`)
+
+`itpd_clear/itpd.py` is a single-file implementation of ITPD as printed in Algorithm 1 of the paper. The comments in `_discover` carry the line numbers of the algorithm. The file needs only `numpy` and `networkx` (`matplotlib` for `plot_graph`, `causal-learn` or `tigramite` for their CI tests) and does not import the package above.
+
+```python
+from itpd import ITPD          # run from inside itpd_clear/, or add that folder to sys.path
+
+model = ITPD(ci_test="fisherz", alpha=0.01, gamma=0.2, kappa=50).fit(V)    # V has shape (M, T, N)
+parents = model.adjacency_     # node t * N + n -> frozenset of parents
+```
+
+The algorithm tests at two levels. For a target at time step t + 1 (the paper's indexing), let m = N t - 1 be its number of candidates.
+
+| Level | Formula | Used on | Arguments and defaults |
+| --- | --- | --- | --- |
+| α1 | max(α, min(γ, κ / m)) | Lines 8, 9 and 10 (Phase I) | `alpha=0.01`, `gamma=0.2`, `kappa=50` |
+| α2 | α / m | Line 14 (Phase II) | `alpha=0.01` |
+
+- A test answers "independent" if and only if p is larger than the level.
+- Line 6 visits the candidates in descending time and Line 13 in ascending time; inside a time step both go by increasing series index.
+- A CI test that returns a NaN p-value cannot be evaluated (for example `itpd_aistats.ci.FisherZ` when M - |S| - 3 <= 0; causal-learn's `fisherz`, the default, returns p = 1 at 0 and raises an error below 0). The target of such a test keeps only its lag-1 self edge and is listed in `untested_targets_`, and `fit` emits one warning. Exclude these targets from a score.
+- `python itpd_clear/itpd.py` runs an example with the d-separation oracle and checks exact recovery.
+
+Tests of this file:
+
+```
+python -m pytest tests/test_itpd_clear.py                 # about 20 seconds
+python -m pytest tests/test_itpd_clear.py -m "not slow"   # without the finite-data runs, a few seconds
+```
+
+They check exact recovery with the d-separation oracle (all 256 graphs with N = 2 and T = 3, and random graphs with N = 2, T = 4 and N = 3, T = 3), the two levels, and the edge counts and CI test counts of three finite-data runs behind the paper's results, with data regenerated from seeds.
+
+The Lean 4 proof that Algorithm 1 returns the true parent set of every target whose parents are all observed, under the paper's assumptions and with a d-separation oracle as the CI test, is in the folder `lean/`. The proof does not cover the significance levels or this Python code.
 
 ## Counting conventions
 
