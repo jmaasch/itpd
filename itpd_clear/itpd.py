@@ -272,7 +272,7 @@ class ITPD:
                             and self._independent(z, y, level=alpha1)):
                         continue
                     # Line 9: condition on the current S.
-                    if self._independent(z, y, tuple(S), level=alpha1):
+                    if self._independent(z, y, S, level=alpha1):
                         continue
                     # Line 10: dependence given the learned parents of Z adds Z to S.
                     if not self._independent(z, y, self.adjacency_[z],
@@ -309,7 +309,7 @@ class ITPD:
         p = float(self._pvalue(x, y, conditions))
         if np.isnan(p):
             raise _NotEvaluable
-        if not np.isfinite(p) or not 0 <= p <= 1:
+        if not 0 <= p <= 1:
             raise ValueError(f"CI test returned invalid p-value {p} for "
                              f"({x}, {y} | {conditions})")
         return p > (self.alpha if level is None else level)
@@ -351,8 +351,6 @@ class ITPD:
             raise ValueError("Oracle edges must point strictly forward in time")
         if any(not graph.has_edge(v - self.N_, v) for v in range(self.N_, p)):
             raise ValueError("Oracle graph must contain every lag-1 autocorrelation edge")
-        # Freeze the oracle graph while the learned graph grows.
-        nx.freeze(graph)
 
         def pvalue(x, y, conditions):
             return float(nx.is_d_separator(graph, {x}, {y}, set(conditions)))
@@ -374,10 +372,6 @@ def run_example(*, seed=7, output="itpd_example.png") -> ITPD:
     sources = np.arange(N * (T - 1))
     adjacency[sources, sources + N] = 1
     truth = nx.from_numpy_array(adjacency, create_using=nx.DiGraph)
-    assert nx.is_directed_acyclic_graph(truth)
-    assert all(times[u] < times[v] for u, v in truth.edges)
-    assert all(truth.has_edge(u, u + N) for u in sources)
-    assert all(truth.in_degree(n) == 0 for n in range(N))
 
     model = ITPD(backend="oracle", oracle_adjacency=adjacency).fit(n_variables=N)
     if not np.array_equal(model.get_adjacency_matrix(), adjacency):
