@@ -1,11 +1,8 @@
-"""Tests of `itpd_clear/itpd.py`, the ITPD algorithm (Algorithm 1 of the paper).
+"""Check Algorithm 1, its test levels, and finite-data results.
 
-The module is loaded by file path, so these tests do not need an installed package. The finite-data tests regenerate
-their data with the repository's generator (`itpd_aistats`) and are skipped when it cannot be imported.
-
-    python -m pytest tests/test_itpd_clear.py                 # all tests
-    python -m pytest tests/test_itpd_clear.py -m "not slow"   # without the finite-data fixtures
-"""
+Load itpd_clear/itpd.py directly without installing the package. Finite-data
+tests regenerate fixtures with itpd_aistats and skip if the generator is
+unavailable or the data hash differs. Use -m "not slow" to omit these tests."""
 import importlib.util
 import math
 import sys
@@ -23,10 +20,10 @@ _spec.loader.exec_module(itpd_clear)
 ITPD = itpd_clear.ITPD
 
 
-# ---------------------------------------------------------------- exact recovery with the d-separation oracle
+# Exact recovery with the d-separation oracle.
 
 def _optional_edges(N, T):
-    """Every forward edge except the lag-1 self edges, which are always present."""
+    """Return forward edges other than the mandatory lag-1 self edges."""
     time = np.repeat(np.arange(T), N)
     P = N * T
     return [(u, v) for u in range(P) for v in range(P) if time[u] < time[v] and v != u + N]
@@ -49,7 +46,7 @@ def _not_exact(N, T, masks):
         A = _graph(N, T, optional, mask)
         model = ITPD(backend="oracle", oracle_adjacency=A).fit(n_variables=N)
         assert model.untested_targets_ == []
-        if not np.array_equal(model.get_adjacency_matrix(), A):   # equal matrices = every target exact
+        if not np.array_equal(model.get_adjacency_matrix(), A):
             bad.append(mask)
     return bad
 
@@ -72,7 +69,7 @@ def test_run_example(tmp_path):
     assert model.ci_queries_["I"] > 0 and model.ci_queries_["II"] > 0
 
 
-# ---------------------------------------------------------------- the two levels
+# Phase I and Phase II test levels.
 
 def _fitted(N, T, **kwargs):
     return ITPD(lambda x, y, S: 1.0, **kwargs).fit(np.zeros((2, T, N)))
@@ -80,10 +77,10 @@ def _fitted(N, T, **kwargs):
 
 @pytest.mark.parametrize("N, t", [(2, 1), (2, 2), (3, 1), (20, 1), (20, 12), (20, 13), (20, 15), (300, 20)])
 def test_levels_follow_the_formulas(N, t):
-    """`t` is the paper's index: the target is at time step t + 1 and has m = N * t - 1 candidates."""
+    """Check m = N * t - 1, with target time t + 1 in the paper's indexing."""
     model = _fitted(N, 2)
     m = N * t - 1
-    alpha1, alpha2 = model._levels(t - 1)          # the code counts time steps from 0
+    alpha1, alpha2 = model._levels(t - 1)          # Convert the paper's index to zero-based time.
     assert alpha1 == max(0.01, min(0.2, 50 / m))
     assert alpha2 == 0.01 / m
 
@@ -94,7 +91,7 @@ def test_levels_known_values():
     assert model._levels(11)[0] == 0.2                             # 50 / 239 > gamma
     assert math.isclose(model._levels(12)[0], 50 / 259)            # gamma > 50 / 259 > alpha
     assert _fitted(300, 2)._levels(19) == (0.01, 0.01 / 5999)      # 50 / 5999 < alpha: the floor is alpha
-    assert _fitted(1, 2)._levels(0) == (0.2, 0.01)                 # no candidate: m is set to 1
+    assert _fitted(1, 2)._levels(0) == (0.2, 0.01)                 # No candidates; use m = 1.
 
 
 def test_levels_use_the_arguments():
@@ -102,7 +99,7 @@ def test_levels_use_the_arguments():
     assert model._levels(0) == (0.1, 0.05 / 19)
     assert math.isclose(model._levels(9)[0], 10 / 199)
     assert math.isclose(model._levels(9)[1], 0.05 / 199)
-    assert _fitted(300, 2, alpha=0.05)._levels(19) == (0.05, 0.05 / 5999)   # floor = the alpha argument
+    assert _fitted(300, 2, alpha=0.05)._levels(19) == (0.05, 0.05 / 5999)   # The floor is alpha.
     assert ITPD().alpha == 0.01 and ITPD().gamma == 0.2 and ITPD().kappa == 50
 
 
@@ -113,7 +110,10 @@ def test_invalid_levels_are_rejected(kwargs):
 
 
 def _constant_p(p, **kwargs):
-    """N 2, T 2: every target has one candidate, so alpha1 = gamma and alpha2 = alpha. Target 2 has X = 0, Z = 1."""
+    """Fit N = 2, T = 2 with a constant p-value and collect target 2 calls.
+
+    Each target has one candidate; target 2 has X = 0 and Z = 1.
+    With default levels, alpha1 = gamma and alpha2 = alpha."""
     calls = []
 
     def ci(x, y, S):
@@ -125,7 +125,7 @@ def _constant_p(p, **kwargs):
 
 
 def test_levels_are_applied_on_the_lines():
-    # alpha2 < p < alpha1: Lines 8, 9 and 10 answer "dependent", Line 14 answers "independent".
+    # alpha2 < p < alpha1: Lines 8-10 find dependence; Line 14 finds independence.
     model, calls = _constant_p(0.1)
     assert calls == [(1, 2, ()), (1, 2, (0,)), (1, 2, ()), (1, 2, (0,))]
     assert model.adjacency_[2] == {0}
@@ -136,7 +136,7 @@ def test_levels_are_applied_on_the_lines():
     # p < alpha2: Line 14 answers "dependent".
     model, calls = _constant_p(0.005)
     assert len(calls) == 4 and model.adjacency_[2] == {0, 1}
-    # gamma and alpha move the two levels.
+    # Changing gamma or alpha changes the test decisions.
     model, calls = _constant_p(0.1, gamma=0.05)
     assert calls == [(1, 2, ())]
     model, calls = _constant_p(0.1, alpha=0.15)
@@ -146,7 +146,7 @@ def test_levels_are_applied_on_the_lines():
     assert len(calls) == 4 and model.adjacency_[2] == {0}
 
 
-# ---------------------------------------------------------------- a test that cannot be evaluated
+# NaN p-values and invalid p-values.
 
 def test_nan_p_value_lists_the_target_and_warns():
     def ci(x, y, S):
@@ -156,8 +156,8 @@ def test_nan_p_value_lists_the_target_and_warns():
         model = ITPD(ci).fit(np.zeros((2, 4, 2)))
     assert len(record) == 1
     assert model.untested_targets_ == [4]
-    assert model.adjacency_[4] == {2}                    # the lag-1 self edge only
-    assert model.adjacency_[5] == {0, 1, 2, 3}           # the run continues
+    assert model.adjacency_[4] == {2}                    # Only the lag-1 self edge remains.
+    assert model.adjacency_[5] == {0, 1, 2, 3}           # Discovery continues for other targets.
     assert model.adjacency_[6] == {0, 1, 2, 3, 4, 5}
     assert model.get_adjacency_matrix().shape == (8, 8)
 
@@ -167,12 +167,14 @@ def test_invalid_p_value_still_raises():
         ITPD(lambda x, y, S: 1.5).fit(np.zeros((2, 2, 2)))
 
 
-# ---------------------------------------------------------------- parity with runs behind the paper's results
+# Reproduce the paper's finite-data results.
 
-# Linear Gaussian data, N 20, T 16, lag 1, Fisher-z, alpha 0.01. An instance is (expected in-degree d, graph index g)
-# with generator seed 0; the data are the first M of 2000 rows. Scores exclude the lag-1 self edges.
+# Linear Gaussian data: N = 20, T = 16, lag = 1, Fisher-z, alpha = 0.01.
+# Each instance uses expected in-degree d, graph index g, and generator seed 0.
+# Use the first M of 2000 rows. Scores exclude lag-1 self edges.
 FIXTURES = [
-    # d, g, M, sha1 of the 2000 rows, tp, fp, fn, requested tests, unique tests, largest conditioning set
+    # Columns: d, g, M, SHA-1 of 2000 rows, tp, fp, fn, requested tests,
+    # unique tests, and largest conditioning set.
     (2.0, 0, 200, "f7df382ae9f36ffc0f960f94ba2ed9e41afa36db", 554, 7, 69, 63470, 62495, 25),
     (2.0, 1, 500, "5e2ef56f5c751c391e42191ef9d5b5649476f6ca", 591, 3, 7, 64769, 63818, 28),
     (1.0, 0, 2000, "37c8fcbb6c0126ecd13ee7f9849a012930b09bb1", 312, 1, 0, 65468, 64501, 29),
@@ -198,7 +200,7 @@ def test_parity_with_stored_runs(d, g, M, sha1, tp, fp, fn, requested, unique, l
     recorder = Recorder(FisherZ(X.reshape(M, -1)), cache="run")
 
     with warnings.catch_warnings():
-        warnings.simplefilter("error", RuntimeWarning)   # no target may be untested
+        warnings.simplefilter("error", RuntimeWarning)   # Every target must be testable.
         model = ITPD(lambda x, y, S: recorder(x, y, S), alpha=0.01).fit(X)
 
     assert model.untested_targets_ == []
