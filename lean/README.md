@@ -4,7 +4,7 @@ This folder holds a machine-checked proof for Algorithm 1 (ITPD). It proves that
 
 - Lean 4.33.1, core library only. No Mathlib, no other dependency.
 - 7 modules, 61 theorem declarations (supporting lemmas included). Every proof is complete: no `sorry`. The library declares no axiom.
-- The graph: every edge points strictly forward in time. Every series has its lag-1 self edge on the observed time steps (A1). There may be any number `H ≥ 0` of latent time steps before the first observed one.
+- The graph: every edge points strictly forward in time. Every series has its lag-1 self edge on the observed time steps (A1). For any `H ≥ 0`, the latent time steps `0, …, H` come before the first observed one.
 - The CI answers are separation in the full graph, latent time steps included.
 - With links of lag at most `L`, the result holds for every target after time step `L`. With lag-1 links, it holds for every target.
 - No initial condition is assumed. Variables of the first observed time step may have latent parents.
@@ -18,7 +18,7 @@ All names are in the namespace `ITPD`, and in `ITPD/Paper.lean` unless a file is
 - `itpd_exact_latent`: separation answers in a graph with latent time steps (`LatentOracle`), and a target with `ParentsObserved`. `A[Y]` is the set of parents of `Y` among the observed variables (`obsE G`).
 - `itpd_exact_latent_lag`: links of lag at most `L`. Every target `V^n_{t+1}` with `L ≤ t`.
 - `itpd_exact_latent_lag1`: lag-1 links. Every target `V^n_{t+1}` with `1 ≤ t < T` and `1 ≤ n ≤ N`.
-- `itpd_exact_nonvacuous`: for every `N`, `T` and `H` there are a graph with `H` latent time steps and lag-1 links, and separation answers for it, such that every variable of the first observed time step has a latent parent in every series, and Algorithm 1 returns the parent set of every target.
+- `itpd_exact_nonvacuous`: for every `N`, `T` and `H` there are a graph with the latent time steps `0, …, H` and lag-1 links, and separation answers for it, such that every variable of the first observed time step has a latent parent in every series, and Algorithm 1 returns the parent set of every target.
 - The paper's local result is `itpd_exact` and `itpd_exact_latent`. The paper's global result is `itpd_exact_latent_lag1` and `itpd_exact_latent_lag`.
 - Seven lemmas hold by `rfl` and show which tests one step of Algorithm 1 asks: `itpdPaper_loops`, `itpdPaper_target`, `itpdPaper_lines_5_6`, `itpdPaper_lines_7_10`, `itpdPaper_line_11`, `itpdPaper_lines_12_13`, `itpdPaper_lines_14_15`.
 - The theorems for Algorithm 1 are instances of `itpdS_correct` (`ITPD/Exact.lean`) and `itpdS_correct_latent` (`ITPD/Latent.lean`). These two hold for every order of the candidates in Phase I (Line 6), every order in Phase II (Line 13) and every order of the series (Line 3).
@@ -27,7 +27,7 @@ All names are in the namespace `ITPD`, and in `ITPD/Paper.lean` unless a file is
 
 - A1, lag-1 self edge: the field `LatentDAG.lag1` on the observed time steps. For abstract CI answers: the field `TargetHyp.lag1`.
 - A2, no edge inside a time step: the field `LatentDAG.forward` (every edge points strictly forward in time).
-- A3, no latent confounding after the first time step: the hypothesis `ParentsObserved G t n` for each target (all parents of the target are observed). `LatentDAG N T H` has `H` latent time steps before the `T` observed ones.
+- A3, no latent confounding after the first time step: the hypothesis `ParentsObserved G t n` for each target (all parents of the target are observed). `LatentDAG N T H` has the latent time steps `0, …, H` before the `T` observed ones.
 - Markov property and faithfulness: not modeled as probability. The CI answers are separation in the graph (`LatentOracle G ci`). The separation relation is `MSep.msep` (`ITPD/Separation.lean`).
 - `TargetHyp P ci N t n` (`ITPD/Exact.lean`): all that the proof uses about one target `Y = V^n_{t+1}`. Fields `lag1` (`X → Y`) and `observed` (every parent of `Y` is in `V_{1:t}`) are about the parents. Fields `adj` and `markov` are the two properties of the CI answers that the paper names.
 - `adj`: a parent of `Y` is reported dependent on `Y` given every subset of `V_{1:t}` that does not contain it. `markov`: if `pa(Y) ⊆ C ⊆ V_{1:t}`, every `Z` in `V_{1:t}` that is not a parent of `Y` and not in `C` is reported independent of `Y` given `C`.

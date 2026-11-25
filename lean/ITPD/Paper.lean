@@ -91,11 +91,11 @@ theorem itpd_exact (P : Vertex → Vertex → Prop) (ci : CI) (N T t n : Nat) (h
   itpdS_correct P ci true descTime ascNode isOrder_descTime isOrder_ascNode N T (natSeries N)
     (isSeriesOrder_natSeries N) t n htT H
 
-/-- **Exactness of Algorithm 1 with latent time steps.** Let `G` be a graph with `H ≥ 0` latent
-time steps before the `T` observed ones, with edges forward in time and the lag-1 self edge of
-every series on the observed steps (A1), and let the CI answers be separation in the full graph
-`G`. For every target `Y = V^n_{t+1}` (`1 ≤ t < T`, `1 ≤ n ≤ N`) whose parents are all observed,
-the returned entry `A[Y]` is the parent set of `Y`. -/
+/-- **Exactness of Algorithm 1 with latent time steps.** Let `G` be a graph with the latent time
+steps `0, …, H` (`H ≥ 0`) before the `T` observed ones, with edges forward in time and the lag-1
+self edge of every series on the observed steps (A1), and let the CI answers be separation in the
+full graph `G`. For every target `Y = V^n_{t+1}` (`1 ≤ t < T`, `1 ≤ n ≤ N`) whose parents are all
+observed, the returned entry `A[Y]` is the parent set of `Y`. -/
 theorem itpd_exact_latent {N T H : Nat} (G : LatentDAG N T H) (ci : CI) (h : LatentOracle G ci)
     (t n : Nat) (ht : 1 ≤ t) (htT : t < T) (hn1 : 1 ≤ n) (hnN : n ≤ N)
     (hobs : ParentsObserved G t n) :
@@ -121,10 +121,10 @@ theorem itpd_exact_latent_lag1 {N T H : Nat} (G : LatentDAG N T H) (ci : CI)
     (natSeries N) (isSeriesOrder_natSeries N) t n ht htT hn1 hnN
 
 /-- **The hypotheses can be met with latent parents at the first observed step.** For every `N`,
-`T` and `H` there are a graph with `H` latent steps and lag-1 links, and separation answers for
-it, such that (1) every variable of the first observed step has a parent in every series one
-step earlier, which is a latent vertex and not an observed variable, and (2) Algorithm 1 returns
-the parent set of every target `V^n_{t+1}`, `1 ≤ t < T`, `1 ≤ n ≤ N`. -/
+`T` and `H` there are a graph with the latent steps `0, …, H` and lag-1 links, and separation
+answers for it, such that (1) every variable of the first observed step has a parent in every
+series one step earlier, which is a latent vertex and not an observed variable, and (2) Algorithm 1
+returns the parent set of every target `V^n_{t+1}`, `1 ≤ t < T`, `1 ≤ n ≤ N`. -/
 theorem itpd_exact_nonvacuous (N T H : Nat) :
     ∃ (G : LatentDAG N T H) (ci : CI), LatentOracle G ci ∧
       (∀ u v, G.E u v → v.time ≤ u.time + 1) ∧

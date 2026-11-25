@@ -25,7 +25,7 @@ MAX_ROUNDS = 200   # nonstationary graph: rounds in which the failing edges are 
 def draw_parameters(edges: np.ndarray, rng) -> np.ndarray:
     """Return parameters (6, `*edges.shape`) for every slot.
 
-    Parameters are w, a, s, c, k, `phi`; w is 0 where `edges` is."""
+    Parameters are w, a, s, c, k, `phi`; w is 0 where `edges` is 0."""
     shape = edges.shape
     P = np.empty((6,) + shape)
     P[0] = rng.uniform(0.8, 1.6, shape) * rng.choice([-1.0, 1.0], shape) * (np.asarray(edges) != 0)
@@ -103,6 +103,8 @@ def make_instance(N: int, T: int, lag: int, d: float, g: int, *, stationary: boo
       round only the edges that fail the check are drawn again (up to
       `MAX_ROUNDS` rounds).
 
+    When the check still fails at the limit, `make_instance` keeps the
+    parameters drawn last and sets `info["guard_ok"]` to `False`.
     `info["parameters"]` has shape (6, T * N, T * N)."""
     base = _graph_instance(N, T, lag, d, g, stationary=stationary, seed=seed, weights=False)
     A = base.A

@@ -102,7 +102,7 @@ def score_run(run: dict, truth, view: str = "edges") -> dict:
     spec, size = run["spec"], truth.N * truth.T
     A_hat = np.zeros(size * size, dtype=bool)
     A_hat[run["edges"]] = True
-    # The Fisher-z test sets the common targets; the oracle and the GCM test can test every target.
+    # The Fisher-z test sets the common targets; the oracle and the GCM test have a target-independent minimum M.
     M = spec["data"].get("M") if spec["ci_test"] == "fisherz" else None
     return VIEWS[view](truth, A_hat.reshape(size, size), M, run["untested"])
 

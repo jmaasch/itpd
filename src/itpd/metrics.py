@@ -20,8 +20,10 @@ from .graphs import self_edge_mask
 def last_common_step(N: int, T: int, M: int | None = None) -> int:
     """Return the last step whose targets are common targets.
 
-    M is `None` for a CI test that needs no minimum number of observations
-    (`DSeparation`, `GCM`): every target is then a common target."""
+    M is `None` for a CI test whose minimum number of observations does not
+    depend on the target (`DSeparation`, which uses no observations, and `GCM`,
+    which needs M >= 8 for every test). With M `None`, every target is a common
+    target."""
     if M is None:
         return T - 1
     return int(max(0, min(T - 1, (M - 3) // N)))

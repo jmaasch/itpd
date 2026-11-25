@@ -2,9 +2,12 @@
 
 Model: X_v = sum over the parents u of W[u, v] * X_u + noise_v, with standard
 normal noise; the nodes of step 0 have no parents. Weights have a size in [0.3,
-0.8] and a random sign. A draw of the weights is accepted when every edge has a
-partial correlation (given the other parents of its child) and a correlation of
-at least `MIN_STRENGTH` in absolute value. Look at `make_instance`.
+0.8] and a random sign. A draw of the weights passes the check when every edge
+has a partial correlation (given the other parents of its child) and a
+correlation of at least `MIN_STRENGTH` in absolute value. The weights are drawn
+until a draw passes the check, at most `MAX_TRIES` times. When no draw passes
+the check, the last draw is kept, and `info["guard_ok"]` of the instance is
+`False`. Look at `make_instance`.
 """
 import hashlib
 

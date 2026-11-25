@@ -1,9 +1,9 @@
 """Conditional independence (CI) tests.
 
 A CI test is a callable (x, y, S) -> p-value. x and y are column indices of the
-data, and S is a collection of column indices. The pair is dependent at a level
-when p <= level. A test returns NaN when it cannot be evaluated. Members of S
-equal to x or y are ignored.
+data, and S is a collection of distinct column indices. The pair is dependent
+at a level when p <= level. A test returns NaN when it cannot be evaluated.
+Members of S equal to x or y are ignored.
 
 Where to look:
 - `FisherZ`: test for linear Gaussian data.
