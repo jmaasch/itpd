@@ -1,20 +1,15 @@
-"""Check Algorithm 1, its test levels, and finite-data results.
+"""Check Algorithm 1, its test levels, its CI tests, and finite-data results.
 
-Finite-data tests regenerate their data and skip if the data generator is
-unavailable or the data hash differs. Use -m "not slow" to omit these tests."""
+The finite-data tests at the end draw their data again and skip when the data
+hash differs. Use -m "not slow" to omit them."""
 import math
-import sys
 import warnings
-from pathlib import Path
 
 import networkx as nx
 import numpy as np
 import pytest
 
-from itpd import ITPD
-from itpd.algorithm import run_example
-
-ROOT = Path(__file__).resolve().parents[1]
+from itpd import CICounter, DSeparation, FisherZ, ITPD, NotEvaluable, metrics
 
 
 # Exact recovery with the d-separation oracle.
@@ -41,7 +36,7 @@ def _not_exact(N, T, masks):
     bad = []
     for mask in masks:
         A = _graph(N, T, optional, mask)
-        model = ITPD(backend="oracle", oracle_adjacency=A).fit(n_variables=N)
+        model = ITPD(oracle_adjacency=A).fit(n_variables=N)
         assert model.untested_targets_ == []
         if not np.array_equal(model.get_adjacency_matrix(), A):
             bad.append(mask)
@@ -60,10 +55,50 @@ def test_oracle_exact_on_random_graphs(N, T, n_graphs):
     assert _not_exact(N, T, masks) == []
 
 
-def test_run_example(tmp_path):
-    model = run_example(seed=7, output=str(tmp_path / "example.png"))
-    assert (tmp_path / "example.png").exists()
-    assert model.ci_queries_["I"] > 0 and model.ci_queries_["II"] > 0
+def _example_graph():
+    """Three series, five steps; forward edges with probability 0.12."""
+    N, T = 3, 5
+    rng = np.random.default_rng(7)
+    times = np.repeat(np.arange(T), N)
+    A = ((rng.random((N * T, N * T)) < 0.12) & (times[:, None] < times[None, :])).astype(np.uint8)
+    A[np.arange(N * (T - 1)), np.arange(N, N * T)] = 1
+    return A, N, T
+
+
+def test_oracle_counts_on_one_graph():
+    A, N, T = _example_graph()
+    counter = CICounter(DSeparation(A))
+    model = ITPD(counter).fit(np.zeros((2, T, N)))
+    assert np.array_equal(model.get_adjacency_matrix(), A) and A.sum() == 18
+    assert model.ci_queries_ == {"I": 115, "II": 8} and model.max_conditioning_size_ == 5
+    assert counter.summary(N, T) == {"requested": 123, "unique": 117, "largest_set": 5, "mean_set": 103 / 117,
+                                     "unique_per_candidate": 1.5, "not_evaluable": 0}
+    # The oracle given as a matrix issues the same tests.
+    direct = ITPD(oracle_adjacency=A).fit(n_variables=N)
+    assert direct.ci_queries_ == model.ci_queries_ and direct.adjacency_ == model.adjacency_
+    truth = nx.from_numpy_array(A, create_using=nx.DiGraph)
+    assert all(direct.ancestors(v) == nx.ancestors(truth, v) for v in range(N * T))
+
+
+def test_oracle_matrix_is_checked():
+    A, N, T = _example_graph()
+    for u, v, value in [(0, 3, 0), (4, 1, 1), (3, 4, 1)]:    # A missing self edge, a backward edge, an edge inside a step.
+        bad = A.copy()
+        bad[u, v] = value
+        with pytest.raises(ValueError):
+            ITPD(oracle_adjacency=bad).fit(n_variables=N)
+    with pytest.raises(ValueError):
+        ITPD(oracle_adjacency=A).fit(n_variables=4)
+    with pytest.raises(ValueError):
+        ITPD().fit(n_variables=N)                            # No data and no oracle.
+
+
+def test_plot_graph(tmp_path):
+    pytest.importorskip("matplotlib")
+    A, N, T = _example_graph()
+    model = ITPD(oracle_adjacency=A).fit(n_variables=N)
+    assert model.plot_graph(tmp_path / "graph").exists()
+    assert (tmp_path / "graph.png").stat().st_size > 0
 
 
 # Phase I and Phase II test levels.
@@ -164,13 +199,69 @@ def test_invalid_p_value_still_raises():
         ITPD(lambda x, y, S: 1.5).fit(np.zeros((2, 2, 2)))
 
 
+# The CI test of the fit.
+
+def _linear_data(M, N=3, T=4, seed=0):
+    """Each series depends on its own last value and on the last value of the series before it."""
+    rng = np.random.default_rng(seed)
+    V = rng.standard_normal((M, T, N))
+    for t in range(1, T):
+        V[:, t] += 0.6 * V[:, t - 1] + 0.5 * np.roll(V[:, t - 1], 1, axis=1)
+    return V
+
+
+@pytest.mark.parametrize("M", [200, 6])
+def test_fisherz_by_name_equals_fisherz_through_the_counter(M):
+    """M = 6: tests with |S| >= 3 cannot be evaluated; FisherZ returns NaN and the counter raises."""
+    V = _linear_data(M)
+    counter = CICounter(FisherZ(V))
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        models = [ITPD("fisherz").fit(V), ITPD().fit(V), ITPD(FisherZ(V.reshape(M, -1))).fit(V), ITPD(counter).fit(V)]
+    for model in models[1:]:
+        assert model.adjacency_ == models[0].adjacency_
+        assert model.ci_queries_ == models[0].ci_queries_
+        assert model.max_conditioning_size_ == models[0].max_conditioning_size_
+        assert model.untested_targets_ == models[0].untested_targets_
+    assert counter.requested == sum(models[0].ci_queries_.values())
+    assert counter.summary(3, 4)["largest_set"] == models[0].max_conditioning_size_
+    assert bool(models[0].untested_targets_) == (M == 6) == bool(counter.not_evaluable)
+    if M == 200:
+        truth = {3 * t + n: {3 * (t - 1) + n, 3 * (t - 1) + (n - 1) % 3} for t in range(1, 4) for n in range(3)}
+        assert all(models[0].adjacency_[y] == pa for y, pa in truth.items())
+
+
+def test_gcm_by_name():
+    V = _linear_data(200, N=2, T=2)
+    model = ITPD("gcm").fit(V)
+    assert model.adjacency_[2] == {0, 1} and model.adjacency_[3] == {0, 1}
+    assert model.ci_queries_ == {"I": 6, "II": 2}
+
+
+def test_invalid_ci_test_is_rejected():
+    with pytest.raises(ValueError):
+        ITPD("kci").fit(np.zeros((2, 2, 2)))
+
+
+def test_a_test_that_raises_not_evaluable_gives_an_untested_target():
+    def ci(x, y, S):
+        if y == 4:
+            raise NotEvaluable
+        return 0.0
+
+    with pytest.warns(RuntimeWarning, match="untested_targets_"):
+        model = ITPD(ci).fit(np.zeros((2, 4, 2)))
+    assert model.untested_targets_ == [4] and model.adjacency_[4] == {2}
+    assert model.adjacency_[5] == {0, 1, 2, 3}
+
+
 # Reproduce the paper's finite-data results.
 
 # Linear Gaussian data: N = 20, T = 16, lag = 1, Fisher-z, alpha = 0.01.
 # Each instance uses expected in-degree d, graph index g, and generator seed 0.
-# Use the first M of 2000 rows. Scores exclude lag-1 self edges.
+# Use the first M of 2000 observations. Scores exclude lag-1 self edges.
 FIXTURES = [
-    # Columns: d, g, M, SHA-1 of 2000 rows, tp, fp, fn, requested tests,
+    # Columns: d, g, M, SHA-1 of 2000 observations, tp, fp, fn, requested tests,
     # unique tests, and largest conditioning set.
     (2.0, 0, 200, "f7df382ae9f36ffc0f960f94ba2ed9e41afa36db", 554, 7, 69, 63470, 62495, 25),
     (2.0, 1, 500, "5e2ef56f5c751c391e42191ef9d5b5649476f6ca", 591, 3, 7, 64769, 63818, 28),
@@ -181,30 +272,23 @@ FIXTURES = [
 @pytest.mark.slow
 @pytest.mark.parametrize("d, g, M, sha1, tp, fp, fn, requested, unique, largest", FIXTURES,
                          ids=[f"d{f[0]:g}-g{f[1]}-M{f[2]}" for f in FIXTURES])
-def test_parity_with_stored_runs(d, g, M, sha1, tp, fp, fn, requested, unique, largest):
-    if str(ROOT) not in sys.path:
-        sys.path.insert(0, str(ROOT))
-    observed_data = pytest.importorskip("itpd_aistats.observed_data")
-    from itpd_aistats.ci import FisherZ, Recorder
-    from itpd_aistats.metrics import edge_metrics
-
+def test_stored_runs(d, g, M, sha1, tp, fp, fn, requested, unique, largest):
+    linear = pytest.importorskip("itpd.simulation.linear", reason="needs the data generator itpd.simulation")
     N, T = 20, 16
-    inst = observed_data.window_instance(N, T, 1, d, 0, g, "time")
-    full = observed_data.observed_data(inst, 2000)
-    if observed_data.data_hash(full) != sha1:
-        pytest.skip("the random number streams of this platform give different data")
-    X = np.ascontiguousarray(full[:M])
-    recorder = Recorder(FisherZ(X.reshape(M, -1)), cache="run")
+    instance = linear.make_instance(N, T, 1, d, g, stationary=False)
+    if linear.data_hash(instance.sample(2000)) != sha1:
+        pytest.skip("the data differ on this platform")
+    V = instance.sample(M)
+    counter = CICounter(FisherZ(V))
 
     with warnings.catch_warnings():
         warnings.simplefilter("error", RuntimeWarning)   # Every target must be testable.
-        model = ITPD(lambda x, y, S: recorder(x, y, S), alpha=0.01).fit(X)
+        model = ITPD(counter, alpha=0.01).fit(V)
 
     assert model.untested_targets_ == []
-    score = edge_metrics(inst["A"], model.get_adjacency_matrix(), N, T, include_self=False)
-    assert (score["tp"], score["fp"], score["fn"]) == (tp, fp, fn)
-    summary = recorder.summary()
-    assert summary["raw_calls"] == requested == sum(model.ci_queries_.values())
-    assert summary["unique_tests"] == unique
-    assert max(size for size, count in summary["by_size_unique"].items() if count) == largest
-    assert model.max_conditioning_size_ == largest
+    counts = metrics.edge_counts(instance.A, model.get_adjacency_matrix(), N, T)
+    assert (counts["tp"], counts["fp"], counts["fn"]) == (tp, fp, fn)
+    summary = counter.summary(N, T)
+    assert summary["requested"] == requested == sum(model.ci_queries_.values())
+    assert summary["unique"] == unique
+    assert summary["largest_set"] == largest == model.max_conditioning_size_
