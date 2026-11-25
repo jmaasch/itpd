@@ -89,7 +89,7 @@ def _settings(merged) -> list:
     settings = []
     for values in itertools.product(*(graph[key] if isinstance(graph[key], list) else [graph[key]] for key in parameters)):
         one = {"generator": graph["generator"], **dict(zip(parameters, values))}
-        runs = [run for entry in merged["methods"] for run in expand(entry, one.get("lag", 1), ci_test != "oracle")]
+        runs = [run for entry in merged["methods"] for run in expand(entry, one.get("lag", 1), ci_test)]
         settings.append({**{key: merged[key] for key in ("alpha", "ci_test", "seed", "repeat")}, "graph": one,
                          "data": {"mechanism": mechanism, "M": M}, "graphs": indices(merged["graphs"]),
                          "methods": runs, "scoring": dict(merged["scoring"])})

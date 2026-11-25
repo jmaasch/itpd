@@ -1,0 +1,47 @@
+paper_item: "Figure: mean F1 on all targets against the number of observations"
+description: >
+  Linear-Gaussian data of 20, 40 and 80 series over 16 time steps from nonstationary graphs with lag-1 edges and
+  in-degree 2, with 50 to 2000 observations (the figure shows 20 and 80 series); 10 graphs per setting; Fisher-z
+  test. F1 on all targets: a target that a method cannot test has no parents. Every baseline at its better level.
+alpha: 0.01
+ci_test: fisherz
+seed: 0
+graph:
+  generator: standard
+  T: 16
+  lag: 1
+  in_degree: 2
+  stationary: false
+data:
+  mechanism: linear_gaussian
+  M: [50, 100, 200, 500, 2000]    # the first M rows of one draw of 2000 rows
+graphs: 0-9
+# With 20 series the instances are those of the main setting, and the method entries are the same, so the runs with
+# 200, 500 and 2000 observations are runs of main_setting_f1.yaml.
+methods:
+  - &itpd {name: ITPD}
+  - &iamb {name: IAMB, levels: [alpha, corrected]}
+  - &ipadl {name: IPaDL, levels: [alpha, corrected]}
+  - &fullci {name: FullCI, levels: [alpha, corrected]}
+  - &lasso {name: Lasso}
+  - {name: PCMCI, levels: [alpha, corrected], max_lag: 1}
+  - {name: DF-PC, levels: [alpha, corrected], time_limit: 600}
+  - &dynotears {name: DYNOTEARS, max_lag: 1}
+settings:
+  - graph: {N: 20}
+  - graph: {N: [40, 80]}
+    methods:
+      - *itpd
+      - *iamb
+      - *ipadl
+      - *fullci
+      - *lasso
+      - {name: PCMCI, levels: [alpha, corrected], max_lag: 1, time_limit: 3600}
+      - {name: DF-PC, levels: [alpha, corrected], time_limit: 3600}
+      - *dynotears
+scoring:
+  view: edges
+  targets: all
+report:
+  metrics: [f1]
+  bootstrap: {resamples: 10000, seed: 20261113}

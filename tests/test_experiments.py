@@ -17,7 +17,7 @@ from itpd.experiments.config import ConfigError, indices, load, resolve
 from itpd.experiments.methods import run_method
 from itpd.experiments.runner import run_path, specifications
 from itpd.external import run_external
-from itpd.simulation import linear
+from itpd.simulation import linear, nonlinear, redrawn_edges, stepwise
 
 CONFIGS = Path(__file__).resolve().parent.parent / "configs"
 SETTING = "standard_N3_T4_lag1_in_degree1_nonstationary"
@@ -89,6 +89,8 @@ def test_main_setting_config():
     ({"settings": [{"paper_item": "x"}]}, "unknown key paper_item"),
     ({"ci_test": "oracle"}, "go together"),
     ({"ci_test": "oracle", "data": {"mechanism": "none"}, "methods": [{"name": "Lasso"}]}, "needs data"),
+    # PCMCI, DF-PC and CD-NOD have their own Fisher-z test.
+    ({"ci_test": "gcm", "methods": [{"name": "PCMCI"}]}, "its own Fisher-z test"),
     ({"data": {"mechanism": "linear_gaussian"}}, "data.M"),
     ({"graphs": "a-b"}, "indices"),
     # An entry with switches has its own file name.
@@ -209,13 +211,47 @@ def test_oracle_runs_recover_the_graph(tmp_path):
         assert result["graph_sha1"] == instance.graph_sha1 and result["data_sha1"] is None and result["requested"] > 0
 
 
+@pytest.mark.parametrize("graph, mechanism, ci_test, make", [
+    ({"generator": "stepwise", "N": 3, "T": 4, "in_degree": 1}, "linear_gaussian", "fisherz",
+     lambda g: stepwise.make_instance(3, 4, 1, g)),
+    ({"generator": "redrawn_edges", "N": 3, "T": 4, "in_degree": 1, "share": 0.5}, "linear_gaussian", "fisherz",
+     lambda g: redrawn_edges.make_instance(3, 4, 1, 0.5, g)),
+    ({"generator": "standard", "N": 2, "T": 3, "lag": 1, "in_degree": 1, "stationary": False}, "nonlinear", "gcm",
+     lambda g: nonlinear.make_instance(2, 3, 1, 1, g, stationary=False)),
+])
+def test_other_generators_and_the_gcm_test(tmp_path, no_interpreters, graph, mechanism, ci_test, make):
+    config = write(tmp_path, graph=graph, data={"mechanism": mechanism, "M": 60}, ci_test=ci_test, graphs=[1],
+                   methods=[{"name": "ITPD"}, {"name": "Lasso"}, {"name": "DYNOTEARS"}])
+    out = tmp_path / "out"
+    assert run(config, out) == {"written": 3, "skipped": 0}
+    instance = make(1)
+    scored = {row["method"]: row for row in rows(load(config), out)}
+    for name in ("ITPD", "Lasso"):
+        stored = scored[name]["run"]
+        assert stored["graph_sha1"] == instance.graph_sha1 and stored["data_sha1"] == linear.data_hash(instance.sample(2000))
+        assert stored["spec"]["graph"] == graph and stored["spec"]["ci_test"] == ci_test and stored["status"] == "ok"
+    assert scored["ITPD"]["run"]["requested"] > 0 and scored["DYNOTEARS, max lag 1"]["status"] == "skipped"
+    # The folder of a setting is the generator and its parameters.
+    words = [graph["generator"]] + [("" if v else "non") + k if isinstance(v, bool) else f"{k}{v}" for k, v in graph.items() if k != "generator"]
+    assert (out / "_".join(words) / "g01" / "M60" / ci_test / "ITPD.json").exists()
+
+
 # The table of means.
 
-def test_main_setting_configs_share_the_runs_of_the_f1_table():
-    f1 = {run_path(spec): spec for spec in specifications(load(CONFIGS / "main_setting_f1.yaml"))}
+def test_configs_share_runs():
+    """Configs that describe the same run give it the same file and the same specification."""
+    def runs(name, keep=lambda spec: True):
+        return {run_path(spec): spec for spec in specifications(load(CONFIGS / f"{name}.yaml")) if keep(spec)}
+    f1 = runs("main_setting_f1")
     for name in ("main_setting_tests", "frontier_tests", "frontier_seconds"):
-        specs = specifications(load(CONFIGS / f"{name}.yaml"))
-        assert specs and all(f1.get(run_path(spec)) == spec for spec in specs)
+        assert runs(name) and all(f1.get(path) == spec for path, spec in runs(name).items())
+    # Sample size: with 20 series and 200, 500 or 2000 observations, the runs are runs of the main setting.
+    shared = runs("sample_size", lambda spec: spec["graph"]["N"] == 20 and spec["data"]["M"] >= 200)
+    assert len(shared) == 10 * 3 * 13 and all(f1.get(path) == spec for path, spec in shared.items())
+    # Scaling of seconds: the methods that are not timed there are runs of the main setting and of the scalability table.
+    others = runs("scaling_time", lambda spec: spec["method"]["name"] not in ("ITPD", "IAMB", "Lasso"))
+    known = {**f1, **runs("scalability")}
+    assert len(others) == 20 * 4 + 2 * 5 * 2 and all(known.get(path) == spec for path, spec in others.items())
 
 
 def test_every_config_has_a_table_and_expected_means(tmp_path):

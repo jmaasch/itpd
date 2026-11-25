@@ -33,21 +33,24 @@ def slug(label: str) -> str:
     return re.sub(r"[^A-Za-z0-9]+", "-", label).strip("-")
 
 
-def expand(entry, lag: int, has_data: bool) -> list:
+def expand(entry, lag: int, ci_test: str) -> list:
     """Return the runs of one method entry of a config: one dict per level, with the name and the options.
 
     lag is the lag of the graphs: PCMCI, DYNOTEARS and CD-NOD search up to
     max_lag, which defaults to it. A method with levels runs at "alpha"
     unless the entry lists its levels. Raise ValueError for an entry that
-    names no method, holds an unknown key, or needs data that are not there."""
+    names no method, holds an unknown key, or cannot run with the CI test
+    of the setting."""
     name = entry.get("name") if isinstance(entry, dict) else None
     if name not in OPTIONS:
         raise ValueError(f"unknown method: {entry!r}")
     unknown = sorted(set(entry) - set(OPTIONS[name]) - {"name"})
     if unknown:
         raise ValueError(f"method {name}: unknown key {', '.join(map(str, unknown))}")
-    if not has_data and (name in SCRIPTS or name == "Lasso"):
+    if ci_test == "oracle" and (name in SCRIPTS or name == "Lasso"):
         raise ValueError(f"{name} needs data; the oracle has none")
+    if ci_test != "fisherz" and name in SCRIPTS and "levels" in OPTIONS[name]:
+        raise ValueError(f"{name} runs its own Fisher-z test; it cannot run with the CI test {ci_test}")
     run = {"name": name}
     if "label" in entry or "switches" in entry:
         # A run with switches has its own file name, so it never takes the file of Algorithm 1.

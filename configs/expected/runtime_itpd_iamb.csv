@@ -1,0 +1,28 @@
+# Means over graphs of the stored runs of the paper, at full precision (source: the unique CI tests of the timed runs, averaged over the graphs of the stored results).
+# Methods of this package only. setting is the folder of the setting in the output of run; an empty level is a method
+# with one level; better_level marks the level with the higher mean F1 of the cell.
+setting,M,method,level,better_level,metric,mean,graphs
+standard_N20_T16_lag1_in_degree2_nonstationary,500,ITPD,,True,unique_per_candidate,1.3345953878406709,5
+standard_N20_T16_lag1_in_degree2_nonstationary,500,IAMB,corrected,True,unique_per_candidate,2.9348385744234795,5
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,ITPD,,True,unique_per_candidate,1.3860545073375263,5
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,IAMB,corrected,True,unique_per_candidate,2.9450062893081763,5
+standard_N20_T16_lag1_in_degree5_nonstationary,500,ITPD,,True,unique_per_candidate,1.3775765199161423,5
+standard_N20_T16_lag1_in_degree5_nonstationary,500,IAMB,corrected,True,unique_per_candidate,5.691752620545072,5
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,ITPD,,True,unique_per_candidate,1.4156142557651992,5
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,IAMB,corrected,True,unique_per_candidate,5.933031446540881,5
+stepwise_N50_T20_in_degree2,500,ITPD,,True,unique_per_candidate,1.1492260310093871,5
+stepwise_N50_T20_in_degree2,500,IAMB,corrected,True,unique_per_candidate,2.989128994831769,5
+stepwise_N50_T20_in_degree2,2000,ITPD,,True,unique_per_candidate,1.1837038287100516,5
+stepwise_N50_T20_in_degree2,2000,IAMB,corrected,True,unique_per_candidate,3.00380086488767,5
+stepwise_N50_T20_in_degree5,500,ITPD,,True,unique_per_candidate,1.1656610062229722,5
+stepwise_N50_T20_in_degree5,500,IAMB,corrected,True,unique_per_candidate,5.678615335935028,5
+stepwise_N50_T20_in_degree5,2000,ITPD,,True,unique_per_candidate,1.2037223921527265,5
+stepwise_N50_T20_in_degree5,2000,IAMB,corrected,True,unique_per_candidate,5.992430756249341,5
+stepwise_N100_T20_in_degree2,500,ITPD,,True,unique_per_candidate,1.077568410515779,5
+stepwise_N100_T20_in_degree2,500,IAMB,corrected,True,unique_per_candidate,2.983547652916074,5
+stepwise_N100_T20_in_degree2,2000,ITPD,,True,unique_per_candidate,1.099722775406986,5
+stepwise_N100_T20_in_degree2,2000,IAMB,corrected,True,unique_per_candidate,3.0011114272166903,5
+stepwise_N100_T20_in_degree5,500,ITPD,,True,unique_per_candidate,1.0878452136346872,5
+stepwise_N100_T20_in_degree5,500,IAMB,corrected,True,unique_per_candidate,5.660486591855013,5
+stepwise_N100_T20_in_degree5,2000,ITPD,,True,unique_per_candidate,1.117580633264844,5
+stepwise_N100_T20_in_degree5,2000,IAMB,corrected,True,unique_per_candidate,6.012129708656024,5

@@ -1,0 +1,28 @@
+# Means over graphs of the stored runs of the paper, at full precision (source: the cell means of the timed runs of the stored results).
+# Methods of this package only. setting is the folder of the setting in the output of run; an empty level is a method
+# with one level; better_level marks the level with the higher mean F1 of the cell.
+setting,M,method,level,better_level,metric,mean,graphs
+stepwise_N20_T16_in_degree2,2000,ITPD,,True,f1,0.9958565517371906,10
+stepwise_N20_T16_in_degree2,2000,ITPD,,True,unique_per_candidate,1.3841278825995809,10
+stepwise_N20_T16_in_degree2,2000,IAMB,corrected,True,f1,0.9969283530767177,10
+stepwise_N20_T16_in_degree2,2000,IAMB,corrected,True,unique_per_candidate,2.9612494758909853,10
+stepwise_N50_T20_in_degree2,2000,ITPD,,True,f1,0.998246338053795,5
+stepwise_N50_T20_in_degree2,2000,ITPD,,True,unique_per_candidate,1.1837038287100516,5
+stepwise_N50_T20_in_degree2,2000,IAMB,corrected,True,f1,0.9978207765046078,5
+stepwise_N50_T20_in_degree2,2000,IAMB,corrected,True,unique_per_candidate,3.00380086488767,5
+stepwise_N100_T20_in_degree2,2000,ITPD,,True,f1,0.9982962327316194,5
+stepwise_N100_T20_in_degree2,2000,ITPD,,True,unique_per_candidate,1.099722775406986,5
+stepwise_N100_T20_in_degree2,2000,IAMB,corrected,True,f1,0.9976357548828544,5
+stepwise_N100_T20_in_degree2,2000,IAMB,corrected,True,unique_per_candidate,3.0011114272166903,5
+stepwise_N50_T100_in_degree2,2000,ITPD,,True,f1,0.9977179644511744,5
+stepwise_N50_T100_in_degree2,2000,ITPD,,True,unique_per_candidate,1.0331020165642015,5
+stepwise_N50_T100_in_degree2,2000,IAMB,corrected,True,f1,0.9976166964834814,5
+stepwise_N50_T100_in_degree2,2000,IAMB,corrected,True,unique_per_candidate,3.0211900356102035,5
+stepwise_N100_T50_in_degree2,2000,ITPD,,True,f1,0.9981490729878699,5
+stepwise_N100_T50_in_degree2,2000,ITPD,,True,unique_per_candidate,1.0359301924851572,5
+stepwise_N100_T50_in_degree2,2000,IAMB,corrected,True,f1,0.9973518011639373,5
+stepwise_N100_T50_in_degree2,2000,IAMB,corrected,True,unique_per_candidate,2.984601007750039,5
+stepwise_N200_T50_in_degree2,2000,ITPD,,True,f1,0.9982325957510998,5
+stepwise_N200_T50_in_degree2,2000,ITPD,,True,unique_per_candidate,1.020367359186123,5
+stepwise_N200_T50_in_degree2,2000,IAMB,corrected,True,f1,0.9974032190305442,5
+stepwise_N200_T50_in_degree2,2000,IAMB,corrected,True,unique_per_candidate,3.015371760066299,5
