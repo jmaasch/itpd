@@ -1,9 +1,7 @@
 """Check Algorithm 1, its test levels, and finite-data results.
 
-Load itpd_clear/itpd.py directly without installing the package. Finite-data
-tests regenerate fixtures with itpd_aistats and skip if the generator is
+Finite-data tests regenerate their data and skip if the data generator is
 unavailable or the data hash differs. Use -m "not slow" to omit these tests."""
-import importlib.util
 import math
 import sys
 import warnings
@@ -13,11 +11,10 @@ import networkx as nx
 import numpy as np
 import pytest
 
+from itpd import ITPD
+from itpd.algorithm import run_example
+
 ROOT = Path(__file__).resolve().parents[1]
-_spec = importlib.util.spec_from_file_location("itpd_clear_itpd", ROOT / "itpd_clear" / "itpd.py")
-itpd_clear = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(itpd_clear)
-ITPD = itpd_clear.ITPD
 
 
 # Exact recovery with the d-separation oracle.
@@ -64,7 +61,7 @@ def test_oracle_exact_on_random_graphs(N, T, n_graphs):
 
 
 def test_run_example(tmp_path):
-    model = itpd_clear.run_example(seed=7, output=str(tmp_path / "example.png"))
+    model = run_example(seed=7, output=str(tmp_path / "example.png"))
     assert (tmp_path / "example.png").exists()
     assert model.ci_queries_["I"] > 0 and model.ci_queries_["II"] > 0
 

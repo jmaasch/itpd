@@ -5,19 +5,18 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "itpd"
 version = "0.2.0"
-description = "Instrumented ITPD, ITPD_naive, ITPD-S, ITPD-S+ and a full-conditioning baseline on one CI-test foundation"
+description = "Iterative Temporal Parent Discovery (ITPD): causal discovery for multivariate time series"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["numpy", "scipy", "scikit-learn", "networkx>=3.3", "pandas", "causal-learn"]
+dependencies = ["numpy", "scipy", "scikit-learn", "networkx>=3.3", "pyyaml"]
 
 [project.optional-dependencies]
-# The parity tests import the original modules in legacy/, which need matplotlib and seaborn.
-test = ["pytest", "matplotlib", "seaborn"]
+# matplotlib draws the graph in ITPD.plot_graph, which one test calls.
+test = ["pytest", "matplotlib"]
 
 [tool.setuptools.packages.find]
-include = ["itpd*"]
+where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["."]
 markers = ["slow: finite-data runs of several seconds each (deselect with -m 'not slow')"]

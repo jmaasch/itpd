@@ -1,0 +1,35 @@
+# Exact versions behind the reference numbers of the paper.
+# Interpreter: CPython 3.12.12, Linux x86-64. BLAS: the OpenBLAS inside the numpy wheel (0.3.34) and the scipy wheel (0.3.31),
+# one thread (OMP_NUM_THREADS=1, OPENBLAS_NUM_THREADS=1), on a CPU with AVX2 and without AVX-512.
+# Simulated data pass through BLAS, so another CPU type or BLAS build can change their last bits.
+# Use: pip install -c requirements/constraints.txt -e ".[test]"
+
+# Core
+numpy==2.5.4
+scipy==1.18.1
+scikit-learn==1.9.1
+networkx==3.7
+# pyyaml reads the config files and affects no number.
+pyyaml==6.0.4
+
+# Required by scikit-learn
+cloudpickle==3.1.2
+joblib==1.6.0
+narwhals==2.28.0
+threadpoolctl==3.8.0
+
+# Extra "test": pytest, matplotlib, and what they require
+pytest==9.2.0
+iniconfig==2.3.1
+packaging==26.3
+pluggy==1.7.0
+pygments==2.21.0
+matplotlib==3.11.2
+contourpy==1.4.0
+cycler==0.12.1
+fonttools==4.68.0
+kiwisolver==1.5.1
+pillow==13.0.0
+pyparsing==3.3.3
+python-dateutil==4.0.0
+tzdata==2026.6

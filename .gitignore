@@ -12,13 +12,11 @@ dist/
 .venv/
 venv/
 
-# Experiment output (written by the run_* drivers)
-results/
-*.pkl
-*.npz
+# Output of the experiment runner
+out/
 
-# local job scripts stay untracked
-jobs/
+# Lean build output
+.lake/
 
 # macOS
 .DS_Store
