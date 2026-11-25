@@ -1,3 +1,4 @@
+# Figure: seconds per run and F1 of ITPD against the number of time-indexed variables
 paper_item: "Figure: seconds per run and F1 of ITPD against the number of time-indexed variables"
 description: >
   Linear-Gaussian data from nonstationary graphs with lag-1 edges and in-degree 2, 2000 observations, Fisher-z test,

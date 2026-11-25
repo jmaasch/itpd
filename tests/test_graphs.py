@@ -1,4 +1,4 @@
-"""Check the helpers for time graphs."""
+"""Check the helpers for time graphs in `graphs.py`."""
 import numpy as np
 import pytest
 
@@ -6,7 +6,9 @@ from itpd.graphs import check_temporal, graph_hash, self_edge_mask, unroll
 
 
 def _window():
-    """Two series, lag 2: 0 -> 0, 0 -> 1, 1 -> 1 at lag 1 and 1 -> 0 at lag 2."""
+    """Return a two-series, lag-2 window graph.
+
+    Edges: 0 -> 0, 0 -> 1, 1 -> 1 at lag 1, and 1 -> 0 at lag 2."""
     B = np.zeros((3, 2, 2), int)
     B[1] = [[1, 1], [0, 1]]
     B[2] = [[0, 0], [1, 0]]

@@ -1,29 +1,38 @@
 """Iterative Temporal Parent Discovery (ITPD), Algorithm 1.
 
+Where to look:
+- `ITPD.fit` runs Lines 1 to 4 and Line 16 of Algorithm 1 (the roots, the loop
+  over time steps and series, and the update of the adjacency list).
+- `ITPD._discover` runs Lines 5 to 15 for one target; its comments give the
+  line numbers.
+- `ITPD._levels` returns `alpha1` and `alpha2`.
+
 Data have shape (M, T, N): M independent observations of N series at T time
-steps. The node of series n at step t is t * N + n, both zero-based.
+steps. The node of series n at step t is t * N + n, both zero-based. The paper
+counts time from 1 and a target is at time t + 1; then m = N * t - 1 counts its
+candidates without the lag-1 self parent. The code counts steps from 0.
 
-For a target at the paper's time t + 1, m = N * t - 1 counts its candidates
-without the lag-1 self parent. Lines 8, 9 and 10 use
-alpha1 = max(alpha, min(gamma, kappa / m)); Line 14 uses alpha2 = alpha / m.
-A test returns independent when p > level. Line 6 visits candidates in
-descending time; Line 13 uses ascending time. Both visit series in
-increasing index within a time step.
+Lines 8, 9 and 10 use alpha1 = max(alpha, min(gamma, kappa / m)) (`alpha1` is
+the paper's alpha_1); Line 14 uses alpha2 = alpha / m (`alpha2` is alpha_2). A
+test answers independent when p > level (dependent when p <= level). Line 6
+visits candidates in descending time; Line 13 uses ascending time. Both visit
+series in increasing index within a time step.
 
-A CI test that returns a NaN p-value, or raises NotEvaluable, cannot be
-evaluated. For example, FisherZ returns NaN when M - |S| - 3 <= 0. The
-target of such a test keeps only its lag-1 self edge and is listed in
-untested_targets_. The run continues, and fit emits one warning for all such
-targets. Other exceptions of a CI test propagate.
+A CI test that returns a NaN p-value, or raises `NotEvaluable`, cannot be
+evaluated. For example, `FisherZ` returns NaN when M - |S| - 3 <= 0. The target
+of such a test keeps only its lag-1 self edge and is listed in
+`untested_targets_`. The run continues, and `fit` emits one warning for all
+such targets. Other exceptions of a CI test propagate.
 
 The algorithm assumes a causally sufficient, faithful temporal DAG with no
 edges inside a time step, no parents in the first time step, and every lag-1
 self edge. Exact recovery with a d-separation oracle does not imply exact
 recovery from finite data.
 
-Lag-1 self edges make the ancestors of a node a prefix of each series. The
-fitted object keeps the last step of each prefix. Do not mutate graph_ after
-fit; get_graph() returns an independent copy."""
+Lag-1 self edges make the ancestors of a node a prefix of each series: for a
+node and a series, the ancestors in that series are the steps 0, ..., k for
+some k, and the fitted object stores k. Do not mutate `graph_` after `fit`;
+`get_graph()` returns an independent copy."""
 
 import warnings
 from collections import Counter
@@ -38,34 +47,43 @@ from .graphs import check_temporal
 
 
 class ITPD:
-    """Discover parent sets in chronological order.
+    """Algorithm 1: discover parent sets in chronological order.
 
     Parameters
     ----------
     ci_test : {'fisherz', 'gcm'} or callable
-        'fisherz' (default) is the Fisher-z test FisherZ and 'gcm' is the
-        test GCM, each on the data given to fit. A callable
-        (x, y, S) -> p-value takes node IDs and a sorted tuple of node IDs.
-        Use a test appropriate to the data.
+        'fisherz' (default) is the Fisher-z test `FisherZ` and 'gcm' is the
+        test `GCM`, each on the data given to `fit`. A callable (x, y,
+        S) -> p-value takes node IDs and a sorted tuple of node IDs. Use a test
+        appropriate to the data.
     alpha : float
         Nominal significance level (default 0.01). Independence is rejected
         when p <= the test level.
     gamma, kappa : float
-        Phase I constants (defaults 0.2 and 50). For m candidates of a
-        target, alpha1 = max(alpha, min(gamma, kappa / m)); Phase II uses
+        Phase I constants (defaults 0.2 and 50). For m candidates of a target,
+        alpha1 = max(alpha, min(gamma, kappa / m)); Phase II uses
         alpha2 = alpha / m.
     oracle_adjacency : array-like or None
         True graph as a square matrix with nonzero [u, v] for u -> v. When
         given, the CI test is the d-separation oracle of this graph
-        (DSeparation) and ci_test is not used. The graph must meet the
+        (`DSeparation`) and `ci_test` is not used. The graph must meet the
         temporal assumptions above.
 
-    After fit, adjacency_ maps node IDs to frozen parent sets, and graph_
-    contains the learned directed graph. ci_queries_ counts the requested
-    tests by phase. max_conditioning_size_ is the largest conditioning set
-    requested. untested_targets_ lists the targets with a test that could
-    not be evaluated; each keeps only its lag-1 self edge, and fit emits one
-    warning if the list is nonempty."""
+    Attributes
+    ----------
+    adjacency_ : dict
+        Maps node IDs to frozen parent sets (`frozenset`).
+    graph_ : networkx.DiGraph
+        The learned directed graph.
+    ci_queries_ : Counter
+        Counts the requested tests by phase (keys `'I'` and `'II'`).
+    max_conditioning_size_ : int
+        Largest conditioning set requested.
+    untested_targets_ : list of int
+        Targets with a test that could not be evaluated; each keeps only its
+        lag-1 self edge, and `fit` emits one warning if the list is nonempty.
+    M_, T_, N_ : int
+        Number of observations, time steps, and series."""
 
     def __init__(self, ci_test="fisherz", *, alpha=0.01, gamma=0.2, kappa=50,
                  oracle_adjacency=None):
@@ -89,11 +107,16 @@ class ITPD:
         V : ndarray or None
             Finite real data of shape (M, T, N), with M >= 2 independent
             observations, T >= 1 time steps, and N >= 1 series. With
-            oracle_adjacency, only the shape is used, and V may be omitted.
+            `oracle_adjacency`, only the shape is used, and V may be omitted.
         n_variables : int or None
             Number of series N. Required when V is omitted; T is then the
-            dimension of oracle_adjacency divided by n_variables. If V is
-            supplied, this value must agree with V.shape[2]."""
+            dimension of `oracle_adjacency` divided by `n_variables`. If V is
+            supplied, this value must agree with `V.shape[2]`.
+
+        Returns
+        -------
+        self : ITPD
+            This fitted estimator. With `oracle_adjacency` and no V, `M_` is 0."""
         self._fitted = False
         if V is None:
             matrix = np.asarray(self.oracle_adjacency)
@@ -285,6 +308,11 @@ class ITPD:
         return p > (self.alpha if level is None else level)
 
     def _make_test(self) -> Callable:
+        """Return the CI test callable `(x, y, S) -> p-value` for this fit.
+
+        Use the d-separation oracle if `oracle_adjacency` is given, else
+        `FisherZ` or `GCM` on the data, else the given callable. Raise
+        `ValueError` otherwise."""
         if self.oracle_adjacency is not None:
             return self._make_oracle()
         if self.ci_test == "fisherz":
@@ -297,6 +325,10 @@ class ITPD:
         return self.ci_test
 
     def _make_oracle(self) -> Callable:
+        """Validate `oracle_adjacency` and return its `DSeparation` oracle.
+
+        Require a finite numeric matrix of shape (T * N, T * N) that passes
+        `graphs.check_temporal`, else raise `ValueError`."""
         matrix = np.asarray(self.oracle_adjacency)
         p = self.T_ * self.N_
         if (matrix.shape != (p, p) or matrix.dtype.kind not in "biuf"

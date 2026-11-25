@@ -4,13 +4,13 @@ import ITPD.Separation
 /-!
 # Latent.lean : exactness with latent time steps before the first observed one
 
-The process runs `H ≥ 0` time steps before observation begins. The full graph `G.E` is a graph
-on all vertices of the process; its time axis counts the latent steps too. The observed variable
+The process runs `H ≥ 0` time steps before observation begins. The full graph `G.E` is a graph on
+all vertices of the process; its time axis counts the latent steps too. The observed variable
 `V^n_t` (`1 ≤ t ≤ T`) of the algorithm is the vertex `⟨t + H, n⟩` of the full graph (`emb`), and
 every vertex of the full graph with time `≤ H` is latent. The CI answers about observed variables
-are the moral-ancestral separation of `Separation.lean` in the FULL graph, latent steps included
-(`LatentOracle`). No initial condition is assumed: observed variables of the first step may have
-latent parents, so they may be latently confounded.
+are the moral-ancestral separation of `Separation.lean` in the full graph, latent time steps
+included (`LatentOracle`). No initial condition is assumed: observed variables of the first step may
+have latent parents, so they may be latently confounded.
 
 Results:
 * `latent_targetHyp`: with these CI answers, every target whose parents in the full graph are
@@ -113,8 +113,11 @@ theorem parentsObserved_of_lag (L : Nat) (hlag : ∀ u v, G.E u v → v.time ≤
   simp [emb] at this
   omega
 
-/-- **Exactness with latent steps** (Line 11 as in the paper, both values of `givenS`):
-separation answers in the full graph; every target whose parents are observed. -/
+/-- **Exactness with latent time steps** (`itpdS ci true givenS candOrd ord2 N T serOrd`:
+`onlyX = true`, Line 11 of Algorithm 1, both values of `givenS`, every order). Under
+`LatentOracle G ci` (separation in the full graph), for `Y = V^n_{t+1}` with `1 ≤ t < T`,
+`1 ≤ n ≤ N` and `ParentsObserved G t n`, `A[Y]` is the set of parents of `Y` among observed
+variables (`obsE G`). -/
 theorem itpdS_correct_latent (ci : CI) (h : LatentOracle G ci) (givenS : Bool)
     (candOrd ord2 : List Vertex → List Vertex) (hc : IsOrder candOrd) (h2 : IsOrder ord2)
     (serOrd : Nat → List Nat) (hser : IsSeriesOrder N serOrd) (t n : Nat) (ht : 1 ≤ t)

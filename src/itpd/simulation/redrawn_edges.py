@@ -1,16 +1,17 @@
-"""Linear-Gaussian data on a lag-1 graph in which a share of the edge slots is redrawn at every step.
+"""Linear-Gaussian data on a lag-1 graph with redrawn edge slots.
 
-The first transition (step 0 to step 1) has one lag-1 graph and one weight
-matrix, drawn as for a stationary graph. At every later transition each of
-the N x N slots is redrawn with probability `share`: a redrawn slot holds an
-edge with the edge probability (the self edge is always present) and gets
-another weight, and any other slot keeps the edge and the weight of the
-transition before it. share = 0 is a stationary graph; with share = 1 every
-transition is drawn on its own. The weight matrix of every transition is
-scaled to a spectral radius of at most 0.9.
+A share of the edge slots is redrawn at every step. The first transition (step
+0 to step 1) has one lag-1 graph and one weight matrix, drawn as for a
+stationary graph. At every later transition each of the N x N slots is redrawn
+with probability `share`: a redrawn slot holds an edge with the edge
+probability (the self edge is always present) and gets another weight, and any
+other slot keeps the edge and the weight of the transition before it.
+`share` = 0 is a stationary graph; with `share` = 1 every transition is drawn
+on its own. The weight matrix of every transition is scaled to a spectral
+radius of at most 0.9.
 
-The random streams do not depend on the share or on d, so the sets of
-redrawn slots are nested in the share, and the noise is shared.
+The random streams do not depend on `share` or on d, so the sets of redrawn
+slots are nested in `share`, and the noise is shared. Look at `make_instance`.
 """
 import numpy as np
 
@@ -22,15 +23,16 @@ from .linear import (MAX_TRIES, MIN_STRENGTH, check_record, draw_weights, first_
 
 
 def _rng(*parts):
+    """Return a random generator seeded with the given integers."""
     return np.random.default_rng(np.random.SeedSequence([int(p) for p in parts]))
 
 
 def make_instance(N: int, T: int, d: float, share: float, g: int, seed: int = 0) -> Instance:
     """Return graph number g with weights and data.
 
-    The weights are drawn again (up to MAX_TRIES times) until the graph of
-    share 0 passes the check of linear.py; that draw is used for every
-    share, and info["guard_ok"] says whether the check holds at this share."""
+    The weights are drawn again (up to `MAX_TRIES` times) until the graph of
+    share 0 passes the check of `linear.py`; that draw is used for every share,
+    and `info["guard_ok"]` says whether the check holds at this share."""
     p = edge_probability(N, 1, d)
     first = sample_stationary_graph(N, 1, d, _rng(seed, g, 2, 101))[1]
     coins = _rng(seed, g, 3, 201).random((T - 1, N, N))

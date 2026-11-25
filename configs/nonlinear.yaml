@@ -1,3 +1,4 @@
+# Table: mean F1 with nonlinear causal mechanisms
 paper_item: "Table: mean F1 with nonlinear causal mechanisms"
 description: >
   Data with tanh-and-sine mechanisms and additive Gaussian noise from stationary and nonstationary graphs with lag-1

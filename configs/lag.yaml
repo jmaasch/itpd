@@ -1,3 +1,4 @@
+# Figure: mean F1 on common targets against the true lag on stationary and nonstationary graphs
 paper_item: "Figure: mean F1 on common targets against the true lag on stationary and nonstationary graphs"
 description: >
   Linear-Gaussian data of 10 series, in-degree 2, from graphs with edges up to lag 1, 2, 4 (16 time steps)

@@ -1,20 +1,22 @@
-"""Nonstationary linear-Gaussian instances that break one assumption of ITPD.
+"""Nonstationary linear-Gaussian instances that break one ITPD assumption.
 
-The instance starts from linear.make_instance(N, T, 1, d, g,
-stationary=False) and repeats its random draws in the same order. With both
-shares at 0 it is that instance, unless that instance fails its weight
-check: this generator draws the weights up to MAX_TRIES times.
+The instance starts from
+`linear.make_instance(N, T, 1, d, g, stationary=False)` and repeats its random
+draws in the same order. With both shares at 0 it is that instance, unless that
+instance fails its weight check: this generator draws the weights up to
+`MAX_TRIES` times.
 
-No lag-1 self edge: round(share * N) series, the first ones of one random
-order of the series, lose their self edge at every step. The other edges and
-the noise stay.
+- No lag-1 self edge: `round(share * N)` series, the first ones of one random
+  order of the series, lose their self edge at every step. The other edges and
+  the noise stay.
+- Edges inside a time step: at every step t >= 1, `round(share * n)` of the n
+  edges between two series into step t are moved from lag 1 to lag 0, so that i
+  at step t - 1 -> j at step t becomes i at step t -> j at step t. For every
+  step one order of the series is fixed, and only an edge that points forward
+  in this order can be moved, so the graph stays acyclic. A moved edge has the
+  weight of its own slot.
 
-Edges inside a time step: at every step t >= 1, round(share * n) of the n
-edges between two series into step t are moved from lag 1 to lag 0, so that
-i at step t - 1 -> j at step t becomes i at step t -> j at step t. For
-every step one order of the series is fixed, and only an edge that points
-forward in this order can be moved, so the graph stays acyclic. A moved edge
-has the weight of its own slot.
+Look at `make_instance`.
 """
 import zlib
 
@@ -30,11 +32,11 @@ MAX_TRIES = 500   # draws of the weights; linear.make_instance stops after 25
 
 
 def series_order(edges: np.ndarray, key: np.ndarray) -> list:
-    """Return an order of the nodes of a directed graph with few edges that point backward.
+    """Return a node order of a directed graph with few backward edges.
 
-    Heuristic of Eades, Lin and Smyth: sinks go last, sources go first;
-    when there is neither, the node with the largest out-degree minus
-    in-degree goes first. `key` decides between equal nodes."""
+    Heuristic: sinks go last, sources go first; when there is neither, the node
+    with the largest out-degree minus in-degree goes first. `key` decides
+    between equal nodes."""
     alive = np.ones(edges.shape[0], bool)
     left, right = [], []
     while alive.any():
@@ -64,7 +66,9 @@ def series_order(edges: np.ndarray, key: np.ndarray) -> list:
 
 
 def _propagate(A, W, order):
-    """linear.propagate_covariance with the nodes taken in `order` (None: index order)."""
+    """Run `linear.propagate_covariance` with nodes taken in `order`.
+
+    `None` means index order."""
     if order is None:
         return propagate_covariance(A, W, max_signal=1.0)
     ix = np.ix_(order, order)
@@ -76,11 +80,11 @@ def _propagate(A, W, order):
 
 def make_instance(d: float, g: int, *, no_self_edge_share: float = 0.0, same_step_share: float = 0.0, seed: int = 0,
                   N: int = 20, T: int = 16) -> Instance:
-    """Return graph number g with one violation (at most one share may be above 0).
+    """Return graph number g with one violation.
 
-    info["A_main"] is the graph without the violation and info["A_lag1"]
-    the edges of A between two different steps. Instance.A holds every
-    edge, also those inside a step."""
+    At most one share may be above 0. `info["A_main"]` is the graph without the
+    violation and `info["A_lag1"]` the edges of A between two different steps.
+    `Instance.A` holds every edge, also those inside a step."""
     if no_self_edge_share > 0 and same_step_share > 0:
         raise ValueError("Only one of the two shares may be above 0")
     stream = [seed, N, T, 1, int(d * 10), g]

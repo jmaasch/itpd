@@ -1,15 +1,15 @@
-"""Nonlinear data with additive standard normal noise on a random time graph.
+"""Nonlinear data with additive normal noise on a random time graph.
 
-Model: X_v = sum over the parents u of f_uv(X_u) + noise_v, with
-f(x) = w * (a * tanh(s * x + c) + (1 - a) * sin(k * x + phi)).
-Ranges: |w| in [0.8, 1.6] with a random sign, a in [0.4, 1], s and k in
-[0.7, 2], c in [-0.5, 0.5], phi in [0, 2 pi]. Every f is bounded, and the
-lag-1 self edge is a function of the same family.
+Model: X_v = sum over the parents u of f_uv(X_u) + noise_v, with standard
+normal noise and f(x) = w * (a * tanh(s * x + c) + (1 - a) * sin(k * x + phi)).
+Ranges: |w| in [0.8, 1.6] with a random sign, a in [0.4, 1], s and k in [0.7,
+2], c in [-0.5, 0.5], phi in [0, 2 pi]. Every f is bounded, and the lag-1 self
+edge is a function of the same family.
 
-A draw of the parameters is checked on REFERENCE_ROWS simulated rows: every
-edge needs a correlation and a partial correlation (given the other parents
-of its child) of at least MIN_STRENGTH in absolute value. The check uses
-linear correlations only.
+A draw of the parameters is checked on `REFERENCE_ROWS` simulated rows: every
+edge needs a correlation and a partial correlation (given the other parents of
+its child) of at least `MIN_STRENGTH` in absolute value. The check uses linear
+correlations only. Look at `make_instance`.
 """
 import numpy as np
 
@@ -23,7 +23,9 @@ MAX_ROUNDS = 200   # nonstationary graph: rounds in which the failing edges are 
 
 
 def draw_parameters(edges: np.ndarray, rng) -> np.ndarray:
-    """Return parameters (6, *edges.shape): w, a, s, c, k, phi for every slot; w is 0 where `edges` is."""
+    """Return parameters (6, `*edges.shape`) for every slot.
+
+    Parameters are w, a, s, c, k, `phi`; w is 0 where `edges` is."""
     shape = edges.shape
     P = np.empty((6,) + shape)
     P[0] = rng.uniform(0.8, 1.6, shape) * rng.choice([-1.0, 1.0], shape) * (np.asarray(edges) != 0)
@@ -46,7 +48,9 @@ def _redraw_edge(P, u, v, rng) -> None:
 
 
 def sample_nonlinear(A: np.ndarray, params: np.ndarray, M: int, rng) -> np.ndarray:
-    """Return M observations (M, T * N) for parameters (6, T * N, T * N); nodes in index order."""
+    """Return M observations (M, T * N) for `params` (6, T * N, T * N).
+
+    Nodes are generated in index order."""
     n = A.shape[0]
     w, a, s, c, k, phi = params
     X = np.empty((M, n))
@@ -61,6 +65,10 @@ def sample_nonlinear(A: np.ndarray, params: np.ndarray, M: int, rng) -> np.ndarr
 
 
 def _partial_correlation(X, u, v, parents) -> float:
+    """Return sample partial correlation of columns u and v of X.
+
+    Conditions on the other members of `parents` (the parents of v without u).
+    Without other parents, return the correlation."""
     others = [p for p in parents if p != u]
     if not others:
         return float(np.corrcoef(X[:, u], X[:, v])[0, 1])
@@ -71,7 +79,10 @@ def _partial_correlation(X, u, v, parents) -> float:
 
 
 def edge_margins(A: np.ndarray, X: np.ndarray) -> dict:
-    """Return {(u, v): (|partial correlation given the other parents of v|, |correlation|)} for every edge."""
+    """Return |partial correlation| and |correlation| for every edge.
+
+    Returns `{(u, v): (partial, marginal)}` where `partial` conditions on the
+    other parents of v."""
     out, parents = {}, {}
     for u, v in np.argwhere(A):
         u, v = int(u), int(v)
@@ -84,13 +95,15 @@ def edge_margins(A: np.ndarray, X: np.ndarray) -> dict:
 def make_instance(N: int, T: int, lag: int, d: float, g: int, *, stationary: bool, seed: int = 0) -> Instance:
     """Return graph number g of a setting, with parameters and data.
 
-    The graph is that of linear.make_instance with the same arguments.
-    stationary=True: one function per slot of the window graph, used at
-    every step; all parameters are drawn again until the check passes (up
-    to MAX_TRIES draws). stationary=False: one function per edge of the
-    time graph; in every round only the edges that fail the check are drawn
-    again (up to MAX_ROUNDS rounds). info["parameters"] has shape
-    (6, T * N, T * N)."""
+    The graph is that of `linear.make_instance` with the same arguments.
+    - `stationary=True`: one function per slot of the window graph, used at
+      every step; all parameters are drawn again until the check passes (up to
+      `MAX_TRIES` draws).
+    - `stationary=False`: one function per edge of the time graph; in every
+      round only the edges that fail the check are drawn again (up to
+      `MAX_ROUNDS` rounds).
+
+    `info["parameters"]` has shape (6, T * N, T * N)."""
     base = _graph_instance(N, T, lag, d, g, stationary=stationary, seed=seed, weights=False)
     A = base.A
     stream = [seed, N, T, lag, int(round(d * 10)), g]

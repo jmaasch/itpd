@@ -1,3 +1,4 @@
+# Figure: mean F1 on all targets against the number of observations
 paper_item: "Figure: mean F1 on all targets against the number of observations"
 description: >
   Linear-Gaussian data of 20, 40 and 80 series over 16 time steps from nonstationary graphs with lag-1 edges and

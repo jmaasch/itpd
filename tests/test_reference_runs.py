@@ -1,12 +1,15 @@
 """Check runs of the paper's experiments against stored runs.
 
-A run is one method on one instance at the significance level 0.01, made as the experiment runner makes it:
-itpd.experiments.instances.make_instance builds the instance, and itpd.experiments.methods.run_method runs the method.
+A run is one method on one instance at the significance level 0.01, made as the
+experiment runner makes it: `itpd.experiments.instances.make_instance` builds
+the instance, and `itpd.experiments.methods.run_method` runs the method.
 
-Simulated data pass through BLAS, so another CPU type or BLAS build can change their last bits. A run on data
-first compares the SHA-1 of its data with the stored one. When they differ, the run is skipped with the reason
-"the data differ on this platform"; with ITPD_REQUIRE_REFERENCE_DATA=1 in the environment it fails instead.
-The run with the oracle has no data and is never skipped.
+Simulated data pass through BLAS, so another CPU type or BLAS build can change
+their last bits. A run on data first compares the SHA-1 of its data with the
+stored one. When they differ, the run is skipped with the reason "the data
+differ on this platform"; with `ITPD_REQUIRE_REFERENCE_DATA=1` in the
+environment it fails instead. The run with the oracle has no data and is never
+skipped.
 """
 import functools
 import os
@@ -40,8 +43,11 @@ CELLS = {
                                      "nonlinear", "gcm", 0, 500, "05d17335019d7d0f3d03edc060b293e64059c524", 2000),
 }
 
-# Counts of stored runs of the paper's experiments: tp, fp and fn over all targets, requested and unique CI tests, largest conditioning set, untested targets.
-# Columns: cell, method, (tp, fp, fn), (requested, unique, largest set) or None for a method without CI tests, untested targets.
+# Counts of stored runs of the paper's experiments: `tp`, `fp`, and `fn` over
+# all targets, requested and unique CI tests, largest conditioning set,
+# untested targets. Columns: cell, method, `(tp, fp, fn)`,
+# `(requested, unique, largest set)` or `None` for a method without CI tests,
+# untested targets.
 RUNS = [
     ("main-d2-g0-M200", {"name": "ITPD"}, (554, 7, 69), (63470, 62495, 25), 0),
     ("main-d2-g1-M500", {"name": "ITPD"}, (591, 3, 7), (64769, 63818, 28), 0),
@@ -80,7 +86,11 @@ def _name(run) -> str:
 
 @functools.cache
 def _instance(cell):
-    """Return the instance of a cell, its draw of data (None for the oracle), and whether the SHA-1 is the stored one."""
+    """Build the instance and data of a cell.
+
+    Return the instance of `cell`, its draw of data (`None` for the oracle),
+    and whether the SHA-1 is the stored one.
+    """
     graph, mechanism, _, g, _, sha1, hashed = CELLS[cell]
     instance = instances.make_instance(graph, mechanism, 0, g)
     if mechanism == "none":

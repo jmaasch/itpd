@@ -1,3 +1,4 @@
+# Table: steps dropped from Algorithm 1, each added back alone
 paper_item: "Table: steps dropped from Algorithm 1, each added back alone"
 description: >
   The main finite data setting (20 series, 16 time steps, in-degree 1, 2, 3, 5; 200, 500, 2000 observations; 20

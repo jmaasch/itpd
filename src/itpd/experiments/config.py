@@ -1,7 +1,7 @@
 """Read a config file and expand it to settings.
 
-A config is a YAML file that describes the runs behind one table or figure.
-Its keys:
+A config is a YAML file that describes the runs behind one table or figure. Its
+keys:
 
     paper_item, description   text
     alpha                     nominal significance level (default 0.01)
@@ -17,18 +17,18 @@ Its keys:
                               above and gives one or more settings
 
 A list as the value of a graph parameter gives one setting per value. In an
-entry of settings, a graph block with a generator, or a data block with a
+entry of `settings`, a `graph` block with a generator, or a `data` block with a
 mechanism, replaces the block; otherwise its keys are merged over the block.
-The oracle goes with the data mechanism "none" and no M. An unknown key is
-an error.
+The oracle goes with the data mechanism "none" and no M. An unknown key is an
+error.
 
-The generator "enumerate" stands for every time graph of N series and T
-steps. Its graph index g is block g of 65536 graphs, and a run is the
-exhaustive check of ITPD on a block (itpd.experiments.ablations).
+The generator "enumerate" stands for every time graph of N series and T steps.
+Its graph index g is block g of 65536 graphs, and a run is the exhaustive check
+of ITPD on a block (`itpd.experiments.ablations`).
 
-The generator "gene_networks" reads stored data (data mechanism "stored").
-Its parameter path is the data folder, relative to the folder of the config
-file, and its graph index is the number of a data set.
+The generator "gene_networks" reads stored data (data mechanism "stored"). Its
+parameter `path` is the data folder, relative to the folder of the config file,
+and its graph index is the number of a data set.
 """
 import itertools
 import os
@@ -56,6 +56,7 @@ def _check(condition, message):
 
 
 def _keys(block, allowed, where):
+    """Raise `ConfigError` unless `block` maps only keys in `allowed`; `where` names it."""
     _check(isinstance(block, dict), f"{where} must be a mapping")
     unknown = sorted(set(block) - set(allowed))
     _check(not unknown, f"{where}: unknown key {', '.join(map(str, unknown))}")
@@ -76,7 +77,7 @@ def indices(value) -> list:
 
 
 def _settings(merged) -> list:
-    """Check one merged block and return its settings: one per combination of the listed graph parameters."""
+    """Check one merged block and return one setting per graph parameter combination."""
     for key in ("graph", "data", "graphs", "methods"):
         _check(key in merged, f"missing key: {key}")
     ci_test, graph, data = merged["ci_test"], merged["graph"], merged["data"]
@@ -107,13 +108,17 @@ def _settings(merged) -> list:
 
 
 def load(path) -> dict:
-    """Read the config file at path and return it with its settings expanded.
+    """Read the config file at `path` and return it with its settings expanded.
 
-    The result has the keys path, folder (of the config file), paper_item,
-    description, report, and settings. A setting is a dict with alpha,
-    ci_test, seed, repeat, graph (generator and one value per parameter),
-    data (mechanism and the list M; [None] without data), graphs (list of
-    indices), methods (one dict per run: name, level, options) and scoring."""
+    The result has the keys `path`, `folder` (of the config file),
+    `paper_item`, `description`, `report`, and `settings`. A setting is a dict
+    with:
+    - `alpha`, `ci_test`, `seed`, `repeat`
+    - `graph`: generator and one value per parameter
+    - `data`: mechanism and the list M (`[None]` without data)
+    - `graphs`: list of indices
+    - `methods`: one dict per run (`name`, `level`, options)
+    - `scoring`"""
     with open(path) as f:
         raw = yaml.safe_load(f)
     try:

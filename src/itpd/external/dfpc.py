@@ -2,16 +2,17 @@
 
     python dfpc.py --input in.npz --output out.npz --alpha 0.01 --source DIR [--time-limit 600]
 
-DIR is a clone of the DF-PC repository (requirements/pcmci-dfpc.txt names
-the address and the commit). This script uses its deduction engine
-(cddd.inference.Deductor: pure deduction, dependence first) and the interface
-of its CI tester. The variables are the T * N nodes of the time graph; there
-is no maximum lag. The CI test is the Fisher-z test. The counted tests are
-the tests that DF-PC computes, after its cache and its deductions. When the
-time limit passes, the status is "timeout" and the graph is empty.
+`DIR` is a clone of the DF-PC repository (`requirements/pcmci-dfpc.txt` names
+the address and the commit). See `_common.py` for I/O and test counting.
+- Uses the DF-PC deduction engine (`cddd.inference.Deductor`: pure deduction,
+  dependence first) and the interface of its CI tester.
+- The variables are the T * N nodes of the time graph; there is no maximum lag.
+- The CI test is the Fisher-z test. The counted tests are the tests that DF-PC
+  computes, after its cache and its deductions.
+- When the time limit passes, the status is "timeout" and the graph is empty.
 
-The function search is adapted from PCStable.run of the DF-PC repository
-(cddd/algorithms.py), which has the license below. The adaptation adds the
+The function `search` is adapted from `PCStable.run` of the DF-PC repository
+(`cddd/algorithms.py`), which has the license below. The adaptation adds the
 known edges and the time order.
 
 MIT License
@@ -57,6 +58,10 @@ class FisherZ:
         self.corr = np.corrcoef(data, rowvar=False)
 
     def __call__(self, x, y, S):
+        """Return the two-sided p-value of x and y given S.
+
+        Raise `ValueError` when M - |S| - 3 <= 0 or when the partial
+        correlation is not finite."""
         S = [int(s) for s in S if s != x and s != y]
         df = self.rows - len(S) - 3
         if df <= 0:
@@ -79,12 +84,11 @@ class FisherZ:
 def search(D, step, known, independent):
     """Return the adjacency matrix (D, D) of the skeleton search.
 
-    step[v] is the time step of node v. Only pairs of nodes at different
-    steps can be adjacent. A pair is tested with the later node as the
-    target, given sets of nodes that are adjacent to the target and at
-    steps before its step. The pairs in known are adjacent and are never
-    tested. independent(target, candidate, set) gives the decision for one
-    set."""
+    step[v] is the time step of node v. Only pairs of nodes at different steps
+    can be adjacent. A pair is tested with the later node as the target, given
+    sets of nodes that are adjacent to the target and at steps before its step.
+    The pairs in `known` are adjacent and are never tested. independent(target,
+    candidate, set) gives the decision for one set."""
     adj = np.ones((D, D), dtype=np.int8)
     np.fill_diagonal(adj, 0)
     adj[step[:, None] == step[None, :]] = 0
@@ -117,6 +121,7 @@ def search(D, step, known, independent):
 
 
 def main():
+    """Read input, run DF-PC with counted Fisher-z tests, and write the graph."""
     p = _common.parser(__doc__.split("\n")[0])
     p.add_argument("--alpha", type=float, default=0.01)
     p.add_argument("--time-limit", type=float, default=None, help="seconds")

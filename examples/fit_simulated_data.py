@@ -1,11 +1,13 @@
 """Fit ITPD on simulated data and score the estimate.
 
 The data are 500 observations of 5 series over 8 time steps from a
-nonstationary linear-Gaussian time graph: the edges and their weights are
-drawn at every step, with 2 parents per node on average besides the lag-1
-self parent. ITPD runs with the Fisher-z test at alpha = 0.01.
+nonstationary linear-Gaussian time graph: the edges and their weights are drawn
+at every step, with 2 parents per node on average besides the lag-1 self
+parent. ITPD runs with the Fisher-z test at `alpha` = 0.01.
 
-Run: python examples/fit_simulated_data.py [--graph 0] [--M 500]
+Run:
+
+    python examples/fit_simulated_data.py [--graph 0] [--M 500]
 """
 import argparse
 
@@ -15,7 +17,7 @@ from itpd.simulation import linear
 
 
 def run_example(*, graph=0, M=500) -> ITPD:
-    """Draw the graph and the data, fit ITPD, and print the score and the counts of CI tests."""
+    """Draw the graph and data, fit ITPD, and print scores and CI test counts."""
     N, T = 5, 8
     instance = linear.make_instance(N, T, 1, 2, graph, stationary=False)
     V = instance.sample(M)                  # shape (M, T, N)

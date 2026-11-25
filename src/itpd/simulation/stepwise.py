@@ -1,10 +1,10 @@
-"""The nonstationary linear-Gaussian model of lag 1, built step by step.
+"""The nonstationary linear-Gaussian model of lag 1, step by step.
 
-The model is that of linear.make_instance(..., lag=1, stationary=False).
-All parents of a node are in the step before it, so only the N x N
-covariance of one step is kept, and settings with many series stay cheap.
-The weights of each node are checked on their own (up to MAX_TRIES draws
-per node); the random numbers differ from those of linear.make_instance.
+The model is that of `linear.make_instance(..., lag=1, stationary=False)`. All
+parents of a node are in the step before it, so only the N x N covariance of
+one step is kept, and settings with many series stay cheap. The weights of each
+node are checked on their own (up to `MAX_TRIES` draws per node); the random
+numbers differ from those of `linear.make_instance`. Look at `make_instance`.
 """
 import numpy as np
 
@@ -17,9 +17,9 @@ from .linear import MAX_TRIES, MIN_STRENGTH, first_rows
 def make_instance(N: int, T: int, d: float, g: int, seed: int = 0) -> Instance:
     """Return graph number g with weights and data.
 
-    info["weights"] has shape (T - 1, N, N): entry [t - 1, i, j] is the
+    `info["weights"]` has shape (T - 1, N, N): entry [t - 1, i, j] is the
     weight of the edge from series i at step t - 1 to series j at step t.
-    info["guard_failures"] counts the nodes that kept their last draw
+    `info["guard_failures"]` counts the nodes that kept their last draw
     although the check failed."""
     stream = [seed, N, T, 1, int(round(10 * d)), g]
     rng = np.random.default_rng(np.random.SeedSequence(stream))

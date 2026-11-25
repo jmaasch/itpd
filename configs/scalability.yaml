@@ -1,3 +1,4 @@
+# Table: mean F1 and unique CI tests per candidate on larger graphs
 paper_item: "Table: mean F1 and unique CI tests per candidate on larger graphs"
 description: >
   Linear-Gaussian data of 50 and 100 series over 20 time steps from nonstationary graphs with lag-1 edges and

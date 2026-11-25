@@ -1,15 +1,17 @@
-"""PCMCI (tigramite) on data of shape (M, T, N).
+"""PCMCI (`tigramite`) on data of shape (M, T, N).
 
     python pcmci.py --input in.npz --output out.npz --alpha 0.01 --max-lag 1
 
-One PCMCI run pools the M observations and all time steps
-(analysis_mode="multiple"). It returns one window graph with lags
-1, ..., max-lag, which is repeated at every time step. A link is in the graph
-when its p-value is at most alpha; alpha is also the level of the condition
-selection. The lag-1 self link of every series is given as known: PCMCI
-does not test it and always conditions on it. The p-value of a partial
-correlation is the Fisher-z p-value. Every call of the test is counted, with
-the variables in lag coordinates.
+See `_common.py` for I/O, test counting and time graphs.
+- One PCMCI run pools the M observations and all time steps
+  (`analysis_mode="multiple"`). It returns one window graph with lags 1, ...,
+  max-lag, which is repeated at every time step.
+- A link is in the graph when its p-value is at most `alpha`; `alpha` is also
+  the level of the condition selection.
+- The lag-1 self link of every series is given as known: PCMCI does not test it
+  and always conditions on it.
+- The p-value of a partial correlation is the Fisher-z p-value. Every call of
+  the test is counted, with the variables in lag coordinates.
 """
 import time
 
@@ -34,6 +36,12 @@ class FisherZParCorr(ParCorr):
         self.counter = _common.TestCounter()
 
     def get_analytic_significance(self, value, T, dim, xyz):
+        """Return the two-sided Fisher-z p-value of partial correlation `value`.
+
+        T is the number of rows and `dim` the number of variables of the test
+        (x, y and the conditioning set), so df = T - dim - 1 = rows - |S| - 3.
+        Raise `ValueError` when df <= 0.
+        """
         df = T - dim - 1
         if df <= 0:
             raise ValueError("The Fisher-z test needs more rows than the conditioning set has members plus 3")
@@ -45,12 +53,17 @@ class FisherZParCorr(ParCorr):
         return -variable[1] * self.N + variable[0]
 
     def run_test(self, X, Y, Z=None, tau_max=0, cut_off=None, alpha_or_thres=None):
+        """Count the test, then run it.
+
+        The cut-off is `CUT_OFF` unless `cut_off` is given.
+        """
         self.counter.record(self._code(X[0]), self._code(Y[0]), [self._code(z) for z in Z or []])
         return super().run_test(X, Y, Z=Z, tau_max=tau_max, cut_off=cut_off or CUT_OFF,
                                 alpha_or_thres=alpha_or_thres)
 
 
 def main():
+    """Read input, run PCMCI on all observations, and write the time graph."""
     p = _common.parser(__doc__.split("\n")[0])
     p.add_argument("--alpha", type=float, default=0.01)
     p.add_argument("--max-lag", type=int, default=1)

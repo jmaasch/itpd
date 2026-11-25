@@ -1,4 +1,4 @@
-"""Check the scores."""
+"""Check the scores in `metrics.py`."""
 import math
 
 import numpy as np
@@ -7,7 +7,9 @@ from itpd import metrics
 
 
 def _two_targets():
-    """N = 2, T = 2: the true parents of node 2 are {0, 1}, those of node 3 are {1, 0}."""
+    """Return a graph with N = 2, T = 2.
+
+    The true parents of node 2 are {0, 1}, and those of node 3 are {1, 0}."""
     A = np.zeros((4, 4), int)
     A[[0, 1, 0, 1], [2, 2, 3, 3]] = 1
     return A

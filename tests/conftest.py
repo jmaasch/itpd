@@ -1,7 +1,8 @@
 """Shared setup of the tests."""
 import os
 
-# Before numpy is imported: simulated data can change in the last bits with the number of BLAS threads.
+# Set before importing numpy: BLAS thread count can change simulated data in
+# the last bits.
 for _name in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
     os.environ.setdefault(_name, "1")
 

@@ -1,10 +1,16 @@
-"""IAMB (incremental association Markov blanket) with the known time order."""
+"""IAMB (`iamb`): incremental association Markov blanket with known time order."""
 from functools import partial
 
 from ._targets import Result, run_per_target
 
 
 def _parents(pvalue, x, y, candidates, alpha, neglogp=None):
+    """`find_parents` function of IAMB for `run_per_target`.
+
+    Return the blanket of y among `candidates` with a grow phase and one shrink
+    pass, with x in every conditioning set. `neglogp(z, y, S)`, when given,
+    ranks candidates with equal p-values.
+    """
     blanket = []
     # Grow: test every candidate outside the blanket given the blanket, and
     # add the dependent candidate with the smallest p-value. Stop when no
@@ -41,11 +47,11 @@ def iamb(counter, N: int, T: int, alpha: float = 0.01, *,
     """Run IAMB on N series and T steps.
 
     The lag-1 self parent is in every conditioning set. Among the earlier
-    nodes, the Markov blanket of a target is its parent set, so the blanket
-    is the estimate. Candidates with equal p-values are ranked by
-    counter.test.neglogp when the test has this method, and then the largest
-    node wins. counter is a CICounter. See run_per_target for alpha and
-    corrected.
+    nodes, the Markov blanket of a target is its parent set, so the blanket is
+    the estimate. Candidates with equal p-values are ranked by
+    `counter.test.neglogp` when the test has this method, and then the largest
+    node wins. `counter` is a `CICounter`. See `run_per_target` for `alpha` and
+    `corrected`.
     """
     neglogp = getattr(counter.test, "neglogp", None)
     return run_per_target(partial(_parents, neglogp=neglogp), counter, N, T,

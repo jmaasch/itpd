@@ -1,10 +1,10 @@
 """Build the instance of a setting: the true time graph and its data.
 
-An instance is a function of the graph block of the setting, the data
+An instance is a function of the `graph` block of the setting, the data
 mechanism, the seed and the graph index. The module of the generator in
-itpd.simulation lists the random streams. The generator "gene_networks"
-reads stored data (itpd.experiments.gene_networks): the graph index is the
-number of the data set, and the seed is not used.
+`itpd.simulation` lists the random streams. The generator "gene_networks" reads
+stored data (`itpd.experiments.gene_networks`): the graph index is the number
+of the data set, and the seed is not used.
 """
 import os
 
@@ -37,7 +37,8 @@ def _gene_networks(graph, mechanism, seed, g) -> Instance:
 
 
 def _enumerate(graph, mechanism, seed, g) -> Instance:
-    # Not one graph: graph index g stands for the masks of block g, and info holds the arguments of exhaustive_check.
+    # Not one graph: g stands for the masks of block g, and `info` holds the
+    # arguments of `exhaustive_check`.
     N, T = graph["N"], graph["T"]
     masks = range(g * BLOCK, min((g + 1) * BLOCK, 1 << (N * N * T * (T - 1) // 2 - N * (T - 1))))
     if not masks:
@@ -45,8 +46,8 @@ def _enumerate(graph, mechanism, seed, g) -> Instance:
     return Instance(None, N, T, T - 1, None, None, {"masks": masks, "latent_first_step": graph["latent_first_step"]})
 
 
-# Generator -> (its parameters, in the order of the folder name; data mechanism -> function).
-# The mechanism "none" is the graph without data, for the oracle and for the scores.
+# Generator -> (parameters in folder-name order, data mechanism -> function).
+# "none" gives the graph without data, for the oracle and scores.
 GENERATORS = {
     "standard": (("N", "T", "lag", "in_degree", "stationary"),
                  {"linear_gaussian": _standard, "nonlinear": _standard, "none": _standard}),
@@ -62,27 +63,27 @@ GENERATORS = {
 def make_instance(graph: dict, mechanism: str, seed: int, g: int, folder: str = "") -> Instance:
     """Return graph number g of a setting.
 
-    graph holds the generator and its parameters. With the mechanism "none"
+    `graph` holds the generator and its parameters. With the mechanism "none"
     only the graph is used: it is the graph of every other mechanism. The
-    parameter path (generator "gene_networks") is relative to folder, the
+    parameter `path` (generator "gene_networks") is relative to `folder`, the
     folder of the config file. The generator "enumerate" gives a block of
-    BLOCK enumerated graphs for the exhaustive check of
-    itpd.experiments.ablations, and no single graph."""
+    `BLOCK` enumerated graphs for the exhaustive check of
+    `itpd.experiments.ablations`, and no single graph."""
     if "path" in graph:
         graph = {**graph, "path": os.path.normpath(os.path.join(folder, graph["path"]))}
     return GENERATORS[graph["generator"]][1][mechanism](graph, mechanism, seed, g)
 
 
 def rows(mechanism: str, M: int) -> int:
-    """Return the number of rows of the draw that holds the data of M observations.
+    """Return the row count of the draw for M observations.
 
     Simulated data are the first M rows of a draw of max(linear.ROWS, M) rows.
-    Stored data (mechanism "stored") are centered over the M observations
-    in use, so every M has its own draw of M rows."""
+    Stored data (mechanism "stored") are centered over the M observations in
+    use, so every M has its own draw of M rows."""
     return M if mechanism == "stored" else max(linear.ROWS, M)
 
 
 def draw(instance: Instance, rows: int):
-    """Return a draw of the given number of rows, and its SHA-1."""
+    """Return a draw of `rows` rows, and its SHA-1."""
     X = instance.sample(rows)
     return X, linear.data_hash(X)

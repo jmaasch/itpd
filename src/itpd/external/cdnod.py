@@ -1,16 +1,19 @@
-"""CD-NOD (library andrey-core, release 0.17.1) on data of shape (M, T, N).
+"""CD-NOD (`andrey-core`, release 0.17.1) on data of shape (M, T, N).
 
     python cdnod.py --input in.npz --output out.npz --alpha 0.01 --max-lag 1
 
-The data are pooled into one window: one row for each observation and each
-time step t >= max-lag, with the N series at the steps t - max-lag, ..., t - 1
-and at step t. The time step t of the row is the context of CD-NOD. The CI
-test is the Fisher-z test of the library. Background knowledge: the lagged
-columns come before the columns of step t; no edge between two columns of
-step t; no edge between two lagged columns; the lag-1 self edge of every
-series is required. A lagged series is a parent of a series at step t when
-the two columns are adjacent in the returned graph (the orientation is not
-used). This window graph is repeated at every time step.
+See `_common.py` for I/O and time graphs.
+- The data are pooled into one window: one row for each observation and each
+  time step t >= max-lag, with the N series at steps t - max-lag, ..., t - 1
+  and at step t.
+- The time step t of the row is the context of CD-NOD.
+- The CI test is the Fisher-z test of the library.
+- Background knowledge: the lagged columns come before the columns of step t;
+  no edge between two columns of step t; no edge between two lagged columns;
+  the lag-1 self edge of every series is required.
+- A lagged series is a parent of a series at step t when the two columns are
+  adjacent in the returned graph (the orientation is not used). This window
+  graph is repeated at every time step.
 """
 import itertools
 import time
@@ -25,7 +28,7 @@ RELEASE = "0.17.1"
 
 
 def pooled(X, L):
-    """Return the window data (M (T - L), (L + 1) N) and the time step of every row.
+    """Return window data (M (T - L), (L + 1) N) and the step of each row.
 
     Column blocks of N series: lag L, ..., lag 1, step t."""
     M, T, N = X.shape
@@ -45,6 +48,10 @@ def knowledge(L, N):
 
 
 def main():
+    """Read input, run CD-NOD on pooled window data, and write the time graph.
+
+    Raise `RuntimeError` when the installed `andrey-core` is not release
+    `RELEASE`."""
     p = _common.parser(__doc__.split("\n")[0])
     p.add_argument("--alpha", type=float, default=0.01)
     p.add_argument("--max-lag", type=int, default=1)

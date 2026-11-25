@@ -1,12 +1,14 @@
 """Conditional independence (CI) tests.
 
-A CI test is a callable (x, y, S) -> p-value. x and y are column indices of
-the data, and S is a collection of column indices. The pair is dependent at a
-level when p <= level. A test returns NaN when it cannot be evaluated.
-Members of S equal to x or y are ignored.
+A CI test is a callable (x, y, S) -> p-value. x and y are column indices of the
+data, and S is a collection of column indices. The pair is dependent at a level
+when p <= level. A test returns NaN when it cannot be evaluated. Members of S
+equal to x or y are ignored.
 
-FisherZ is the test for linear Gaussian data, GCM is a test for nonlinear
-data, and DSeparation answers from a known graph.
+Where to look:
+- `FisherZ`: test for linear Gaussian data.
+- `GCM`: test for nonlinear data.
+- `DSeparation`: answers from a known graph.
 """
 import numpy as np
 from scipy.special import erfc, log_ndtr
@@ -17,7 +19,7 @@ class NotEvaluable(RuntimeError):
 
 
 def _as_columns(data) -> np.ndarray:
-    """Return data as a float array (M, D). Data (M, T, N) become (M, T * N)."""
+    """Return `data` as a float array (M, D). Data (M, T, N) become (M, T * N)."""
     data = np.asarray(data, dtype=float)
     return data.reshape(data.shape[0], -1)
 
@@ -25,11 +27,10 @@ def _as_columns(data) -> np.ndarray:
 class FisherZ:
     """Fisher-z test of the partial correlation.
 
-    data has shape (M, D): M independent observations of D columns. The
+    `data` has shape (M, D): M independent observations of D columns. The
     correlation matrix is computed once. With dof = M - |S| - 3, the statistic
-    is sqrt(dof) * |atanh(r)| for the partial correlation r of x and y given
-    S, and the p-value is two-sided normal. The test returns NaN when
-    dof <= 0.
+    is sqrt(dof) * |atanh(r)| for the partial correlation r of x and y given S,
+    and the p-value is two-sided normal. The test returns NaN when dof <= 0.
 
     The last bits of a p-value depend on the order of x, y and S.
     """
@@ -40,7 +41,7 @@ class FisherZ:
         self.corr = np.corrcoef(data.T)
 
     def _statistic(self, x: int, y: int, S):
-        """Return sqrt(dof) * |z|, or None when dof <= 0."""
+        """Return sqrt(dof) * |z|, or `None` when dof <= 0."""
         S = [int(s) for s in S if s != x and s != y]
         dof = self.n - len(S) - 3
         if dof <= 0:
@@ -68,6 +69,7 @@ class FisherZ:
         return np.sqrt(dof) * abs(z)
 
     def __call__(self, x: int, y: int, S=()) -> float:
+        """Return the two-sided p-value of x and y given S, or NaN if M - |S| - 3 <= 0."""
         stat = self._statistic(x, y, S)
         if stat is None:
             return float("nan")
@@ -86,13 +88,15 @@ class FisherZ:
 class GCM:
     """Generalized covariance measure with gradient-boosted regressions.
 
-    data has shape (M, D). The observations are split once into two folds.
-    The residual of x given S on one fold comes from a
-    HistGradientBoostingRegressor fitted on the other fold, and likewise for
+    `data` has shape (M, D). `max_iter` (default 60) sets the boosting
+    iterations of each regression; `seed` (default 0) sets the fold split and
+    the regressions. The observations are split once into two folds. The
+    residual of x given S on one fold comes from a
+    `HistGradientBoostingRegressor` fitted on the other fold, and likewise for
     y. With R = residual of x times residual of y, the statistic is
-    sqrt(M) * mean(R) / sd(R), and the p-value is two-sided normal. With an
-    empty S the residuals are the centered columns. The test returns NaN only
-    when M < 8.
+    sqrt(M) * mean(R) / sd(R), and the p-value is two-sided normal (1.0 when R
+    has no variance). With an empty S the residuals are the centered columns.
+    The test returns NaN only when M < 8.
 
     The p-values depend on the scikit-learn version.
     """
@@ -105,6 +109,11 @@ class GCM:
         self._fold = np.random.default_rng(seed).permutation(self.n) % 2
 
     def _residual(self, target: np.ndarray, Z) -> np.ndarray:
+        """Return cross-fitted residuals of `target` given columns Z.
+
+        Predict each fold from a model fitted on the other fold. Return the
+        centered column when Z is `None`.
+        """
         if Z is None:
             return target - target.mean()
         from sklearn.ensemble import HistGradientBoostingRegressor
@@ -118,6 +127,7 @@ class GCM:
         return residual
 
     def __call__(self, x: int, y: int, S=()) -> float:
+        """Return the two-sided p-value of x and y given S, or NaN when M < 8."""
         S = [int(s) for s in S if s != x and s != y]
         if self.n < 8:
             return float("nan")
@@ -136,11 +146,11 @@ class DSeparation:
     A is a square matrix with A[u, v] != 0 for an edge u -> v. A call returns
     1.0 when x and y are d-separated given S and 0.0 otherwise. These values
     are decisions, not p-values. A graph with a directed cycle raises
-    ValueError.
+    `ValueError`.
 
-    Sets of nodes are bit sets (Python integers). x and y are d-separated
-    given S when S cuts every path between them in the moral graph of the
-    ancestors of x, y and S.
+    Sets of nodes are bit sets (Python integers). x and y are d-separated given
+    S when S cuts every path between them in the moral graph of the ancestors
+    of x, y and S.
     """
 
     def __init__(self, A):
@@ -208,4 +218,5 @@ class DSeparation:
         return True
 
     def __call__(self, x: int, y: int, S=()) -> float:
+        """Return 1.0 when x and y are d-separated given S, else 0.0."""
         return 1.0 if self.separated(x, y, S) else 0.0

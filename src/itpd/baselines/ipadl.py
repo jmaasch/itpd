@@ -1,8 +1,13 @@
-"""IPaDL: local causal partitioning (PaDL), run once for every target."""
+"""IPaDL (`ipadl`): local causal partitioning (PaDL), run once for every target."""
 from ._targets import Result, run_per_target
 
 
 def _parents(pvalue, x, y, candidates, alpha):
+    """`find_parents` function of IPaDL for `run_per_target`.
+
+    Return the parents of y among `candidates`. Comments Z4, Z5, Z7, and Z8
+    label the causal partitions of the paper relative to the known edge x -> y.
+    """
     marginal_x, marginal_y = {}, {}
 
     # The marginal tests of one target are kept here, so a repeated use is
@@ -46,9 +51,9 @@ def ipadl(counter, N: int, T: int, alpha: float = 0.01, *,
           corrected: bool = False) -> Result:
     """Run IPaDL on N series and T steps.
 
-    PaDL partitions the candidates of a target y by their relation to the
-    known edge x -> y and tests the remaining candidates for adjacency. No
-    result of one target is used for another target. counter is a
-    CICounter. See run_per_target for alpha and corrected.
+    PaDL partitions the candidates of a target y by their relation to the known
+    edge x -> y and tests the remaining candidates for adjacency. No result of
+    one target is used for another target. `counter` is a `CICounter`. See
+    `run_per_target` for `alpha` and `corrected`.
     """
     return run_per_target(_parents, counter, N, T, alpha, corrected)

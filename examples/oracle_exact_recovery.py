@@ -1,11 +1,14 @@
 """Recover a random temporal DAG exactly with the d-separation oracle.
 
 The graph has three series and five time steps. Every lag-1 self edge is
-present, and every other forward edge is present with probability 0.12.
-ITPD gets the d-separation relations of the graph and no data.
+present, and every other forward edge is present with probability 0.12. ITPD
+gets the d-separation relations of the graph and no data.
 
-Run: python examples/oracle_exact_recovery.py [--seed 7] [--output graph.png]
-The PNG needs Matplotlib; without --output no figure is written.
+Run:
+
+    python examples/oracle_exact_recovery.py [--seed 7] [--output graph.png]
+
+The PNG needs Matplotlib; without `--output` no figure is written.
 """
 import argparse
 

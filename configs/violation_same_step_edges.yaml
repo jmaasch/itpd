@@ -1,3 +1,4 @@
+# Table: mean F1 with edges moved into the same time step
 paper_item: "Table: mean F1 with edges moved into the same time step"
 description: >
   The main finite data setting with in-degree 2 (20 series, 16 time steps, nonstationary graphs, linear-Gaussian

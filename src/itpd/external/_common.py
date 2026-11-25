@@ -1,8 +1,9 @@
 """Shared code of the external-baseline scripts.
 
-The scripts run in the interpreter of their tool, so this module needs only
-the standard library and numpy. Data have shape (M, T, N). The node of
-series n at step t is t * N + n, and A[u, v] means u -> v.
+The scripts (`pcmci.py`, `dfpc.py`, `dynotears.py`, `cdnod.py`) run in the
+interpreter of their tool, so this module needs only the standard library and
+`numpy`. Data have shape (M, T, N). The node of series n at step t is
+t * N + n, and A[u, v] means u -> v.
 """
 import argparse
 import hashlib
@@ -31,10 +32,10 @@ def read_input(path):
 def write_output(path, A_hat, seconds, packages, status="ok", counter=None):
     """Write the result file.
 
-    A_hat is the estimated time graph (T * N, T * N), status is "ok" or
-    "timeout", and seconds is the time of the method call. versions is a
-    JSON text with the version of Python and of each named package. A
-    counter adds requested, unique, largest_set and mean_set."""
+    `A_hat` is the estimated time graph (T * N, T * N), `status` is "ok" or
+    "timeout", and `seconds` is the time of the method call. `versions` is a
+    JSON text with the version of Python and of each named package. A `counter`
+    adds `requested`, `unique`, `largest_set` and `mean_set`."""
     result = {"A_hat": np.asarray(A_hat) != 0, "status": status, "seconds": seconds}
     versions = {"python": sys.version.split()[0]}
     versions.update({name: metadata.version(name) for name in packages})
@@ -47,7 +48,7 @@ def write_output(path, A_hat, seconds, packages, status="ok", counter=None):
 def window_to_time_graph(win, T):
     """Return the time graph that repeats a window graph at every step.
 
-    win has shape (L + 1, N, N). win[l, i, j] means that series i at step
+    `win` has shape (L + 1, N, N). win[l, i, j] means that series i at step
     t - l is a parent of series j at step t, for l = 1, ..., L."""
     N = win.shape[1]
     A = np.zeros((T * N, T * N), dtype=bool)
@@ -60,9 +61,9 @@ def window_to_time_graph(win, T):
 class TestCounter:
     """Count the CI tests that a method requests.
 
-    A unique test is an unordered pair of variables with a conditioning
-    set. record raises TimeoutError when time_limit seconds have passed
-    since the counter was made."""
+    A unique test is an unordered pair of variables with a conditioning set.
+    `record` raises `TimeoutError` when `time_limit` seconds have passed since
+    the counter was made."""
 
     def __init__(self, time_limit=None):
         self.requested = 0
@@ -90,7 +91,9 @@ class TestCounter:
             self.unique_by_size[k] = self.unique_by_size.get(k, 0) + 1
 
     def summary(self):
-        """Return requested, unique, largest_set and mean_set (over the unique tests)."""
+        """Return `requested`, `unique`, `largest_set` and `mean_set`.
+
+        `mean_set` is over the unique tests."""
         unique = len(self.seen)
         total = sum(k * count for k, count in self.unique_by_size.items())
         return {"requested": self.requested, "unique": unique,

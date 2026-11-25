@@ -1,8 +1,7 @@
 """Count the CI tests that a method requests.
 
-CICounter wraps a CI test. Every method calls the test through it, so all
+`CICounter` wraps a CI test. Every method calls the test through it, so all
 methods are counted in the same way:
-
 - a requested test is one call of the counter;
 - a unique test is a distinct (unordered pair, conditioning set).
 """
@@ -24,10 +23,12 @@ def n_candidates(N: int, T: int) -> int:
 class CICounter:
     """Call a CI test, count the calls, and keep the p-values.
 
-    The test is called as test(a, b, S) with a < b and S a sorted tuple
+    The test is called as `test(a, b, S)` with a < b and S a sorted tuple
     without a and b. The p-value of a unique test is kept, and a repeated
-    request returns the kept value. A test that cannot be evaluated (NaN)
-    counts as requested and as unique, is not kept, and raises NotEvaluable.
+    request returns the kept value. A conditioning set with more than 8 members
+    is told apart by its size and a 12-byte BLAKE2b digest of its members. A
+    test that cannot be evaluated (NaN) counts as requested and as unique, is
+    not kept, and raises `NotEvaluable`.
 
     Attributes
     ----------
@@ -60,6 +61,10 @@ class CICounter:
         return len(self._not_evaluable)
 
     def __call__(self, x: int, y: int, S=()) -> float:
+        """Count one request and return the p-value of x and y given S.
+
+        Return the kept p-value on a repeated request without calling `test`.
+        Raise `NotEvaluable` when `test` returns NaN."""
         a, b = (x, y) if x < y else (y, x)
         S = tuple(sorted({int(s) for s in S} - {a, b}))
         size = len(S)
@@ -86,7 +91,7 @@ class CICounter:
     def summary(self, N: int, T: int) -> dict:
         """Return the counts of a run on N series and T steps.
 
-        largest_set and mean_set are over the unique tests. Both are None
+        `largest_set` and `mean_set` are over the unique tests. Both are `None`
         when there is no test."""
         unique = self.unique
         sizes = [size for size, count in self.by_size.items() if count]

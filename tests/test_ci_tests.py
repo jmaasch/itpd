@@ -1,4 +1,4 @@
-"""Check the CI tests: FisherZ, GCM and DSeparation."""
+"""Check the CI tests in `ci_tests.py`: `FisherZ`, `GCM`, and `DSeparation`."""
 import math
 
 import networkx as nx

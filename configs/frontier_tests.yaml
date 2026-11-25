@@ -1,3 +1,4 @@
+# Figure: mean F1 against unique CI tests per candidate in the main setting
 paper_item: "Figure: mean F1 against unique CI tests per candidate in the main setting"
 description: >
   The runs of main_setting_f1.yaml with 500 observations at in-degree 2 and 5, for the methods that count

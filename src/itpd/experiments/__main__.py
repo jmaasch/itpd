@@ -12,6 +12,11 @@ from .runner import run
 
 
 def main(argv=None) -> None:
+    """Parse `argv` (or process arguments) and call `run` or `table`.
+
+    `table` prints its text. On `ConfigError`, print "error: ..." and exit with
+    code 1.
+    """
     parser = argparse.ArgumentParser(prog="python -m itpd.experiments", description="Run the experiments of a config file.")
     commands = parser.add_subparsers(dest="command", required=True)
     runs = commands.add_parser("run", help="run the methods of a config; one result file per run")

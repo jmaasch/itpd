@@ -1,4 +1,4 @@
-"""Check the launcher of the external baselines and the code that their scripts share."""
+"""Tests of the external-baseline launcher and shared script code."""
 import sys
 
 import numpy as np

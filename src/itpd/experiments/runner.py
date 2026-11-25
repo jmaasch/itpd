@@ -5,22 +5,25 @@ observations. Its file is
 
     OUT/<generator and its parameters>/g<graph index>/M<M>/<ci_test>/<method>[__<level>][__lag<K>][__unit].json
 
-(no M folder with the oracle; an ITPD entry with a label has the label as <method>; the graph parameter path is not in the
-folder name). The file holds the specification of the run
-(key "spec": graph parameters, graph index, seed, data mechanism, M, CI
-test, alpha, the method with its level and options, repeat), the SHA-1 of the
-true graph and of the data (the whole draw of simulated data; the M centered
-observations of stored data), what the method returned (status, edges,
-untested targets, counts of CI tests), the seconds of every repetition, and
-the package versions. It holds no score: a score is computed from the edges.
-A run of the generator "enumerate" is a block of graphs: its file holds the
-counts of the exhaustive check, and no edges.
+(no M folder with the oracle; an ITPD entry with a `label` has the label as
+`<method>`; the graph parameter `path` is not in the folder name). The file
+holds:
+- `spec`: graph parameters, graph index, seed, data mechanism, M, CI test,
+  `alpha`, the method with its level and options, and `repeat`.
+- The SHA-1 of the true graph and of the data (the whole draw of simulated
+  data; the M centered observations of stored data).
+- What the method returned: `status`, `edges`, untested targets, counts of CI
+  tests.
+- The seconds of every repetition, and the package versions.
 
-The name of a file does not hold the whole specification. So a file that
-exists is compared with the specification of the run before anything
-starts: an equal one is a finished run and is skipped, and another one stops
-the runner with an error. Runs with the status "skipped" or "error" are run
-again.
+It holds no score: a score is computed from `edges`. A run of the generator
+"enumerate" is a block of graphs: its file holds the counts of the exhaustive
+check, and no `edges`.
+
+The name of a file does not hold the whole specification. So a file that exists
+is compared with the specification of the run before anything starts: an equal
+one is a finished run and is skipped, and another one stops the runner with an
+error. Runs with the status "skipped" or "error" are run again.
 """
 import json
 import os
@@ -38,7 +41,7 @@ FINISHED = ("ok", "partial", "timeout")
 
 
 def run_path(spec: dict) -> str:
-    """Return the path of the result file of a run, relative to the output folder."""
+    """Return the result file path of `spec`, relative to the output folder."""
     graph, method, M = spec["graph"], spec["method"], spec["data"].get("M")
     words = [graph["generator"]]
     for key, value in graph.items():
@@ -52,9 +55,9 @@ def run_path(spec: dict) -> str:
 
 
 def specifications(config: dict, graphs=None, methods=None, M=None) -> list:
-    """Return the specification of every run of a config, in the order of the runs.
+    """Return the specification of every run of `config`, in run order.
 
-    graphs and M (lists of integers) and methods (list of names) keep the
+    `graphs` and M (lists of integers) and `methods` (list of names) keep the
     runs with these graph indices, numbers of observations and methods."""
     known = {method.get("label", method["name"]) for setting in config["settings"] for method in setting["methods"]}
     unknown = sorted(set(methods or ()) - known)
@@ -77,7 +80,10 @@ def specifications(config: dict, graphs=None, methods=None, M=None) -> list:
 
 
 def _finished(path: str, spec: dict) -> bool:
-    """Return whether path holds a finished run of spec. Stop when it holds a run of another specification."""
+    """Return whether `path` holds a finished run of `spec`.
+
+    Stop when it holds a run of another specification.
+    """
     if not os.path.exists(path):
         return False
     with open(path) as f:
@@ -90,21 +96,23 @@ def _finished(path: str, spec: dict) -> bool:
 
 
 def run(config, out, *, graphs=None, methods=None, M=None) -> dict:
-    """Run every run of a config that the folder out does not hold, and return the numbers of runs.
+    """Run missing runs of `config` into `out` and return run counts.
 
     Parameters
     ----------
     config : str or path
         The config file.
     out : str or path
-        The output folder. Several configs can share it: equal runs share a file.
+        The output folder. Several configs can share it: equal runs share a
+        file.
     graphs, methods, M : list or None
         Keep only these graph indices, methods and numbers of observations.
 
     Returns
     -------
     dict
-        written: number of runs made; skipped: number of finished runs found.
+        `written`: number of runs made; `skipped`: number of finished runs
+        found.
     """
     planned, config = {}, load(config)
     for spec in specifications(config, graphs, methods, M):

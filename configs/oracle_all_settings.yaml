@@ -1,3 +1,4 @@
+# Text: exact recovery in all 32 exact-oracle settings
 paper_item: "Text, oracle validation: exact recovery in all 32 exact-oracle settings"
 description: >
   Stationary graphs under the d-separation oracle: 20 settings with lag 1 and in-degree 1, 2, 3, 5, 8

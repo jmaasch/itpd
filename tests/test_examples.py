@@ -1,4 +1,4 @@
-"""Check that the example scripts run."""
+"""Check that the scripts in `examples/` run."""
 import runpy
 import sys
 from pathlib import Path

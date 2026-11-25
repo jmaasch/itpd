@@ -1,26 +1,25 @@
-"""Simulated gene regulatory networks: data, true graph and the regulatory score.
+"""Simulated gene regulatory networks: data, graph and regulatory score.
 
 A network has 10 genes and 20 series: the mRNA of gene 1 to 10, then the
-protein of gene 1 to 10. A stored array has the shape (observations, 41,
-20); its first time step is the same in every observation and is dropped, so
-T = 40. The files are in the folder data/gene_networks (see its README.md):
+protein of gene 1 to 10. A stored array has the shape (observations, 41, 20);
+its first time step is the same in every observation and is dropped, so T = 40.
+The files are in `data/gene_networks` (see its `README.md`):
 
     truth/net<k>_edges.csv       edges of the lag-1 graph, with their type
     truth/net<k>_indirect.csv    indirect pairs of series
     net<k>_g<g>.npy              data set g of network k (made by simulate.py)
     prefix/net<k>_g<g>_M200.npy  its first 200 observations
 
-The true time graph has every edge of the lag-1 graph at every step:
-regulatory edges (protein of gene j -> mRNA of gene k), translation edges
-(mRNA of gene i -> protein of gene i) and the self edges.
+The true time graph has every edge of the lag-1 graph at every step: regulatory
+edges (protein of gene j -> mRNA of gene k), translation edges (mRNA of gene
+i -> protein of gene i) and the self edges.
 
 The regulatory score takes the regulatory edges as the truth. The self edges
-and the translation edges are removed from the estimate; every other
-estimated edge, of any lag, is false. With ignore_indirect, an estimated
-lag-1 edge of an indirect pair is removed as well, so it counts neither as
-true nor as false. An indirect pair is a pair of series without an edge
-whose first series changes the second within one time step, through a third
-series.
+and the translation edges are removed from the estimate; every other estimated
+edge, of any lag, is false. With `ignore_indirect`, an estimated lag-1 edge of
+an indirect pair is removed as well, so it counts neither as true nor as false.
+An indirect pair is a pair of series without an edge whose first series changes
+the second within one time step, through a third series.
 """
 import csv
 import os
@@ -36,7 +35,9 @@ SERIES = [f"mRNA_G{i}" for i in range(1, 11)] + [f"protein_G{i}" for i in range(
 
 
 def _lag1(path, kinds=None) -> np.ndarray:
-    """Return the time graph with the pairs (source, target) of a CSV file at lag 1 at every step; kinds selects by the column type."""
+    """Return the time graph with lag-1 edges from a CSV file at every step.
+
+    `kinds` selects pairs `(source, target)` by the column `type`."""
     with open(path, newline="") as f:
         pairs = [(SERIES.index(row["source"]), SERIES.index(row["target"])) for row in csv.DictReader(f)
                  if kinds is None or row["type"] in kinds]
@@ -48,13 +49,13 @@ def _lag1(path, kinds=None) -> np.ndarray:
 
 
 def load(network: int, dataset: int, root) -> Instance:
-    """Return data set number dataset of a network, from the folder root.
+    """Return data set `dataset` of `network`, from the folder `root`.
 
-    Instance.A is the true time graph. sample(M) returns the first M
-    observations, centered per series and time step over these M
-    observations; it reads the simulated array, or the stored first 200
-    observations when M <= 200 and the simulated array is missing. info
-    holds the time graphs "regulatory", "translation" and "indirect"."""
+    `Instance.A` is the true time graph. `sample(M)` returns the first M
+    observations, centered per series and time step over these M observations;
+    it reads the simulated array, or the stored first 200 observations when
+    M <= 200 and the simulated array is missing. `info` holds the time graphs
+    "regulatory", "translation" and "indirect"."""
     edges = os.path.join(root, "truth", f"net{network}_edges.csv")
     info = {"regulatory": _lag1(edges, ("protein_to_mRNA",)), "translation": _lag1(edges, ("mRNA_to_protein",)),
             "indirect": _lag1(os.path.join(root, "truth", f"net{network}_indirect.csv"))}
@@ -73,11 +74,11 @@ def load(network: int, dataset: int, root) -> Instance:
 
 
 def regulatory(truth, A_hat, M=None, untested=(), *, ignore_indirect: bool = False) -> dict:
-    """Score the estimate A_hat on the regulatory edges of a gene-network instance.
+    """Score `A_hat` on the regulatory edges of a gene-network instance.
 
-    truth is an Instance of load. M sets the common targets (None: every
-    target). untested lists the untested targets. Returns the dict of
-    itpd.metrics.score."""
+    `truth` is an `Instance` of `load`. M sets the common targets (`None`:
+    every target). `untested` lists the untested targets. Returns the dict of
+    `itpd.metrics.score`."""
     estimate = (np.asarray(A_hat) != 0) & ~truth.info["translation"]
     if ignore_indirect:
         estimate &= ~truth.info["indirect"]
@@ -85,5 +86,7 @@ def regulatory(truth, A_hat, M=None, untested=(), *, ignore_indirect: bool = Fal
 
 
 def regulatory_ignore_indirect(truth, A_hat, M=None, untested=()) -> dict:
-    """Score as regulatory, with the indirect pairs counted neither as true nor as false."""
+    """Score as `regulatory`, ignoring indirect pairs.
+
+    Indirect pairs count neither as true nor as false."""
     return regulatory(truth, A_hat, M, untested, ignore_indirect=True)

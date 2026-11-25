@@ -2,6 +2,15 @@
 
 Like ITPD, every baseline takes the lag-1 self edge of a target as known and
 searches the other parents among all earlier nodes.
+
+Where to look:
+- `iamb.py`: IAMB (`iamb`, takes a `CICounter`).
+- `ipadl.py`: IPaDL (`ipadl`, takes a `CICounter`).
+- `full_conditioning.py`: FullCI (`full_conditioning`, takes a `CICounter`).
+- `lasso.py`: Lasso (`lasso`, takes the data).
+- `_targets.py`: shared target loop `run_per_target` and `Result`.
+
+Each baseline function returns a `Result`.
 """
 from ._targets import Result
 from .full_conditioning import full_conditioning

@@ -1,3 +1,4 @@
+# Table: mean F1 in the main finite data setting
 paper_item: "Table: mean F1 in the main finite data setting"
 description: >
   Linear-Gaussian data of 20 series over 16 time steps from nonstationary graphs with lag-1 edges,

@@ -1,17 +1,18 @@
 import ITPD.Latent
 
 /-!
-# Paper.lean : the algorithm box of the paper and its exactness theorems
+# Paper.lean : Algorithm 1 of the paper (`itpdPaper`) and its exactness theorems
 
-`itpdPaper` is Algorithm 1 (ITPD) as in the box of the paper: the test of Line 9 is given `S`,
-Line 11 is `pa_hat(Y) ← {X}`, the candidates of Line 6 are visited in descending time, the
-members of `Z'` in Line 13 in ascending time, and the series of Line 3 in the order `1, …, N`.
-Inside a time step both orders visit the series in increasing index; the box does not state an
-order inside a time step, and the general theorems of `Exact.lean` and `Latent.lean` hold for
-every order.
+`itpdPaper` is Algorithm 1 (ITPD): `itpdS` with `onlyX = true`, `givenS = true`, the candidate order
+`descTime` (Line 6, descending time), the Phase II order `ascNode` (Line 13, ascending time) and the
+series order `1, …, N` (Line 3). So the test of Line 9 is given `S`, and Line 11 is
+`pa_hat(Y) ← {X}`. Inside a time step `descTime` and `ascNode` visit the series in increasing index;
+Algorithm 1 states no order inside a time step, and `itpdS_correct` (`Exact.lean`) and
+`itpdS_correct_latent` (`Latent.lean`) hold for every order.
 
-The first lemmas hold by `rfl` and show which CI tests one step of the box asks. The exactness
-theorems below have no switch and no order parameter:
+The seven lemmas `itpdPaper_loops` to `itpdPaper_lines_14_15` hold by `rfl` and show which CI tests
+one step of Algorithm 1 asks. The five main theorems below are stated for `itpdPaper ci N T`, whose
+arguments are `ci`, `N` and `T` only:
 
 * `itpd_exact`: for CI answers with the two properties of `TargetHyp` for the target `Y`,
   `A[Y] = pa(Y)`.
@@ -28,14 +29,14 @@ set_option autoImplicit false
 
 namespace ITPD
 
-/-- **Algorithm 1 (ITPD) as in the box of the paper.** Returns the adjacency list `A`. -/
+/-- **Algorithm 1 (ITPD) of the paper** (`itpdPaper ci N T`). Returns the adjacency list `A`. -/
 def itpdPaper (ci : CI) (N T : Nat) : Adj :=
   itpdS ci true true descTime ascNode N T (natSeries N)
 
-/-! ## What the box computes (all by `rfl`) -/
+/-! ## What Algorithm 1 computes (line by line, all by `rfl`) -/
 
-/-- Lines 1-3 and 16: the box is the loop over the time steps `1, …, T - 1` and the series
-`1, …, N`, with Lines 4-15 as the body. -/
+/-- Lines 1-3 and 16: `itpdPaper ci N T` is the loop over the time steps `1, …, T - 1` (Line 2) and
+the series `1, …, N` (Line 3), with Lines 4-15 as the body and the update of Line 16. -/
 theorem itpdPaper_loops (ci : CI) (N T : Nat) :
     itpdPaper ci N T =
       run (fun A t n => discoverS ci true true descTime ascNode N A t n) T (natSeries N) := rfl
@@ -79,7 +80,7 @@ theorem itpdPaper_lines_14_15 (ci : CI) (y : Vertex) (pa S' : List Vertex) (z : 
       then (pa, S'.filter (fun s => s != z))
       else (pa ++ [z], S') := rfl
 
-/-! ## Exactness of the box -/
+/-! ## Exactness of Algorithm 1 -/
 
 /-- **Exactness of Algorithm 1 for one target, abstract CI answers.** If the CI answers have the
 two properties of `TargetHyp` for the target `Y = V^n_{t+1}` (`t < T`) and the parent relation

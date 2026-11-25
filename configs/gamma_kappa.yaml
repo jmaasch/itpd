@@ -1,3 +1,4 @@
+# Text: choice of gamma and kappa
 paper_item: "Paragraph: choice of gamma and kappa"
 description: >
   ITPD with alpha1 = max(alpha, min(gamma, kappa / m)) at gamma = 0.2 and kappa = 50 (Algorithm 1), against a

@@ -1,3 +1,4 @@
+# Text: unique CI tests per candidate of ITPD and IAMB at larger in-degrees
 paper_item: "Text: unique CI tests per candidate of ITPD and IAMB at larger in-degrees"
 description: >
   The generator of the main finite data setting (20 series, 16 time steps, lag-1 edges) at in-degree 8, 10 and 15

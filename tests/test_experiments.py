@@ -1,4 +1,7 @@
-"""Tests of itpd.experiments: the config reader, the runner, the table of means, the scores, the ablations and the command line."""
+"""Tests of `itpd.experiments`.
+
+Covers the config reader, the runner, the table of means, the scores, the
+ablations, and the command line."""
 import csv
 import json
 import subprocess
@@ -89,14 +92,14 @@ def test_main_setting_config():
     ({"ci_test": "gcm", "methods": [{"name": "PCMCI"}]}, "its own Fisher-z test"),
     ({"data": {"mechanism": "linear_gaussian"}}, "data.M"),
     ({"graphs": "a-b"}, "indices"),
-    # An entry with switches has its own file name.
+    # An entry with `switches` has its own file name.
     ({"methods": [{"name": "ITPD", "switches": {}}]}, "label"),
     ({"methods": [{"name": "ITPD", "switches": {}, "label": "ITPD"}]}, "label"),
     ({"methods": [{"name": "ITPD", "label": "plain"}]}, "label"),
     ({"methods": [{"name": "ITPD", "gamma": 0.1}]}, "label"),
     ({"methods": [{"name": "ITPD", "label": "level", "gamma": 2}]}, "gamma"),
     ({"methods": [{"name": "ITPD", "label": "changed", "switches": {"line12": "X"}}]}, "line12"),
-    # YAML reads an unquoted off as False.
+    # YAML reads an unquoted `off` as `False`.
     ({"methods": [{"name": "ITPD", "label": "changed", "switches": {"line9": False}}]}, "line9"),
     ({"ci_test": "oracle", "data": {"mechanism": "none"},
       "methods": [{"name": "ITPD", "label": "level", "switches": {"phase2_level": "extended_bic"}}]}, "number of observations"),
@@ -115,7 +118,8 @@ def test_settings_merge_over_the_top_level(tmp_path):
     first, second, oracle = load(write(tmp_path, settings=entries))["settings"]
     assert first["graph"] == {**SMALL["graph"], "lag": 2} and second["graph"] == {**SMALL["graph"], "lag": 2, "in_degree": 2}
     assert first["graphs"] == [3, 5, 6] and first["data"]["M"] == [9, 100]
-    # PCMCI searches up to the lag of the graph unless the entry gives max_lag.
+    # PCMCI searches up to the lag of the graph unless the entry gives
+    # `max_lag`.
     assert first["methods"][-1] == {"name": "PCMCI", "max_lag": 2, "level": "corrected"}
     assert oracle["graph"]["N"] == 2 and oracle["data"] == {"mechanism": "none", "M": [None]} and oracle["graphs"] == [0, 1]
     spec = specifications({"settings": [oracle]})[0]
@@ -124,7 +128,10 @@ def test_settings_merge_over_the_top_level(tmp_path):
 
 
 def test_gene_network_data(tmp_path, monkeypatch, no_interpreters):
-    """Stored data: the path is relative to the folder of the config, and every M has its own centered array."""
+    """Test stored gene-network data.
+
+    The path is relative to the folder of the config, and every M has its own
+    centered array."""
     folder = tmp_path / "somewhere"
     folder.mkdir()
     (folder / "data").symlink_to(GENE_DATA, target_is_directory=True)
@@ -270,13 +277,14 @@ def test_other_generators_and_the_gcm_test(tmp_path, no_interpreters, graph, mec
 # The table of means.
 
 def test_configs_share_runs():
-    """Configs that describe the same run give it the same file and the same specification."""
+    """Configs for the same run share its file and specification."""
     def runs(name, keep=lambda spec: True):
         return {run_path(spec): spec for spec in specifications(load(CONFIGS / f"{name}.yaml")) if keep(spec)}
     f1 = runs("main_setting_f1")
     for name in ("main_setting_tests", "frontier_tests", "frontier_seconds"):
         assert runs(name) and all(f1.get(path) == spec for path, spec in runs(name).items())
-    # Sample size: with 20 series and 200, 500 or 2000 observations, the runs are runs of the main setting.
+    # `sample_size`: with 20 series and 200, 500, or 2000 observations, the
+    # runs are runs of the main setting.
     shared = runs("sample_size", lambda spec: spec["graph"]["N"] == 20 and spec["data"]["M"] >= 200)
     assert len(shared) == 10 * 3 * 13 and all(f1.get(path) == spec for path, spec in shared.items())
     # Scaling of seconds: the methods that are not timed there are runs of the main setting and of the scalability table.
@@ -327,7 +335,10 @@ ONE_METRIC = {"settings": [{"scoring": {}}], "report": {"metrics": ["f1"]}}
 
 
 def cell_rows(f1, method="IAMB", level=None) -> list:
-    """Rows of one cell: one per graph with the F1 values f1; None is a run without a result."""
+    """Build the rows of one cell.
+
+    Returns one row per graph with the F1 values `f1`; `None` is a run without
+    a result."""
     return [{"setting": "s", "graph": {}, "M": 100, "graph_index": g, "method": method, "level": level, "status": "ok",
              **({} if value is None else {"values": {"f1": value, "level_by": value}})} for g, value in enumerate(f1)]
 
@@ -389,13 +400,13 @@ def test_table_of_a_small_config(tmp_path, no_interpreters, capsys):
 
     text = table(config, out).splitlines()
     assert text[1] == "28 runs: 24 with a result, 4 without a result" and text[3] == "f1"
-    assert text[4].split() == ["M", "method", "level", "graphs", "mean", "minus", "ITPD"]     # No bootstrap: no lo, hi, verdict.
+    assert text[4].split() == ["M", "method", "level", "graphs", "mean", "minus", "ITPD"]     # No bootstrap: no `lo`, `hi`, `verdict`.
     assert [line.split()[1] for line in text[5:11]] == ["ITPD", "IAMB", "IPaDL", "FullCI", "Lasso", "PCMCI,"]
     assert text[10].split()[4:8] == ["1", "corrected", "0", "-"] and "unique_per_candidate" in text
     main(["table", config, "--runs", str(out)])
     assert capsys.readouterr().out.splitlines()[-len(text):] == text
 
-    # Expected means: configs/expected/<config>.csv beside the config.
+    # Expected means: `configs/expected/<config>.csv` beside the config.
     with pytest.raises(ConfigError, match="no expected means"):
         table(config, out, compare=True)
     mean = next(group for group in cells(load(config), scored) if group["M"] == 100)["mean"]["f1"]
@@ -471,7 +482,10 @@ def test_violation_scores():
 
 
 def test_gene_network_scores_by_hand():
-    """Twelve estimated edges on network 3, with the counts worked out by hand from the two truth tables."""
+    """Check gene-network scores by hand.
+
+    Scores twelve estimated edges on network 3 against the counts worked out by
+    hand from the two truth tables."""
     truth = gene_networks.load(3, 0, GENE_DATA)
     per_step = {key: int(truth.info[key][:20, 20:40].sum()) for key in ("regulatory", "translation", "indirect")}
     assert per_step == {"regulatory": 15, "translation": 10, "indirect": 18} and int(truth.A[:20, 20:40].sum()) == 45
@@ -491,7 +505,7 @@ def test_gene_network_scores_by_hand():
              (1, m(2), 2, m(2)),     # self edge: never scored
              (0, p(2), 2, m(3)),     # lag 2: false
              (0, m(4), 1, m(9)),     # no edge and no indirect pair: false
-             (11, p(7), 12, m(1)),   # regulatory edge at step 12, which is no common target with 200 observations
+             (11, p(7), 12, m(1)),   # regulatory edge at step 12, not a common target at M = 200
              (1, m(7), 2, p(1)),     # indirect pair: false
              (5, m(3), 6, m(2)),     # indirect pair: false
              (3, p(3), 4, m(4))]     # regulatory edge
@@ -519,7 +533,9 @@ CHANGES = [{"name": "ITPD"}, {"name": "ITPD", "label": "Algorithm 1", "switches"
 
 
 def recorded(make, V):
-    """Fit make(test) on V, where test is a Fisher-z test that records its calls. Return the calls and the model."""
+    """Fit `make(test)` on V with a recording Fisher-z test.
+
+    Returns the recorded calls and the fitted model."""
     calls, test = [], FisherZ(V)
 
     def record(x, y, S):

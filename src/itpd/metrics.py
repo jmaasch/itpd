@@ -1,13 +1,16 @@
 """Score an estimated time graph against the true one.
 
-Edges are directed and time-indexed. The lag-1 self edges are not scored.
-A target is a node at step 1 or later; its edges are the entries of its
-column. An untested target has no parents in the estimate, so its true edges
-count as missed.
+Start at `score`: it returns precision, recall, and F1 on all targets and on
+the common targets.
 
-Common targets are the targets that every method can test with M
-observations: the Fisher-z test of a target at step t given all earlier
-nodes needs M >= N * t + 3.
+Edges are directed and time-indexed. The lag-1 self edges are not scored. A
+target is a node at step 1 or later; its edges are the entries of its column.
+An untested target has no parents in the estimate, so its true edges count as
+missed.
+
+Common targets are the targets that every method can test with M observations:
+the Fisher-z test of a target at step t given all earlier nodes needs
+M >= N * t + 3.
 """
 import numpy as np
 
@@ -17,8 +20,8 @@ from .graphs import self_edge_mask
 def last_common_step(N: int, T: int, M: int | None = None) -> int:
     """Return the last step whose targets are common targets.
 
-    M is None for a CI test that needs no minimum number of observations
-    (DSeparation, GCM): every target is then a common target."""
+    M is `None` for a CI test that needs no minimum number of observations
+    (`DSeparation`, `GCM`): every target is then a common target."""
     if M is None:
         return T - 1
     return int(max(0, min(T - 1, (M - 3) // N)))
@@ -26,9 +29,9 @@ def last_common_step(N: int, T: int, M: int | None = None) -> int:
 
 def edge_counts(A_true, A_hat, N: int, T: int, *, last_step: int | None = None,
                 untested=()) -> dict:
-    """Return tp, fp and fn over the targets at steps 1, ..., last_step.
+    """Return `tp`, `fp` and `fn` over the targets at steps 1, ..., `last_step`.
 
-    last_step defaults to T - 1. untested lists the untested targets."""
+    `last_step` defaults to T - 1. `untested` lists the untested targets."""
     keep = ~self_edge_mask(N, T)
     truth = (np.asarray(A_true) != 0) & keep
     estimate = (np.asarray(A_hat) != 0) & keep
@@ -58,9 +61,9 @@ def f1(tp: int, fp: int, fn: int) -> float:
 def score(A_true, A_hat, N: int, T: int, M: int | None = None, untested=()) -> dict:
     """Return the scores on all targets and on the common targets.
 
-    The keys "all" and "common" each hold tp, fp, fn, precision, recall and
-    f1. "common" is None when no target is common (last_common_step < 1).
-    n_untested counts the untested targets."""
+    The keys `'all'` and `'common'` each hold `tp`, `fp`, `fn`, `precision`,
+    `recall` and `f1`. `'common'` is `None` when no target is common
+    (`last_common_step` < 1). `n_untested` counts the untested targets."""
     last = last_common_step(N, T, M)
     untested = sorted({int(c) for c in untested if c >= N})
 

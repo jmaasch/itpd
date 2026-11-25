@@ -1,3 +1,4 @@
+# Table: mean F1 on simulated gene regulatory networks (regulatory edges, indirect pairs left out)
 paper_item: "Table: mean F1 on simulated gene regulatory networks (regulatory edges, indirect pairs left out)"
 description: >
   Two gene regulatory networks of 10 genes, simulated with GeneNetWeaver: 20 series (mRNA and protein of every

@@ -2,9 +2,9 @@
 
     python -m itpd.experiments table CONFIG --runs DIR [--compare]
 
-A run file holds the estimated edges. The score of a run is computed here
-from the edges and the true graph, which is built again from the
-specification of the run and must have the graph hash of the run file.
+A run file holds the estimated edges. The score of a run is computed here from
+the edges and the true graph, which is built again from the specification of
+the run and must have the graph hash of the run file.
 
 Keys of a config that are read here:
 
@@ -31,18 +31,18 @@ Keys of a config that are read here:
                       parameter); the values from cap on are one group
 
 A cell is one setting with one M; its mean is over the graphs with a result.
-Runs with the status timeout, error or skipped, and missing runs, have no
-result; they are counted and never filled. A method with two levels is shown
-at its better level: the level with the higher mean F1 of the cell, rounded
-to 12 digits; a tie goes to the corrected level, and a level without a
-result is not a candidate. That level is shown for every metric.
+Runs with the status `timeout`, `error` or `skipped`, and missing runs, have no
+result; they are counted and never filled. A method with two levels is shown at
+its better level: the level with the higher mean F1 of the cell, rounded to 12
+digits; a tie goes to the corrected level, and a level without a result is not
+a candidate. That level is shown for every metric.
 
 The bootstrap draws one index matrix per number of graphs, from a generator
-seeded with report.bootstrap.seed, and uses it for every mean and every
+seeded with `report.bootstrap.seed`, and uses it for every mean and every
 difference of that number of graphs, so differences are paired by graph. A
 difference is "higher" or "lower" when its interval excludes 0, else "tied".
 
-A run of the generator "enumerate" is a block of graphs. Its exact is the
+A run of the generator "enumerate" is a block of graphs. Its `exact` is the
 share of the graphs of the block with an exact output, and it has no other
 score.
 """
@@ -70,16 +70,21 @@ METRICS = SCORES + ("unique_per_candidate", "mean_set", "largest_set", "screened
 
 
 def _views(scoring) -> list:
+    """Return the views of `scoring` as a list (default `["edges"]`)."""
     views = scoring.get("view", "edges")
     return views if isinstance(views, list) else [views]
 
 
 def _several(config) -> bool:
+    """Return whether a setting of `config` has more than one view."""
     return any(len(_views(setting["scoring"])) > 1 for setting in config["settings"])
 
 
 def columns(config: dict) -> list:
-    """Return the columns of the table: one per metric, and per view for a score when a setting has several views."""
+    """Return the columns of the table.
+
+    One column per metric, and per view for a score when a setting has several
+    views."""
     views = list(dict.fromkeys(view for setting in config["settings"] for view in _views(setting["scoring"])))
     several = _several(config)
     names = config["report"].get("metrics", ["f1"])
@@ -91,7 +96,7 @@ def columns(config: dict) -> list:
 
 
 def score_run(run: dict, truth, view: str = "edges") -> dict:
-    """Return the score of a run file on one view, against the instance truth of its specification."""
+    """Return the score of a run file on `view` against the instance `truth`."""
     if run["graph_sha1"] != truth.graph_sha1:
         raise ConfigError("the graph of a run file is not the graph of its specification")
     spec, size = run["spec"], truth.N * truth.T
@@ -105,11 +110,11 @@ def score_run(run: dict, truth, view: str = "edges") -> dict:
 def rows(config: dict, runs) -> list:
     """Return one dict per run of a loaded config, in the order of the runs.
 
-    Keys: setting (folder of the setting), graph, M, graph_index, method
-    (name and options), level, status ("missing" without a file). A run
-    with a result also has run (the file), scores (view -> score) and
-    values (column -> number or None; "level_by" is the F1 that chooses
-    the level)."""
+    Keys: `setting` (folder of the setting), `graph`, M, `graph_index`,
+    `method` (name and options), `level`, `status` ("missing" without a file).
+    A run with a result also has `run` (the file), `scores` (view -> score) and
+    `values` (column -> number or `None`; "level_by" is the F1 that chooses the
+    level)."""
     out, seen, built, truth = [], set(), None, None
     for setting in config["settings"]:
         views, targets = _views(setting["scoring"]), setting["scoring"].get("targets", "common")
@@ -157,7 +162,9 @@ def rows(config: dict, runs) -> list:
 
 
 def _mean(values, bootstrap, index):
-    """Return mean, lo, hi and the number of values, or None without a value. None and NaN are dropped."""
+    """Return mean, lo, hi and count of values, or `None` if empty.
+
+    `None` and NaN are dropped."""
     v = np.array([np.nan if value is None else value for value in values], dtype=float)
     v = v[~np.isnan(v)]
     if not len(v):
@@ -171,12 +178,12 @@ def _mean(values, bootstrap, index):
 
 
 def cells(config: dict, rows: list) -> list:
-    """Return one dict per setting, M, method and level, from the rows of the config.
+    """Return one dict per setting, M, method and level, from `rows`.
 
-    Keys: setting, graph, M, method, level, better_level, shown (the
-    better level, or every level of a method without a result), mean
-    (column -> {mean, lo, hi, graphs} or None) and, with
-    report.relative_to, difference (column -> the same for the method minus
+    Keys: `setting`, `graph`, M, `method`, `level`, `better_level`, `shown`
+    (the better level, or every level of a method without a result), `mean`
+    (column -> `{mean, lo, hi, graphs}` or `None`) and, with
+    `report.relative_to`, `difference` (column -> the same for the method minus
     the reference on the graphs that both have, with verdict)."""
     report, index, names = config["report"], {}, columns(config)
     bootstrap, reference = report.get("bootstrap"), report.get("relative_to")
@@ -208,7 +215,9 @@ def cells(config: dict, rows: list) -> list:
 
 
 def _expected(config: dict) -> dict:
-    """Read configs/expected/<config>.csv: (setting, M, method, level, metric) -> its row."""
+    """Read `configs/expected/<config>.csv`.
+
+    Maps `(setting, M, method, level, metric)` to its row."""
     path = os.path.join(config["folder"], "expected", os.path.splitext(os.path.basename(config["path"]))[0] + ".csv")
     if not os.path.exists(path):
         raise ConfigError(f"no expected means for this config: {path} is missing")
@@ -221,7 +230,10 @@ def _number(x, form=".3f") -> str:
 
 
 def _lines(body: list) -> list:
-    """Return a block as aligned lines. A column without an entry is left out (M with the oracle, lo and hi without the bootstrap)."""
+    """Return `body` as aligned lines.
+
+    A column without an entry is left out (M with the oracle, `lo` and `hi`
+    without the bootstrap)."""
     keep = [i for i in range(len(body[0])) if len(body) == 1 or any(line[i] != "-" for line in body[1:])]
     body = [[line[i] for i in keep] for line in body]
     widths = [max(len(line[i]) for line in body) for i in range(len(body[0]))]
@@ -229,7 +241,9 @@ def _lines(body: list) -> list:
 
 
 def _pooled(groups: list, name: str, pool: dict, reference) -> list:
-    """Return the block of report.pool for one metric: per value of pool["by"] and method, the mean of the cell means."""
+    """Return the `report.pool` block for metric `name`.
+
+    Gives the mean of the cell means per value of `pool["by"]` and method."""
     found = {}
     for group in groups:
         value = {"M": group["M"], **group["graph"]}.get(pool["by"])
@@ -250,12 +264,12 @@ def _pooled(groups: list, name: str, pool: dict, reference) -> list:
 
 
 def table(config, runs, *, compare: bool = False) -> str:
-    """Return the table of a config file as text, from the run files in the folder runs.
+    """Return the table of `config` as text, from the run files in `runs`.
 
     One block per metric, one line per cell and method; a method with two
-    levels is shown at its better level. With report.pool a second block
-    per metric has the means of the cell means. compare=True adds the mean
-    of configs/expected/<config>.csv and the difference to it."""
+    levels is shown at its better level. With `report.pool` a second block per
+    metric has the means of the cell means. `compare=True` adds the mean of
+    `configs/expected/<config>.csv` and the difference to it."""
     config = load(config)
     names, reference = columns(config), config["report"].get("relative_to")
     all_rows = rows(config, runs)

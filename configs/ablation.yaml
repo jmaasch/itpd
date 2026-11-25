@@ -1,3 +1,4 @@
+# Table: one change at a time to ITPD
 paper_item: "Table: one change at a time to ITPD"
 description: >
   Every entry of methods is ITPD with one change (itpd.experiments.ablations.Switches); "Algorithm 1" has none, and

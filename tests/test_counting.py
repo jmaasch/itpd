@@ -1,4 +1,4 @@
-"""Check the counter of CI tests."""
+"""Check the counter of CI tests in `counting.py`."""
 import math
 
 import pytest

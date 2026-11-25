@@ -1,4 +1,4 @@
-"""Lasso: one L1-penalized regression per target with a fixed penalty."""
+"""Lasso (`lasso`): one L1-penalized regression per target with a fixed penalty."""
 import warnings
 
 import numpy as np

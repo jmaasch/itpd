@@ -1,7 +1,9 @@
 """Time graphs as adjacency matrices.
 
-A time graph of N series and T steps has T * N nodes. The node of series n
-at step t is t * N + n (both zero-based). A[u, v] != 0 means u -> v.
+A time graph of N series and T steps has T * N nodes. The node of series n at
+step t is t * N + n (both zero-based). A[u, v] != 0 means u -> v.
+
+Functions: `unroll`, `self_edge_mask`, `check_temporal`, `graph_hash`.
 """
 import hashlib
 
@@ -31,7 +33,7 @@ def self_edge_mask(N: int, T: int) -> np.ndarray:
 
 
 def check_temporal(A, N: int, T: int) -> None:
-    """Raise ValueError unless A is a time graph that ITPD assumes.
+    """Raise `ValueError` unless A is a time graph that ITPD assumes.
 
     Every edge points to a later step, and every lag-1 self edge is present."""
     A = np.asarray(A) != 0

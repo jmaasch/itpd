@@ -1,3 +1,4 @@
+# Table: mean F1 of ITPD with alpha / m and with the extended-BIC level in Phase II
 paper_item: "Table: mean F1 of ITPD with alpha / m and with the extended-BIC level in Phase II"
 description: >
   ITPD with alpha2 = alpha / m (Algorithm 1) and with the extended-BIC level P(chi2_1 > log(M m)) in Line 14, for

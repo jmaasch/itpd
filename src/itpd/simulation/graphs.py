@@ -1,9 +1,9 @@
 """Random time graphs.
 
-In-degree d is the expected number of parents of a node from other slots:
-every edge slot (a source series at one of the lags 1, ..., lag, except the
-lag-1 self slot) holds an edge with probability d / (N * lag - 1). The lag-1
-self edge is always present.
+In-degree d is the expected number of parents of a node from other slots: every
+edge slot (a source series at one of the lags 1, ..., `lag`, except the lag-1
+self slot) holds an edge with probability d / (N * lag - 1). The lag-1 self
+edge is always present.
 """
 import numpy as np
 
@@ -20,7 +20,7 @@ def sample_stationary_graph(N: int, lag: int, d: float, rng) -> np.ndarray:
     """Return a window graph B (lag + 1, N, N), the same at every step.
 
     B[l, i, j] means that series i at step t - l is a parent of series j at
-    step t. B[0] is empty. itpd.graphs.unroll gives the time graph."""
+    step t. B[0] is empty. `itpd.graphs.unroll` gives the time graph."""
     B = np.zeros((lag + 1, N, N), dtype=bool)
     p = edge_probability(N, lag, d)
     B[1:] = rng.random((lag, N, N)) < p
@@ -29,7 +29,7 @@ def sample_stationary_graph(N: int, lag: int, d: float, rng) -> np.ndarray:
 
 
 def sample_nonstationary_graph(N: int, T: int, d: float, lag: int, rng) -> np.ndarray:
-    """Return a time graph (T * N, T * N) whose edges are drawn at every step."""
+    """Return a time graph (T * N, T * N) with edges drawn at each step."""
     A = np.zeros((T * N, T * N), dtype=bool)
     p = edge_probability(N, lag, d)
     for t in range(T - 1):

@@ -1,4 +1,4 @@
-"""Check the baselines."""
+"""Check the baselines in `baselines/`."""
 import numpy as np
 import pytest
 
@@ -33,12 +33,12 @@ def _parents(test, target=3):
 
 def test_iamb_breaks_a_tie_of_p_values_by_neglogp_and_then_by_the_largest_index():
     assert _parents(_WithNeglogp()) == {0, 1}            # Candidate 1 has the larger -log p.
-    assert _parents(_TwoEqualCandidates()) == {0, 2}     # Without neglogp: the largest index.
+    assert _parents(_TwoEqualCandidates()) == {0, 2}     # Without `neglogp`: the largest index.
     assert _parents(_WithNeglogp(), target=4) == {1}
 
 
 class _Recorded(DSeparation):
-    """DSeparation that lists the tests it evaluates."""
+    """`DSeparation` that lists the tests it evaluates."""
 
     def __init__(self, A):
         super().__init__(A)
@@ -57,13 +57,15 @@ def test_iamb_adds_the_largest_index_first_under_the_oracle():
     result = iamb(CICounter(test), 3, 2)
     assert np.array_equal(result.adjacency, A)
     # Both candidates have p = 0 given the self parent, and the oracle has no
-    # neglogp. Candidate 2 enters the blanket first, so the third test of
-    # the target is candidate 1 given {0, 2}.
+    # `neglogp`. Candidate 2 enters the blanket first, so the third test of the
+    # target is candidate 1 given {0, 2}.
     assert test.evaluated[:3] == [(1, 3, (0,)), (2, 3, (0,)), (1, 3, (0, 2))]
 
 
 def _stationary_graph():
-    """N = 3, T = 4, lags 1 and 2: every lag-1 self edge, 0 -> 1 at lag 1, 2 -> 0 at lag 2."""
+    """Build a graph with N = 3, T = 4, and lags 1 and 2.
+
+    Includes every lag-1 self edge, 0 -> 1 at lag 1, and 2 -> 0 at lag 2."""
     B = np.zeros((3, 3, 3), dtype=bool)
     B[1] = np.eye(3, dtype=bool)
     B[1, 0, 1] = B[2, 2, 0] = True

@@ -1,17 +1,17 @@
 """Run one method on one instance.
 
 The methods are ITPD, the baselines IAMB, IPaDL, FullCI and Lasso of
-itpd.baselines, and the external baselines PCMCI, DF-PC, DYNOTEARS and CD-NOD
-of itpd.external. Every method with CI tests of this package calls the test
-through its own CICounter.
+`itpd.baselines`, and the external baselines PCMCI, DF-PC, DYNOTEARS and CD-NOD
+of `itpd.external`. Every method with CI tests of this package calls the test
+through its own `CICounter`.
 
 IAMB, IPaDL, FullCI, PCMCI, DF-PC and CD-NOD run at one of two levels: "alpha"
 is the nominal level, and "corrected" is alpha divided by the number of
 candidate parents of a target.
 
-An ITPD entry of a config can change the run: gamma and kappa are the
-constants of alpha1, and switches are the fields of
-itpd.experiments.ablations.Switches. Such an entry needs a label, which
+An ITPD entry of a config can change the run: `gamma` and `kappa` are the
+constants of `alpha1`, and `switches` are the fields of
+`itpd.experiments.ablations.Switches`. Such an entry needs a `label`, which
 names the run and its file.
 """
 import re
@@ -28,7 +28,7 @@ from .ablations import ITPDAblation, exhaustive_check
 CI_TESTS = {"fisherz": FisherZ, "gcm": GCM}
 BASELINES = {"IAMB": iamb, "IPaDL": ipadl, "FullCI": full_conditioning}
 LEVELS = ("alpha", "corrected")
-# Method -> the keys of its entry in a config, besides name.
+# Method -> the keys of its entry in a config, besides `name`.
 OPTIONS = {"ITPD": ("label", "switches", "gamma", "kappa"), "IAMB": ("levels",), "IPaDL": ("levels",), "FullCI": ("levels",), "Lasso": (),
            "PCMCI": ("levels", "max_lag", "time_limit"), "DF-PC": ("levels", "time_limit"),
            "DYNOTEARS": ("max_lag", "unit_variance"), "CD-NOD": ("levels", "max_lag", "time_limit")}
@@ -40,13 +40,12 @@ def slug(label: str) -> str:
 
 
 def expand(entry, lag: int, ci_test: str) -> list:
-    """Return the runs of one method entry of a config: one dict per level, with the name and the options.
+    """Return one dict per level for a config `entry`, with name and options.
 
-    lag is the lag of the graphs: PCMCI, DYNOTEARS and CD-NOD search up to
-    max_lag, which defaults to it. A method with levels runs at "alpha"
-    unless the entry lists its levels. Raise ValueError for an entry that
-    names no method, holds an unknown key, or cannot run with the CI test
-    of the setting."""
+    `lag` is the lag of the graphs: PCMCI, DYNOTEARS and CD-NOD search up to
+    `max_lag`, which defaults to it. A method with levels runs at "alpha"
+    unless `entry` lists its `levels`. Raise `ValueError` for an entry that
+    names no method, holds an unknown key, or cannot run with `ci_test`."""
     name = entry.get("name") if isinstance(entry, dict) else None
     if name not in OPTIONS:
         raise ValueError(f"unknown method: {entry!r}")
@@ -87,12 +86,19 @@ def expand(entry, lag: int, ci_test: str) -> list:
 
 
 def _itpd(method, counter, instance, V, alpha):
+    """Run ITPD (or `ITPDAblation` with `switches`) through `counter`.
+
+    Return the adjacency matrix, untested targets, and a dict with
+    `screened_size` (mean |S| before Phase II) for `ITPDAblation` or empty for
+    ITPD. Raise `RuntimeError` if ITPD and `counter` disagree on the number of
+    requested tests.
+    """
     options = {key: method[key] for key in ("switches", "gamma", "kappa") if key in method}
     model = (ITPDAblation if "switches" in method else ITPD)(counter, alpha=alpha, **options)
     with warnings.catch_warnings():
         # The result lists the untested targets.
         warnings.filterwarnings("ignore", message=".*could not be evaluated", category=RuntimeWarning)
-        # The oracle needs no data: fit reads only the shape.
+        # The oracle needs no data: `fit` reads only the shape.
         model.fit(np.zeros((2, instance.T, instance.N)) if V is None else V)
     if sum(model.ci_queries_.values()) != counter.requested:
         raise RuntimeError("ITPD and the counter disagree on the number of requested tests")
@@ -101,6 +107,10 @@ def _itpd(method, counter, instance, V, alpha):
 
 
 def _external(method, instance, V, alpha) -> dict:
+    """Run an external baseline with `run_external` and return `run_method` keys.
+
+    `edges` is `None` unless the status is "ok".
+    """
     name = method["name"]
     options = {key: method[key] for key in ("max_lag", "unit_variance") if key in method}
     if "level" in method:
@@ -121,13 +131,14 @@ def run_method(method: dict, instance, V, ci_test: str, alpha: float) -> dict:
     Parameters
     ----------
     method : dict
-        name, and where they apply level ("alpha" or "corrected"), max_lag,
-        time_limit (seconds), unit_variance, switches, gamma, kappa.
+        `name`, and where they apply `level` ("alpha" or "corrected"),
+        `max_lag`, `time_limit` (seconds), `unit_variance`, `switches`,
+        `gamma`, `kappa`.
     instance : itpd.simulation.Instance
-        Gives N, T and, for the oracle, the true graph. Without a graph it
-        is a block of enumerated graphs (generator "enumerate").
+        Gives N, T and, for the oracle, the true graph. Without a graph it is a
+        block of enumerated graphs (generator "enumerate").
     V : ndarray (M, T, N) or None
-        The data; None with the oracle.
+        The data; `None` with the oracle.
     ci_test : {"fisherz", "gcm", "oracle"}
         The CI test of ITPD, IAMB, IPaDL and FullCI.
     alpha : float
@@ -136,15 +147,19 @@ def run_method(method: dict, instance, V, ci_test: str, alpha: float) -> dict:
     Returns
     -------
     dict
-        status: "ok"; "partial" when a target is untested; for an external
-        baseline also "timeout", "skipped" or "error" (then with a message).
-        edges: the estimate as a list of u * T N + v for u -> v, or None when
-        there is no estimate. untested: the untested targets. requested,
-        unique, largest_set, mean_set: the counts of CI tests, where the
-        method has them. screened_size: mean |S| before Phase II over the
-        targets, for ITPD with switches. seconds: time of the method call.
-        For a block of enumerated graphs: status, edges None, and the
-        counts of exhaustive_check.
+        - `status`: "ok"; "partial" when a target is untested; for an external
+          baseline also "timeout", "skipped" or "error" (then with a
+          `message`).
+        - `edges`: the estimate as a list of u * T * N + v for u -> v, or
+          `None` when there is no estimate.
+        - `untested`: the untested targets.
+        - `requested`, `unique`, `largest_set`, `mean_set`: the counts of CI
+          tests, where the method has them.
+        - `screened_size`: mean |S| before Phase II over the targets, for ITPD
+          with `switches`.
+        - `seconds`: time of the method call.
+        - For a block of enumerated graphs: `status`, `edges` as `None`, and
+          the counts of `exhaustive_check`.
     """
     name, N, T = method["name"], instance.N, instance.T
     if name in SCRIPTS:

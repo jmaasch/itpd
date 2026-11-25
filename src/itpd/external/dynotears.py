@@ -1,13 +1,16 @@
-"""DYNOTEARS (causalnex) on data of shape (M, T, N).
+"""DYNOTEARS (`causalnex`) on data of shape (M, T, N).
 
     python dynotears.py --input in.npz --output out.npz --max-lag 1 [--unit-variance]
 
-The M observations are given as M data frames. The penalties are
-lambda_w = lambda_a = 0.1 and the weight threshold is 0.05; nothing is
-tuned. The fitted model is one window graph with lags 0, ..., max-lag. The
-edges with lag 1 or more are repeated at every time step; the edges inside
-a time step are dropped. --unit-variance divides every series by the root of
-its mean square over all observations and time steps.
+See `_common.py` for I/O and time graphs.
+- The M observations are given as M data frames.
+- The penalties are lambda_w = lambda_a = 0.1 and the weight threshold is 0.05;
+  nothing is tuned.
+- The fitted model is one window graph with lags 0, ..., max-lag. The edges
+  with lag 1 or more are repeated at every time step; the edges inside a time
+  step are dropped.
+- `--unit-variance` divides every series by the root of its mean square over
+  all observations and time steps.
 """
 import time
 
@@ -19,6 +22,7 @@ import _common
 
 
 def main():
+    """Read input, fit DYNOTEARS, and write the time graph of its lagged edges."""
     p = _common.parser(__doc__.split("\n")[0])
     p.add_argument("--max-lag", type=int, default=1)
     p.add_argument("--unit-variance", action="store_true")

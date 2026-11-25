@@ -1,3 +1,4 @@
+# Table: mean F1 with one assumption violated (no lag-1 self edge)
 paper_item: "Table: mean F1 with one assumption violated (no lag-1 self edge)"
 description: >
   The main finite data setting with in-degree 2 (20 series, 16 time steps, nonstationary graphs with lag-1 edges,

@@ -1,8 +1,8 @@
-"""ITPD with single lines of Algorithm 1 changed, for the ablation tables.
+"""ITPD with single lines of Algorithm 1 changed, for ablations.
 
-Switches names the changes; its defaults are Algorithm 1. ITPDAblation is
-ITPD with these changes. exhaustive_check runs it with a d-separation oracle
-on every time graph of a small size.
+`Switches` names the changes; its defaults are Algorithm 1. `ITPDAblation` is
+`ITPD` with these changes. `exhaustive_check` runs it with a d-separation
+oracle on every time graph of a small size.
 """
 import math
 from dataclasses import dataclass, fields
@@ -13,13 +13,18 @@ from scipy.special import ndtr
 from .. import ITPD, DSeparation, NotEvaluable
 from ..graphs import self_edge_mask
 
-# exhaustive_check: a config counts the enumerated graphs in blocks of this many masks.
+# Masks per block; graph index g of generator "enumerate" is block g.
 BLOCK = 65536
 
 
 @dataclass(frozen=True)
 class Switches:
-    """Changes to single lines of Algorithm 1. The defaults are Algorithm 1."""
+    """Changes to single lines of Algorithm 1.
+
+    The defaults are Algorithm 1. Each field has a comment that names its line
+    of Algorithm 1 and its values. A value that a switch does not allow raises
+    `ValueError`.
+    """
     candidate_order: str = "descending"   # Line 6: "descending" | "ascending" time
     ancestor_gate: bool = True            # Line 7; False: Line 8 runs for every candidate
     marginal_test: bool = True            # Line 8; False: Lines 7 and 8 removed
@@ -44,15 +49,19 @@ class Switches:
 
 
 def extended_bic_level(M: int, m: int) -> float:
-    """Return the extended-BIC level P(chi2_1 > log(M m)) for M observations and m candidates."""
+    """Return the extended-BIC level P(chi2_1 > log(M m)).
+
+    M is the number of observations and m the number of candidates.
+    """
     return float(2.0 * ndtr(-math.sqrt(math.log(M) + math.log(max(m, 1)))))
 
 
 class ITPDAblation(ITPD):
-    """ITPD with the changes of switches (a Switches, or its fields as a dict).
+    """ITPD with the changes of `switches`.
 
-    screened_sizes_ maps a target to |S| before Phase II, X included. A
-    target with a test that could not be evaluated in Phase I has no entry."""
+    `switches` is a `Switches` or its fields as a dict. `screened_sizes_` maps
+    a target to |S| before Phase II, X included. A target with a test that
+    could not be evaluated in Phase I has no entry."""
 
     def __init__(self, *args, switches=Switches(), **kwargs):
         super().__init__(*args, **kwargs)
@@ -63,6 +72,10 @@ class ITPDAblation(ITPD):
         return super().fit(V, n_variables=n_variables)
 
     def _levels(self, t):
+        """Return (alpha1, alpha2) as `ITPD._levels` does.
+
+        The switches `phase1_level` and `phase2_level` are applied.
+        """
         alpha1, alpha2 = super()._levels(t)
         if self.switches.phase1_level == "alpha":
             alpha1 = self.alpha
@@ -73,6 +86,11 @@ class ITPDAblation(ITPD):
         return alpha1, alpha2
 
     def _discover(self, x, y, t):
+        """Return the parents of y as `ITPD._discover` does, with the switches applied.
+
+        Comments give the lines of Algorithm 1. Stores |S| before Phase II in
+        `screened_sizes_`.
+        """
         sw, N = self.switches, self.N_
         alpha1, alpha2 = self._levels(t)
         try:
@@ -119,34 +137,34 @@ class ITPDAblation(ITPD):
 
 
 def exhaustive_check(switches, N: int, T: int, masks, *, latent_first_step: bool = False) -> dict:
-    """Run ITPD with a d-separation oracle on enumerated time graphs and count the exact outputs.
+    """Run ITPD with an oracle on enumerated time graphs and count exact outputs.
 
     The graphs are the time graphs of N series and T steps with every lag-1
-    self edge and no edge inside a time step. The other pairs (u, v) with u
-    at an earlier step than v are the optional edges, in increasing order
-    of (u, v); bit i of a mask says whether optional edge i is present.
+    self edge and no edge inside a time step. The other pairs (u, v) with u at
+    an earlier step than v are the optional edges, in increasing order of (u,
+    v); bit i of a mask says whether optional edge i is present.
 
     Parameters
     ----------
     switches : Switches, dict or None
-        The changes to Algorithm 1; None runs the class ITPD.
+        The changes to Algorithm 1; `None` runs the class `ITPD`.
     masks : iterable of int
         The graphs to check.
     latent_first_step : bool
-        False: every step is observed, and an output is exact when it is
-        the true graph. True: the method sees steps 2 to T and the oracle
-        answers on the full graph; a target is judged when all its parents
-        are observed, and an output is exact when every judged target has
-        its true parents.
+        `False`: every step is observed, and an output is exact when it is the
+        true graph. `True`: the method sees steps 2 to T and the oracle answers
+        on the full graph; a target is judged when all its parents are
+        observed, and an output is exact when every judged target has its true
+        parents.
 
     Returns
     -------
     dict
-        graphs, exact (number of graphs with an exact output),
-        wrong_targets, judged_targets, requested_phase1, requested_phase2
-        (CI tests), largest_set, and first_failure: None, or [number of
-        optional edges, mask] of the failing graph with the fewest optional
-        edges and then the smallest mask.
+        `graphs`, `exact` (number of graphs with an exact output),
+        `wrong_targets`, `judged_targets`, `requested_phase1`,
+        `requested_phase2` (CI tests), `largest_set`, and `first_failure`:
+        `None`, or [number of optional edges, mask] of the failing graph with
+        the fewest optional edges and then the smallest mask.
     """
     size, shift = N * T, N if latent_first_step else 0
     optional = [(u, v) for u in range(size) for v in range(size) if u // N < v // N and v != u + N]
