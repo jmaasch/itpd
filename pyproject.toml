@@ -8,7 +8,7 @@ version = "0.2.0"
 description = "Iterative Temporal Parent Discovery (ITPD): causal discovery for multivariate time series"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["numpy", "scipy", "scikit-learn", "networkx>=3.3", "pyyaml"]
+dependencies = ["numpy", "scipy", "scikit-learn", "networkx>=3.3", "pyyaml", "threadpoolctl"]
 
 [project.optional-dependencies]
 # matplotlib draws the graph in ITPD.plot_graph, which one test calls.

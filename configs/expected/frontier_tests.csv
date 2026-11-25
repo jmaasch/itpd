@@ -1,0 +1,32 @@
+# Means over graphs of the stored runs of the paper, at full precision (source: curves/main_setting.csv of the stored results).
+# Methods of this package only. setting is the folder of the setting in the output of run; an empty level is a method
+# with one level; better_level marks the level with the higher mean F1 of the cell.
+setting,M,method,level,better_level,metric,mean,graphs
+standard_N20_T16_lag1_in_degree2_nonstationary,500,ITPD,,True,f1,0.9916630060261851,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,ITPD,,True,unique_per_candidate,1.3349109014675054,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,IAMB,alpha,False,f1,0.7496137185329944,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,IAMB,alpha,False,unique_per_candidate,4.635447589098533,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,IAMB,corrected,True,f1,0.9943697780879749,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,IAMB,corrected,True,unique_per_candidate,2.953672955974843,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,IPaDL,alpha,False,f1,0.9067757500687051,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,IPaDL,alpha,False,unique_per_candidate,1.360916142557652,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,IPaDL,corrected,True,f1,0.9667978361192631,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,IPaDL,corrected,True,unique_per_candidate,1.1950754716981133,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,FullCI,alpha,False,f1,0.6995575687897377,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,FullCI,alpha,False,unique_per_candidate,1.0,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,FullCI,corrected,True,f1,0.9347459026262854,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,FullCI,corrected,True,unique_per_candidate,1.0,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,ITPD,,True,f1,0.9605880624176006,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,ITPD,,True,unique_per_candidate,1.375721174004193,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,IAMB,alpha,False,f1,0.8808096220089057,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,IAMB,alpha,False,unique_per_candidate,7.555762054507338,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,IAMB,corrected,True,f1,0.972263005118337,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,IAMB,corrected,True,unique_per_candidate,5.708285115303983,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,IPaDL,alpha,True,f1,0.9125585570942469,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,IPaDL,alpha,True,unique_per_candidate,1.5086362683438153,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,IPaDL,corrected,False,f1,0.8666350623489552,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,IPaDL,corrected,False,unique_per_candidate,1.2734591194968554,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,FullCI,alpha,True,f1,0.8149511973834678,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,FullCI,alpha,True,unique_per_candidate,1.0,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,FullCI,corrected,False,f1,0.807800485828874,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,FullCI,corrected,False,unique_per_candidate,1.0,20

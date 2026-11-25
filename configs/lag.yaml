@@ -1,0 +1,42 @@
+paper_item: "Figure: mean F1 on common targets against the true lag on stationary and nonstationary graphs"
+description: >
+  Linear-Gaussian data of 10 series, in-degree 2, from graphs with edges up to lag 1, 2, 4 (16 time steps)
+  and 8 (24 time steps); 20 graphs per lag; 500 and 2000 observations (the figure shows 2000); Fisher-z test.
+  PCMCI, DYNOTEARS and CD-NOD search up to lag 1 and up to the lag of the graph.
+alpha: 0.01
+ci_test: fisherz
+seed: 0
+graph:
+  generator: standard
+  N: 10
+  in_degree: 2
+data:
+  mechanism: linear_gaussian
+  M: [500, 2000]                  # the first M rows of one draw of 2000 rows
+graphs: 0-19
+# Every graph has an edge between two series at the lag of its setting. Among the stationary graphs with lag 8,
+# the indices 0, 9, 12 and 17 have none: the 20 graphs are the first 20 indices that have one.
+settings:
+  - graph: {T: 16, lag: [1, 2, 4], stationary: [true, false]}
+  - graph: {T: 24, lag: 8, stationary: false}
+  - {graphs: "1-8,10,11,13-16,18-23", graph: {T: 24, lag: 8, stationary: true}}
+methods:
+  - {name: ITPD}
+  - {name: IAMB, levels: [alpha, corrected]}
+  - {name: IPaDL, levels: [alpha, corrected]}
+  - {name: FullCI, levels: [alpha, corrected]}
+  - {name: Lasso}
+  - {name: DF-PC, levels: [alpha, corrected], time_limit: 600}
+  # max_lag 1, and without max_lag the lag of the graph (at lag 1 both entries are the same run)
+  - {name: PCMCI, levels: [alpha, corrected], max_lag: 1}
+  - {name: PCMCI, levels: [alpha, corrected]}
+  - {name: DYNOTEARS, max_lag: 1}
+  - {name: DYNOTEARS}
+  - {name: CD-NOD, levels: [alpha, corrected], max_lag: 1, time_limit: 1800}
+  - {name: CD-NOD, levels: [alpha, corrected], time_limit: 1800}
+scoring:
+  view: edges
+  targets: common
+report:
+  metrics: [f1]
+  bootstrap: {resamples: 10000, seed: 20261113}

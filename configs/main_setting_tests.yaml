@@ -1,0 +1,31 @@
+paper_item: "Table: unique CI tests per candidate and conditioning set sizes in the main finite data setting"
+description: >
+  The runs of main_setting_f1.yaml with 2000 observations, for the methods that run CI tests. Every baseline
+  is shown at the level with the higher mean F1; PCMCI has no count per candidate.
+alpha: 0.01
+ci_test: fisherz
+seed: 0
+graph:
+  generator: standard
+  N: 20
+  T: 16
+  lag: 1
+  in_degree: [1, 2, 3, 5]
+  stationary: false
+data:
+  mechanism: linear_gaussian
+  M: 2000
+graphs: 0-19
+methods:
+  - {name: ITPD}
+  - {name: IAMB, levels: [alpha, corrected]}
+  - {name: IPaDL, levels: [alpha, corrected]}
+  - {name: FullCI, levels: [alpha, corrected]}
+  - {name: PCMCI, levels: [alpha, corrected], max_lag: 1}
+  - {name: DF-PC, levels: [alpha, corrected], time_limit: 600}
+scoring:
+  view: edges
+  targets: common
+report:
+  metrics: [unique_per_candidate, mean_set, largest_set]
+  bootstrap: {resamples: 10000, seed: 20261113}

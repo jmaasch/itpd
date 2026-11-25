@@ -1,7 +1,8 @@
 """Check Algorithm 1, its test levels, its CI tests, and finite-data results.
 
 The finite-data tests at the end draw their data again and skip when the data
-hash differs. Use -m "not slow" to omit them."""
+hash differs (they fail instead with ITPD_REQUIRE_REFERENCE_DATA=1 in the
+environment). Use -m "not slow" to omit them."""
 import math
 import warnings
 
@@ -10,6 +11,7 @@ import numpy as np
 import pytest
 
 from itpd import CICounter, DSeparation, FisherZ, ITPD, NotEvaluable, metrics
+from itpd.simulation import linear
 
 
 # Exact recovery with the d-separation oracle.
@@ -272,13 +274,10 @@ FIXTURES = [
 @pytest.mark.slow
 @pytest.mark.parametrize("d, g, M, sha1, tp, fp, fn, requested, unique, largest", FIXTURES,
                          ids=[f"d{f[0]:g}-g{f[1]}-M{f[2]}" for f in FIXTURES])
-def test_stored_runs(d, g, M, sha1, tp, fp, fn, requested, unique, largest):
-    linear = pytest.importorskip("itpd.simulation.linear", reason="needs the data generator itpd.simulation")
+def test_stored_runs(reference_data, d, g, M, sha1, tp, fp, fn, requested, unique, largest):
     N, T = 20, 16
     instance = linear.make_instance(N, T, 1, d, g, stationary=False)
-    if linear.data_hash(instance.sample(2000)) != sha1:
-        pytest.skip("the data differ on this platform")
-    V = instance.sample(M)
+    V = reference_data(instance, sha1)[:M]
     counter = CICounter(FisherZ(V))
 
     with warnings.catch_warnings():
