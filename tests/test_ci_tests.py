@@ -105,6 +105,14 @@ def test_gcm_nan_with_fewer_than_eight_observations():
     assert not math.isnan(GCM(data[:8])(0, 1))
 
 
+def test_gcm_when_the_residual_product_has_no_variance():
+    x = np.array([-1.0, 1.0] * 4)
+    # Two equal columns of -1 and 1: R = 1 in every observation.
+    assert math.isnan(GCM(np.column_stack([x, x]))(0, 1))
+    # A column of zeros: R = 0 in every observation.
+    assert GCM(np.column_stack([x, np.zeros(8)]))(0, 1) == 1.0
+
+
 # d-separation oracle.
 
 def test_dseparation_on_small_graphs():

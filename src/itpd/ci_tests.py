@@ -31,6 +31,7 @@ class FisherZ:
     correlation matrix is computed once. With dof = M - |S| - 3, the statistic
     is sqrt(dof) * |atanh(r)| for the partial correlation r of x and y given S,
     and the p-value is two-sided normal. The test returns NaN when dof <= 0.
+    The p-value is 1.0 when x or y has no variance left given S.
 
     The last bits of a p-value depend on the order of x, y and S.
     """
@@ -94,9 +95,10 @@ class GCM:
     residual of x given S on one fold comes from a
     `HistGradientBoostingRegressor` fitted on the other fold, and likewise for
     y. With R = residual of x times residual of y, the statistic is
-    sqrt(M) * mean(R) / sd(R), and the p-value is two-sided normal (1.0 when R
-    has no variance). With an empty S the residuals are the centered columns.
-    The test returns NaN only when M < 8.
+    sqrt(M) * mean(R) / sd(R), and the p-value is two-sided normal. With an
+    empty S the residuals are the centered columns. When R has no variance and
+    mean(R) is 0, the p-value is 1.0. The test returns NaN when M < 8, or when
+    R has no variance and mean(R) is not 0.
 
     The p-values depend on the scikit-learn version.
     """
@@ -127,7 +129,7 @@ class GCM:
         return residual
 
     def __call__(self, x: int, y: int, S=()) -> float:
-        """Return the two-sided p-value of x and y given S, or NaN when M < 8."""
+        """Return the two-sided p-value of x and y given S, or NaN if not evaluable."""
         S = [int(s) for s in S if s != x and s != y]
         if self.n < 8:
             return float("nan")
@@ -135,7 +137,7 @@ class GCM:
         R = self._residual(self.data[:, x], Z) * self._residual(self.data[:, y], Z)
         m, v = R.mean(), (R ** 2).mean() - R.mean() ** 2
         if v <= 1e-300:
-            return 1.0
+            return 1.0 if m == 0 else float("nan")
         stat = np.sqrt(self.n) * m / np.sqrt(v)
         return float(erfc(abs(stat) / np.sqrt(2.0)))
 

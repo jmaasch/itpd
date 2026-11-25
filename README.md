@@ -50,4 +50,4 @@ The first command runs the 40 ITPD runs in about 2 minutes, and the second print
 python -m pytest -q
 ```
 
-This runs 184 tests in about one minute (`python -m pytest -q -m slow` runs 7 more tests on stored runs).
+This runs 185 tests in about one minute (`python -m pytest -q -m slow` runs 7 more tests on stored runs).

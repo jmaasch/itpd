@@ -92,8 +92,11 @@ class CICounter:
         """Return the counts of a run on N series and T steps.
 
         `largest_set` and `mean_set` are over the unique tests. Both are `None`
-        when there is no test."""
+        when there is no test. `unique_per_candidate` is the number of unique
+        tests divided by `n_candidates(N, T)`, or `None` when
+        `n_candidates(N, T)` is 0."""
         unique = self.unique
+        candidates = n_candidates(N, T)
         sizes = [size for size, count in self.by_size.items() if count]
         return {
             "requested": self.requested,
@@ -101,6 +104,6 @@ class CICounter:
             "largest_set": max(sizes) if sizes else None,
             "mean_set": (sum(size * count for size, count in self.by_size.items()) / unique
                          if unique else None),
-            "unique_per_candidate": unique / n_candidates(N, T),
+            "unique_per_candidate": unique / candidates if candidates else None,
             "not_evaluable": self.not_evaluable,
         }

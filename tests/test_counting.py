@@ -62,6 +62,9 @@ def test_summary_without_tests():
     summary = CICounter(_Test()).summary(20, 16)
     assert summary["requested"] == summary["unique"] == summary["not_evaluable"] == 0
     assert summary["largest_set"] is None and summary["mean_set"] is None
+    assert summary["unique_per_candidate"] == 0
+    # T = 1 gives no candidate.
+    assert CICounter(_Test()).summary(3, 1)["unique_per_candidate"] is None
 
 
 def test_n_candidates():
