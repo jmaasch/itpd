@@ -4,22 +4,19 @@ ITPD (Iterative Temporal Parent Discovery) is a constraint-based algorithm for c
 
 ## Where things are
 
-The list starts with the core files (`src/itpd/algorithm.py`, `src/itpd/ci_tests.py`, `src/itpd/counting.py`), in the order to read them.
-
-- `src/itpd/algorithm.py`: the class `ITPD` (Algorithm 1, about 350 lines; read this first). Comments in `_discover` give Lines 5 to 16, and the defaults match the paper (alpha = 0.01, gamma = 0.2, kappa = 50, Fisher-z test).
-- `src/itpd/ci_tests.py`: the CI tests `FisherZ` (linear-Gaussian data), `GCM` (nonlinear data) and `DSeparation` (d-separation oracle), in about 200 lines.
-- `src/itpd/counting.py`: `CICounter` (about 100 lines). It wraps a CI test and counts every test call in the same way across all methods.
-- `src/itpd/baselines/`: the baselines IAMB, IPaDL, FullCI and Lasso, one file per baseline, about 300 lines in total.
+- `src/itpd/algorithm.py`: the class `ITPD` (Algorithm 1; read this first). Comments in `_discover` give Lines 5 to 16, and the defaults match the paper (alpha = 0.01, gamma = 0.2, kappa = 50, Fisher-z test).
+- `src/itpd/ci_tests.py`: the CI tests `FisherZ` (linear-Gaussian data), `GCM` (nonlinear data) and `DSeparation` (d-separation oracle).
+- `src/itpd/counting.py`: `CICounter`, a CI test wrapper that counts every test call in the same way across all methods.
+- `src/itpd/baselines/`: the baselines IAMB, IPaDL, FullCI and Lasso, one file per baseline.
 - `src/itpd/simulation/`: the generators of the simulated graphs and data, with data shape (M, T, N).
 - `src/itpd/external/`: one wrapper script per external baseline (PCMCI, DF-PC, DYNOTEARS and CD-NOD); the files in `requirements/` pin the external tools.
-- `src/itpd/experiments/`: the command line `python -m itpd.experiments`. `runner.py` runs the methods of a configuration (about 150 lines) and `aggregate.py` builds the table of means (about 300 lines). `ablations.py` is ITPD with single lines of Algorithm 1 changed, for the ablation tables.
+- `src/itpd/experiments/`: the command line `python -m itpd.experiments`. `runner.py` runs the methods of a configuration, `aggregate.py` builds the table of means, and `ablations.py` runs Algorithm 1 with single-line changes for the ablation tables.
 - `configs/`: 22 YAML files for the paper's experiments and `configs/expected/` for expected means. See `configs/README.md` for status and what is not reproduced.
 - `examples/`: `examples/fit_simulated_data.py` fits ITPD on simulated data, and `examples/oracle_exact_recovery.py` recovers a random graph with the d-separation oracle.
 - `tests/`: the package tests, including `tests/test_reference_runs.py` for comparing runs with stored runs of the paper's experiments.
 - `data/gene_networks/`: the data for the two tables on simulated gene regulatory networks; see `data/gene_networks/README.md`.
 - `lean/`: the Lean 4 proof (`lean/ITPD/Paper.lean` states `itpdPaper` and `itpd_exact`); run `lake build` here, and see `lean/README.md`.
-- `requirements/`: `constraints.txt` pins the Python 3.12 package versions, and `pcmci-dfpc.txt`, `dynotears.txt` and `cdnod.txt` cover the external baselines.
-- `legacy/`: earlier code not used by the package or the configurations; it is not the algorithm of the paper.
+- `legacy/`: earlier code, kept for reference. The package and the configurations do not use it.
 - `LICENSE`, `NOTICE.md`: the GPL-3.0 license and the third-party notices.
 
 ## Install
@@ -42,12 +39,7 @@ This fits ITPD on 500 observations of 5 series over 8 time steps in a few second
 ```bash
 python -m itpd.experiments run configs/frontier_tests.yaml --out out/frontier_tests --methods ITPD
 python -m itpd.experiments table configs/frontier_tests.yaml --runs out/frontier_tests --compare
-```
-
-The first command runs the 40 ITPD runs in about 2 minutes, and the second prints each mean next to its expected mean (`largest absolute difference 0.0e+00`). See `configs/README.md` for all configurations.
-
-```bash
 python -m pytest -q
 ```
 
-This runs 185 tests in about one minute (`python -m pytest -q -m slow` runs 7 more tests on stored runs).
+The first command runs the 40 ITPD runs in about 2 minutes. The second command prints each mean next to its expected mean (`largest absolute difference 0.0e+00`). The third command runs 185 tests in about one minute (`python -m pytest -q -m slow` runs 7 more tests on stored runs). See `configs/README.md` for all configurations.
