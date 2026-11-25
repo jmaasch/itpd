@@ -11,7 +11,7 @@ requires-python = ">=3.10"
 dependencies = ["numpy", "scipy", "scikit-learn", "networkx>=3.3", "pyyaml", "threadpoolctl"]
 
 [project.optional-dependencies]
-# matplotlib draws the graph in ITPD.plot_graph, which one test calls.
+# matplotlib draws the graph in ITPD.plot_graph, which two tests call.
 test = ["pytest", "matplotlib"]
 
 [tool.setuptools.packages.find]
@@ -19,4 +19,6 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["slow: finite-data runs of several seconds each (deselect with -m 'not slow')"]
+# The default run leaves out the tests marked slow. Run them with: python -m pytest -m slow
+addopts = "-m 'not slow'"
+markers = ["slow: stored runs that take up to 10 seconds each"]

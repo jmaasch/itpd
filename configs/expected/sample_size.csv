@@ -1,4 +1,4 @@
-# Means over graphs of the stored runs of the paper, at full precision (source: curves/few_observations.csv of the stored results).
+# Means over graphs of the stored runs of the paper, at full precision.
 # Methods of this package only. setting is the folder of the setting in the output of run; an empty level is a method
 # with one level; better_level marks the level with the higher mean F1 of the cell.
 setting,M,method,level,better_level,metric,mean,graphs

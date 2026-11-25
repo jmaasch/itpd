@@ -2,7 +2,7 @@
 import numpy as np
 import pytest
 
-from itpd.graphs import check_temporal, graph_hash, node, self_edge_mask, unroll
+from itpd.graphs import check_temporal, graph_hash, self_edge_mask, unroll
 
 
 def _window():
@@ -11,10 +11,6 @@ def _window():
     B[1] = [[1, 1], [0, 1]]
     B[2] = [[0, 0], [1, 0]]
     return B
-
-
-def test_node():
-    assert node(0, 0, 20) == 0 and node(3, 4, 20) == 64
 
 
 def test_unroll():

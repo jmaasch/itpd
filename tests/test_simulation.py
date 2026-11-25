@@ -97,11 +97,11 @@ def test_smaller_m_is_a_prefix():
         assert np.array_equal(instance.sample(2000), full)   # the same draw on every call
 
 
-def test_more_rows_than_m_max_are_another_draw():
+def test_more_rows_than_one_draw_holds_are_another_draw():
     instance = linear.make_instance(5, 6, 1, 2, 0, stationary=False)
-    larger = instance.sample(2500)
-    assert larger.shape == (2500, 6, 5)
-    assert not np.array_equal(larger[:2000], instance.sample(2000))
+    larger = instance.sample(linear.ROWS + 500)
+    assert larger.shape == (linear.ROWS + 500, 6, 5)
+    assert not np.array_equal(larger[:linear.ROWS], instance.sample(linear.ROWS))
 
 
 def test_data_hash_is_the_sha1_of_the_float64_bytes():

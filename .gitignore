@@ -15,6 +15,9 @@ venv/
 # Output of the experiment runner
 out/
 
+# Arrays written by data/gene_networks/simulate.py
+data/gene_networks/net*_g*.npy
+
 # Lean build output
 .lake/
 

@@ -25,7 +25,7 @@ def _rng(*parts):
     return np.random.default_rng(np.random.SeedSequence([int(p) for p in parts]))
 
 
-def make_instance(N: int, T: int, d: float, share: float, g: int, seed: int = 0, M_max: int = 2000) -> Instance:
+def make_instance(N: int, T: int, d: float, share: float, g: int, seed: int = 0) -> Instance:
     """Return graph number g with weights and data.
 
     The weights are drawn again (up to MAX_TRIES times) until the graph of
@@ -80,4 +80,4 @@ def make_instance(N: int, T: int, d: float, share: float, g: int, seed: int = 0,
 
     def draw(rows):
         return sample_linear(A, W, rows, _rng(seed, g, 2, 105, 0))
-    return Instance(A, N, T, 1, first_rows(draw, M_max, N, T), graph_hash(A), info)
+    return Instance(A, N, T, 1, first_rows(draw, N, T), graph_hash(A), info)

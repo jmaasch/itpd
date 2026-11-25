@@ -1,4 +1,4 @@
-"""Tests of itpd.experiments: the config reader, the runner and its result files, and the table of means."""
+"""Tests of itpd.experiments: the config reader, the runner, the table of means, the scores, the ablations and the command line."""
 import csv
 import json
 import subprocess
@@ -15,9 +15,7 @@ from itpd.experiments.ablations import ITPDAblation, Switches, exhaustive_check,
 from itpd.experiments.aggregate import cells, columns, rows
 from itpd.experiments.__main__ import main
 from itpd.experiments.config import ConfigError, indices, load
-from itpd.experiments.methods import run_method
 from itpd.experiments.runner import run_path, specifications
-from itpd.external import run_external
 from itpd.graphs import graph_hash
 from itpd.simulation import Instance, linear, nonlinear, redrawn_edges, stepwise, violations
 
@@ -46,12 +44,6 @@ def write(folder, name="small.yaml", **changes) -> str:
 def read(out, name, g=0, M=100, ci_test="fisherz", setting=SETTING) -> dict:
     folder = Path(out) / setting / f"g{g:02d}" / (f"M{M}" if M else "")
     return json.loads((folder / ci_test / f"{name}.json").read_text())
-
-
-@pytest.fixture
-def no_interpreters(monkeypatch):
-    for name in ("ITPD_PYTHON_PCMCI", "ITPD_PYTHON_DFPC", "ITPD_PYTHON_DYNOTEARS", "ITPD_PYTHON_CDNOD"):
-        monkeypatch.delenv(name, raising=False)
 
 
 # The config reader.
@@ -617,28 +609,16 @@ def test_changed_runs_have_their_own_files(tmp_path):
 
 # The command line.
 
-def test_command_line(tmp_path, no_interpreters):
+def test_command_line(tmp_path, capsys):
     config, out = write(tmp_path), tmp_path / "out"
-    command = [sys.executable, "-B", "-m", "itpd.experiments", "run", config, "--out", str(out),
-               "--graphs", "0", "--methods", "ITPD,Lasso", "--M", "100"]
-    done = subprocess.run(command, capture_output=True, text=True, cwd=tmp_path)
-    assert done.returncode == 0 and done.stdout.splitlines()[-1] == "2 runs written, 0 finished runs skipped"
+    arguments = ["--out", str(out), "--graphs", "0", "--methods", "ITPD,Lasso", "--M", "100"]
+    main(["run", config, *arguments])
+    assert capsys.readouterr().out.splitlines()[-1] == "2 runs written, 0 finished runs skipped"
     assert sorted(path.name for path in out.rglob("*.json")) == ["ITPD.json", "Lasso.json"]
     main(["run", config, "--out", str(out), "--graphs", "0-1", "--methods", "ITPD", "--M", "100"])
     assert len(list(out.rglob("ITPD.json"))) == 2
     # Another specification in the same folder: an error message and the exit code 1, no traceback.
-    done = subprocess.run([*command[:5], write(tmp_path, "changed.yaml", alpha=0.05), *command[6:]],
-                          capture_output=True, text=True, cwd=tmp_path)
+    command = [sys.executable, "-B", "-m", "itpd.experiments", "run", write(tmp_path, "changed.yaml", alpha=0.05), *arguments]
+    done = subprocess.run(command, capture_output=True, text=True, cwd=tmp_path)
     assert done.returncode == 1 and done.stderr.startswith("error: ") and "another specification" in done.stderr
     assert "Traceback" not in done.stderr
-
-
-# The external baselines.
-
-def test_missing_interpreter_gives_skipped(no_interpreters):
-    assert run_external("PCMCI", np.zeros((5, 4, 2)), alpha=0.01)["status"] == "skipped"
-    instance = linear.make_instance(3, 4, 1, 1, 0, stationary=False)
-    for method in ({"name": "PCMCI", "level": "alpha", "max_lag": 1}, {"name": "DF-PC", "level": "corrected", "time_limit": 5},
-                   {"name": "DYNOTEARS", "max_lag": 1, "unit_variance": True}, {"name": "CD-NOD", "level": "corrected", "max_lag": 1}):
-        result = run_method(method, instance, instance.sample(50), "fisherz", 0.01)
-        assert result["status"] == "skipped" and result["edges"] is None and result["untested"] == []

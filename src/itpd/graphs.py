@@ -8,11 +8,6 @@ import hashlib
 import numpy as np
 
 
-def node(t: int, n: int, N: int) -> int:
-    """Return the node of series n at step t."""
-    return t * N + n
-
-
 def unroll(B: np.ndarray, T: int) -> np.ndarray:
     """Return the time graph (T * N, T * N) of a stationary window graph.
 

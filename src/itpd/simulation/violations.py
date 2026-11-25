@@ -20,7 +20,7 @@ import zlib
 
 import numpy as np
 
-from ..graphs import graph_hash, self_edge_mask
+from ..graphs import graph_hash
 from . import Instance
 from .graphs import sample_nonstationary_graph
 from .linear import (MIN_STRENGTH, check_record, draw_weights, first_rows, marginal_margin, partial_margin,
@@ -80,7 +80,7 @@ def make_instance(d: float, g: int, *, no_self_edge_share: float = 0.0, same_ste
 
     info["A_main"] is the graph without the violation and info["A_lag1"]
     the edges of A between two different steps. Instance.A holds every
-    edge, also those inside a step. The data have 2000 rows."""
+    edge, also those inside a step."""
     if no_self_edge_share > 0 and same_step_share > 0:
         raise ValueError("Only one of the two shares may be above 0")
     stream = [seed, N, T, 1, int(d * 10), g]
@@ -138,4 +138,4 @@ def make_instance(d: float, g: int, *, no_self_edge_share: float = 0.0, same_ste
             if len(pa):
                 X[:, v] = X[:, v] + X[:, pa] @ W[pa, v]
         return X
-    return Instance(A, N, T, 1, first_rows(draw, 2000, N, T), graph_hash(A), info)
+    return Instance(A, N, T, 1, first_rows(draw, N, T), graph_hash(A), info)

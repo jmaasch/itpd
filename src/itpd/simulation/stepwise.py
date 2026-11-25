@@ -14,7 +14,7 @@ from .graphs import edge_probability
 from .linear import MAX_TRIES, MIN_STRENGTH, first_rows
 
 
-def make_instance(N: int, T: int, d: float, g: int, seed: int = 0, M_max: int = 2000) -> Instance:
+def make_instance(N: int, T: int, d: float, g: int, seed: int = 0) -> Instance:
     """Return graph number g with weights and data.
 
     info["weights"] has shape (T - 1, N, N): entry [t - 1, i, j] is the
@@ -73,4 +73,4 @@ def make_instance(N: int, T: int, d: float, g: int, seed: int = 0, M_max: int = 
         return X
     info = {"weights": W3, "guard_failures": failures, "guard_ok": failures == 0,
             "min_partial_correlation": float(min_partial), "min_marginal_correlation": float(min_marginal)}
-    return Instance(A, N, T, 1, first_rows(draw, M_max, N, T), graph_hash(A), info)
+    return Instance(A, N, T, 1, first_rows(draw, N, T), graph_hash(A), info)

@@ -81,8 +81,7 @@ def edge_margins(A: np.ndarray, X: np.ndarray) -> dict:
     return out
 
 
-def make_instance(N: int, T: int, lag: int, d: float, g: int, *, stationary: bool, seed: int = 0,
-                  M_max: int = 2000) -> Instance:
+def make_instance(N: int, T: int, lag: int, d: float, g: int, *, stationary: bool, seed: int = 0) -> Instance:
     """Return graph number g of a setting, with parameters and data.
 
     The graph is that of linear.make_instance with the same arguments.
@@ -133,4 +132,4 @@ def make_instance(N: int, T: int, lag: int, d: float, g: int, *, stationary: boo
 
     def draw(rows):
         return sample_nonlinear(A, params, rows, np.random.default_rng(np.random.SeedSequence(data_seed)))
-    return Instance(A, N, T, lag, first_rows(draw, M_max, N, T), base.graph_sha1, info)
+    return Instance(A, N, T, lag, first_rows(draw, N, T), base.graph_sha1, info)

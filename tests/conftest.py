@@ -9,19 +9,7 @@ import pytest  # noqa: E402
 
 
 @pytest.fixture
-def reference_data():
-    """Return a function that draws the 2000 observations of an instance and checks their SHA-1.
-
-    Simulated data pass through BLAS, so another CPU type or BLAS build can
-    change their last bits. A test of stored numbers is then skipped. With
-    ITPD_REQUIRE_REFERENCE_DATA=1 in the environment it fails instead."""
-    from itpd.simulation.linear import data_hash
-
-    def draw(instance, sha1):
-        X = instance.sample(2000)
-        if data_hash(X) != sha1:
-            if os.environ.get("ITPD_REQUIRE_REFERENCE_DATA") == "1":
-                pytest.fail("the data differ on this platform")
-            pytest.skip("the data differ on this platform")
-        return X
-    return draw
+def no_interpreters(monkeypatch):
+    """Unset the variables that name the interpreters of the external baselines and the DF-PC clone."""
+    for name in ("ITPD_PYTHON_PCMCI", "ITPD_PYTHON_DFPC", "ITPD_PYTHON_DYNOTEARS", "ITPD_PYTHON_CDNOD", "ITPD_DFPC_SOURCE"):
+        monkeypatch.delenv(name, raising=False)

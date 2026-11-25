@@ -29,6 +29,6 @@ parents = model.adjacency_                 # node t * N + n -> frozenset of pare
 ## Tests
 
 ```
-python -m pytest -q
-python -m pytest -q -m "not slow"    # without the finite-data runs
+python -m pytest -q            # about one minute
+python -m pytest -q -m slow    # more stored runs of the paper's experiments
 ```

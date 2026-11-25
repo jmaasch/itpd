@@ -31,7 +31,7 @@ LEVELS = ("alpha", "corrected")
 # Method -> the keys of its entry in a config, besides name.
 OPTIONS = {"ITPD": ("label", "switches", "gamma", "kappa"), "IAMB": ("levels",), "IPaDL": ("levels",), "FullCI": ("levels",), "Lasso": (),
            "PCMCI": ("levels", "max_lag", "time_limit"), "DF-PC": ("levels", "time_limit"),
-           "DYNOTEARS": ("max_lag", "unit_variance", "time_limit"), "CD-NOD": ("levels", "max_lag", "time_limit")}
+           "DYNOTEARS": ("max_lag", "unit_variance"), "CD-NOD": ("levels", "max_lag", "time_limit")}
 
 
 def slug(label: str) -> str:

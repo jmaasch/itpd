@@ -12,9 +12,6 @@ from ..simulation import Instance, linear, nonlinear, redrawn_edges, stepwise, v
 from . import gene_networks
 from .ablations import BLOCK
 
-# Simulated data: the methods get the first M rows of one draw of max(ROWS, M) rows.
-ROWS = 2000
-
 
 def _standard(graph, mechanism, seed, g) -> Instance:
     make = nonlinear.make_instance if mechanism == "nonlinear" else linear.make_instance
@@ -79,10 +76,10 @@ def make_instance(graph: dict, mechanism: str, seed: int, g: int, folder: str = 
 def rows(mechanism: str, M: int) -> int:
     """Return the number of rows of the draw that holds the data of M observations.
 
-    Simulated data are the first M rows of a draw of max(ROWS, M) rows.
+    Simulated data are the first M rows of a draw of max(linear.ROWS, M) rows.
     Stored data (mechanism "stored") are centered over the M observations
     in use, so every M has its own draw of M rows."""
-    return M if mechanism == "stored" else max(ROWS, M)
+    return M if mechanism == "stored" else max(linear.ROWS, M)
 
 
 def draw(instance: Instance, rows: int):

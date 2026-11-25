@@ -16,6 +16,7 @@ from .graphs import sample_nonstationary_graph, sample_stationary_graph
 
 MIN_STRENGTH = 0.02
 MAX_TRIES = 25
+ROWS = 2000   # rows of one draw of the data
 
 
 def data_hash(X) -> str:
@@ -135,18 +136,18 @@ def sample_linear(A: np.ndarray, W: np.ndarray, M: int, rng) -> np.ndarray:
     return X
 
 
-def first_rows(draw, M_max: int, N: int, T: int):
-    """Return sample(M): the first M rows of draw(max(M_max, M)), as (M, T, N).
+def first_rows(draw, N: int, T: int):
+    """Return sample(M): the first M rows of draw(max(ROWS, M)), as (M, T, N).
 
     The noise is drawn per node at full length, so the draw for another
     number of rows is another data set, not an extension."""
     def sample(M: int) -> np.ndarray:
-        return np.ascontiguousarray(draw(max(M_max, M))[:M].reshape(M, T, N))
+        return np.ascontiguousarray(draw(max(ROWS, M))[:M].reshape(M, T, N))
     return sample
 
 
 def make_instance(N: int, T: int, lag: int, d: float, g: int, *, stationary: bool, seed: int = 0,
-                  weights: bool = True, M_max: int = 2000) -> Instance:
+                  weights: bool = True) -> Instance:
     """Return graph number g of a setting, with weights and data.
 
     stationary=True: one window graph and one set of lag weights for all
@@ -178,4 +179,4 @@ def make_instance(N: int, T: int, lag: int, d: float, g: int, *, stationary: boo
 
     def draw(rows):
         return sample_linear(A, W, rows, np.random.default_rng(np.random.SeedSequence(data_seed)))
-    return Instance(A, N, T, lag, first_rows(draw, M_max, N, T), graph_hash(A), info)
+    return Instance(A, N, T, lag, first_rows(draw, N, T), graph_hash(A), info)

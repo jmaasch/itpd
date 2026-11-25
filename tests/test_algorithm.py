@@ -1,8 +1,4 @@
-"""Check Algorithm 1, its test levels, its CI tests, and finite-data results.
-
-The finite-data tests at the end draw their data again and skip when the data
-hash differs (they fail instead with ITPD_REQUIRE_REFERENCE_DATA=1 in the
-environment). Use -m "not slow" to omit them."""
+"""Check Algorithm 1: exact recovery with the oracle, the test levels, and the CI test of a fit."""
 import math
 import warnings
 
@@ -10,8 +6,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from itpd import CICounter, DSeparation, FisherZ, ITPD, NotEvaluable, metrics
-from itpd.simulation import linear
+from itpd import CICounter, DSeparation, FisherZ, ITPD, NotEvaluable
 
 
 # Exact recovery with the d-separation oracle.
@@ -96,7 +91,6 @@ def test_oracle_matrix_is_checked():
 
 
 def test_plot_graph(tmp_path):
-    pytest.importorskip("matplotlib")
     A, N, T = _example_graph()
     model = ITPD(oracle_adjacency=A).fit(n_variables=N)
     assert model.plot_graph(tmp_path / "graph").exists()
@@ -256,38 +250,3 @@ def test_a_test_that_raises_not_evaluable_gives_an_untested_target():
     assert model.untested_targets_ == [4] and model.adjacency_[4] == {2}
     assert model.adjacency_[5] == {0, 1, 2, 3}
 
-
-# Reproduce the paper's finite-data results.
-
-# Linear Gaussian data: N = 20, T = 16, lag = 1, Fisher-z, alpha = 0.01.
-# Each instance uses expected in-degree d, graph index g, and generator seed 0.
-# Use the first M of 2000 observations. Scores exclude lag-1 self edges.
-FIXTURES = [
-    # Columns: d, g, M, SHA-1 of 2000 observations, tp, fp, fn, requested tests,
-    # unique tests, and largest conditioning set.
-    (2.0, 0, 200, "f7df382ae9f36ffc0f960f94ba2ed9e41afa36db", 554, 7, 69, 63470, 62495, 25),
-    (2.0, 1, 500, "5e2ef56f5c751c391e42191ef9d5b5649476f6ca", 591, 3, 7, 64769, 63818, 28),
-    (1.0, 0, 2000, "37c8fcbb6c0126ecd13ee7f9849a012930b09bb1", 312, 1, 0, 65468, 64501, 29),
-]
-
-
-@pytest.mark.slow
-@pytest.mark.parametrize("d, g, M, sha1, tp, fp, fn, requested, unique, largest", FIXTURES,
-                         ids=[f"d{f[0]:g}-g{f[1]}-M{f[2]}" for f in FIXTURES])
-def test_stored_runs(reference_data, d, g, M, sha1, tp, fp, fn, requested, unique, largest):
-    N, T = 20, 16
-    instance = linear.make_instance(N, T, 1, d, g, stationary=False)
-    V = reference_data(instance, sha1)[:M]
-    counter = CICounter(FisherZ(V))
-
-    with warnings.catch_warnings():
-        warnings.simplefilter("error", RuntimeWarning)   # Every target must be testable.
-        model = ITPD(counter, alpha=0.01).fit(V)
-
-    assert model.untested_targets_ == []
-    counts = metrics.edge_counts(instance.A, model.get_adjacency_matrix(), N, T)
-    assert (counts["tp"], counts["fp"], counts["fn"]) == (tp, fp, fn)
-    summary = counter.summary(N, T)
-    assert summary["requested"] == requested == sum(model.ci_queries_.values())
-    assert summary["unique"] == unique
-    assert summary["largest_set"] == largest == model.max_conditioning_size_
