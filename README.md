@@ -69,7 +69,7 @@ The algorithm tests at two levels. For a target at time step t + 1 (the paper's 
 
 - A test answers "independent" if and only if p is larger than the level.
 - Line 6 visits the candidates in descending time and Line 13 in ascending time; inside a time step both go by increasing series index.
-- A CI test that returns a NaN p-value cannot be evaluated (for example `itpd_aistats.ci.FisherZ` when M - |S| - 3 <= 0; causal-learn's `fisherz`, the default, returns p = 1 at 0 and raises an error below 0). The target of such a test keeps only its lag-1 self edge and is listed in `untested_targets_`, and `fit` emits one warning. Exclude these targets from a score.
+- A CI test that returns a NaN p-value cannot be evaluated (for example `itpd.ci.FisherZ` when M - |S| - 3 <= 0; causal-learn's `fisherz`, the default, returns p = 1 at 0 and raises an error below 0). The target of such a test keeps only its lag-1 self edge and is listed in `untested_targets_`, and `fit` emits one warning. Exclude these targets from a score.
 - `python itpd_clear/itpd.py` runs an example with the d-separation oracle and checks exact recovery.
 
 Tests of this file:
