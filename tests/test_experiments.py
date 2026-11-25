@@ -417,6 +417,15 @@ def test_table_of_a_small_config(tmp_path, no_interpreters, capsys):
     assert text[-1] == ("1 means compared with the expected means: largest absolute difference 2.5e-01; "
                         "0 with another number of graphs; 0 with another better level")
 
+    # The mean of a level that the table does not show is compared apart from the lines shown.
+    other = next(group for group in cells(load(config), scored) if not group["shown"] and group["mean"]["f1"])
+    with open(tmp_path / "expected" / "small.csv", "a") as f:
+        f.write(f"{SETTING},{other['M']},{other['method']},{other['level']},False,f1,"
+                f"{other['mean']['f1']['mean'] + 0.5!r},{other['mean']['f1']['graphs']}\n")
+    text = table(config, out, compare=True).splitlines()
+    assert text[-1] == ("2 means compared with the expected means: largest absolute difference 2.5e-01 in the lines above and "
+                        "5.0e-01 at the levels not shown; 0 with another number of graphs; 0 with another better level")
+
     # A missing file is a missing run; a file of another specification or of another graph is an error.
     path = out / SETTING / "g00" / "M100" / "fisherz" / "Lasso.json"
     stored = json.loads(path.read_text())

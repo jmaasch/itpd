@@ -269,7 +269,8 @@ def table(config, runs, *, compare: bool = False) -> str:
     One block per metric, one line per cell and method; a method with two
     levels is shown at its better level. With `report.pool` a second block per
     metric has the means of the cell means. `compare=True` adds the mean of
-    `configs/expected/<config>.csv` and the difference to it."""
+    `configs/expected/<config>.csv` and the difference to it; the last line
+    gives the largest difference, separately for the levels not shown."""
     config = load(config)
     names, reference = columns(config), config["report"].get("relative_to")
     all_rows = rows(config, runs)
@@ -280,7 +281,7 @@ def table(config, runs, *, compare: bool = False) -> str:
     lines = [config["paper_item"] or "", f"{len(all_rows)} runs: " + ", ".join(f"{count} {word}" for word, count in status.items())]
     graph_keys = [key for key in dict.fromkeys(key for group in groups for key in group["graph"])
                   if key != "path" and len({str(group["graph"].get(key)) for group in groups}) > 1]
-    differences, other_graphs, other_level = [], 0, 0
+    shown, hidden, other_graphs, other_level = [], [], 0, 0
     for name in names:
         head = [*graph_keys, "M", "method", "level", "graphs", "mean", "lo", "hi"]
         head += [f"minus {reference}", "lo", "hi", "verdict"] if reference else []
@@ -289,7 +290,8 @@ def table(config, runs, *, compare: bool = False) -> str:
             mean = group["mean"][name] or {}
             stored = expected.get((group["setting"], str(group["M"] or ""), group["method"], group["level"] or "", name))
             if stored and mean:
-                differences.append(mean["mean"] - float(stored["mean"]))
+                difference = mean["mean"] - float(stored["mean"])
+                (shown if group["shown"] else hidden).append(difference)
                 other_graphs += mean["graphs"] != int(stored["graphs"])
                 other_level += str(group["better_level"]) != stored["better_level"]
             if not group["shown"]:
@@ -300,14 +302,16 @@ def table(config, runs, *, compare: bool = False) -> str:
                 d = group["difference"].get(name) or {}
                 line += [_number(d.get("mean"), "+.3f"), _number(d.get("lo"), "+.3f"), _number(d.get("hi"), "+.3f"), d.get("verdict") or "-"]
             if compare:
-                line += ["-", "-"] if not (stored and mean) else [_number(float(stored["mean"])), format(differences[-1], "+.1e")]
+                line += ["-", "-"] if not (stored and mean) else [_number(float(stored["mean"])), format(difference, "+.1e")]
             body.append(line)
         lines += ["", name] + _lines(body)
         if config["report"].get("pool"):
             pool = config["report"]["pool"]
             lines += ["", f"{name}: mean of the cell means by {pool['by']}"] + _lines(_pooled(groups, name, pool, reference))
     if compare:
-        lines += ["", f"{len(differences)} means compared with the expected means: largest absolute difference "
-                      f"{max(map(abs, differences), default=0):.1e}; {other_graphs} with another number of graphs; "
-                      f"{other_level} with another better level"]
+        largest = f"{max(map(abs, shown), default=0):.1e}"
+        if hidden:
+            largest += f" in the lines above and {max(map(abs, hidden)):.1e} at the levels not shown"
+        lines += ["", f"{len(shown) + len(hidden)} means compared with the expected means: largest absolute difference "
+                      f"{largest}; {other_graphs} with another number of graphs; {other_level} with another better level"]
     return "\n".join(lines)
