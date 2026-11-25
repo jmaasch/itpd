@@ -8,6 +8,11 @@ through its own CICounter.
 IAMB, IPaDL, FullCI, PCMCI, DF-PC and CD-NOD run at one of two levels: "alpha"
 is the nominal level, and "corrected" is alpha divided by the number of
 candidate parents of a target.
+
+An ITPD entry of a config can change the run: gamma and kappa are the
+constants of alpha1, and switches are the fields of
+itpd.experiments.ablations.Switches. Such an entry needs a label, which
+names the run and its file.
 """
 import re
 import time
@@ -18,12 +23,13 @@ import numpy as np
 from .. import GCM, ITPD, CICounter, DSeparation, FisherZ
 from ..baselines import full_conditioning, iamb, ipadl, lasso
 from ..external import SCRIPTS, corrected_level, run_external
+from .ablations import ITPDAblation, exhaustive_check
 
 CI_TESTS = {"fisherz": FisherZ, "gcm": GCM}
 BASELINES = {"IAMB": iamb, "IPaDL": ipadl, "FullCI": full_conditioning}
 LEVELS = ("alpha", "corrected")
 # Method -> the keys of its entry in a config, besides name.
-OPTIONS = {"ITPD": ("label", "switches"), "IAMB": ("levels",), "IPaDL": ("levels",), "FullCI": ("levels",), "Lasso": (),
+OPTIONS = {"ITPD": ("label", "switches", "gamma", "kappa"), "IAMB": ("levels",), "IPaDL": ("levels",), "FullCI": ("levels",), "Lasso": (),
            "PCMCI": ("levels", "max_lag", "time_limit"), "DF-PC": ("levels", "time_limit"),
            "DYNOTEARS": ("max_lag", "unit_variance", "time_limit"), "CD-NOD": ("levels", "max_lag", "time_limit")}
 
@@ -52,12 +58,20 @@ def expand(entry, lag: int, ci_test: str) -> list:
     if ci_test != "fisherz" and name in SCRIPTS and "levels" in OPTIONS[name]:
         raise ValueError(f"{name} runs its own Fisher-z test; it cannot run with the CI test {ci_test}")
     run = {"name": name}
-    if "label" in entry or "switches" in entry:
-        # A run with switches has its own file name, so it never takes the file of Algorithm 1.
+    changes = {key: entry[key] for key in ("switches", "gamma", "kappa") if key in entry}
+    if "label" in entry or changes:
+        # A changed run has its own file name, so it never takes the file of Algorithm 1.
         label = entry.get("label")
-        if not isinstance(entry.get("switches"), dict) or not isinstance(label, str) or not slug(label) or slug(label) in OPTIONS:
-            raise ValueError("an ITPD entry with switches needs a label that is not a method name, and a label needs switches")
-        run.update(label=label, switches=entry["switches"])
+        if not changes or not isinstance(label, str) or not slug(label) or slug(label) in OPTIONS:
+            raise ValueError("an ITPD entry with switches, gamma or kappa needs a label that is not a method name, "
+                             "and a label needs one of them")
+        try:
+            model = ITPDAblation(**changes)
+        except TypeError as error:
+            raise ValueError(f"{label}: {error}") from None
+        if ci_test == "oracle" and model.switches.phase2_level == "extended_bic":
+            raise ValueError(f"{label}: the extended-BIC level needs the number of observations; the oracle has none")
+        run.update(label=label, **changes)
     if "max_lag" in OPTIONS[name]:
         run["max_lag"] = entry.get("max_lag", lag)
     if "time_limit" in entry:
@@ -73,11 +87,8 @@ def expand(entry, lag: int, ci_test: str) -> list:
 
 
 def _itpd(method, counter, instance, V, alpha):
-    if "switches" in method:
-        from .ablations import ITPDAblation
-        model = ITPDAblation(counter, alpha=alpha, switches=method["switches"])
-    else:
-        model = ITPD(counter, alpha=alpha)
+    options = {key: method[key] for key in ("switches", "gamma", "kappa") if key in method}
+    model = (ITPDAblation if "switches" in method else ITPD)(counter, alpha=alpha, **options)
     with warnings.catch_warnings():
         # The result lists the untested targets.
         warnings.filterwarnings("ignore", message=".*could not be evaluated", category=RuntimeWarning)
@@ -85,7 +96,8 @@ def _itpd(method, counter, instance, V, alpha):
         model.fit(np.zeros((2, instance.T, instance.N)) if V is None else V)
     if sum(model.ci_queries_.values()) != counter.requested:
         raise RuntimeError("ITPD and the counter disagree on the number of requested tests")
-    return model.get_adjacency_matrix(), model.untested_targets_
+    sizes = list(getattr(model, "screened_sizes_", {}).values())
+    return model.get_adjacency_matrix(), model.untested_targets_, {"screened_size": float(np.mean(sizes))} if sizes else {}
 
 
 def _external(method, instance, V, alpha) -> dict:
@@ -110,9 +122,10 @@ def run_method(method: dict, instance, V, ci_test: str, alpha: float) -> dict:
     ----------
     method : dict
         name, and where they apply level ("alpha" or "corrected"), max_lag,
-        time_limit (seconds), unit_variance, switches.
+        time_limit (seconds), unit_variance, switches, gamma, kappa.
     instance : itpd.simulation.Instance
-        Gives N, T and, for the oracle, the true graph.
+        Gives N, T and, for the oracle, the true graph. Without a graph it
+        is a block of enumerated graphs (generator "enumerate").
     V : ndarray (M, T, N) or None
         The data; None with the oracle.
     ci_test : {"fisherz", "gcm", "oracle"}
@@ -128,23 +141,29 @@ def run_method(method: dict, instance, V, ci_test: str, alpha: float) -> dict:
         edges: the estimate as a list of u * T N + v for u -> v, or None when
         there is no estimate. untested: the untested targets. requested,
         unique, largest_set, mean_set: the counts of CI tests, where the
-        method has them. seconds: time of the method call.
+        method has them. screened_size: mean |S| before Phase II over the
+        targets, for ITPD with switches. seconds: time of the method call.
+        For a block of enumerated graphs: status, edges None, and the
+        counts of exhaustive_check.
     """
     name, N, T = method["name"], instance.N, instance.T
     if name in SCRIPTS:
         return _external(method, instance, V, alpha)
     start = time.perf_counter()
+    if instance.A is None:
+        counts = exhaustive_check(method.get("switches"), N, T, **instance.info)
+        return {"status": "ok", "edges": None, "untested": [], **counts, "seconds": time.perf_counter() - start}
     if name == "Lasso":
         result, counts = lasso(V), {}
         A_hat, untested = result.adjacency, result.untested_targets
     else:
         counter = CICounter(DSeparation(instance.A) if ci_test == "oracle" else CI_TESTS[ci_test](V))
         if name == "ITPD":
-            A_hat, untested = _itpd(method, counter, instance, V, alpha)
+            A_hat, untested, sizes = _itpd(method, counter, instance, V, alpha)
         else:
             result = BASELINES[name](counter, N, T, alpha, corrected=method["level"] == "corrected")
-            A_hat, untested = result.adjacency, result.untested_targets
-        counts = counter.summary(N, T)
+            A_hat, untested, sizes = result.adjacency, result.untested_targets, {}
+        counts = {**counter.summary(N, T), **sizes}
     seconds = time.perf_counter() - start
     return {"status": "partial" if untested else "ok", "edges": np.flatnonzero(A_hat).tolist(),
             "untested": [int(y) for y in untested], **counts, "seconds": seconds}

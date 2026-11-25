@@ -1,0 +1,45 @@
+paper_item: "Table: mean F1 of ITPD with alpha / m and with the extended-BIC level in Phase II"
+description: >
+  ITPD with alpha2 = alpha / m (Algorithm 1) and with the extended-BIC level P(chi2_1 > log(M m)) in Line 14, for
+  M observations and m candidates of a target. Settings of the other experiments, graphs 0 to 4 each (data sets
+  0 to 2 of the gene networks). The table pools the cells by M (2000 and more together) and gives the mean of the
+  cell means. F1 on common targets; on all targets with 80 series, where 50 observations leave no common target;
+  on the regulatory edges of the gene networks.
+alpha: 0.01
+ci_test: fisherz
+seed: 0
+graph:
+  generator: standard
+  N: 20
+  T: 16
+  lag: 1
+  stationary: false
+data:
+  mechanism: linear_gaussian      # the first M rows of one draw of max(2000, M) rows
+graphs: 0-4
+methods:
+  - {name: ITPD}
+  - {name: ITPD, label: "extended BIC", switches: {phase2_level: extended_bic}}
+settings:
+  - {graph: {in_degree: [1, 3]}, data: {M: [200, 500, 2000]}}
+  - {graph: {in_degree: [8, 15]}, data: {M: [200, 500, 2000, 5000]}}
+  - {graph: {generator: stepwise, N: 50, T: 20, in_degree: 2}, data: {M: [500, 2000]}}
+  - {graph: {generator: redrawn_edges, N: 20, T: 16, in_degree: 5, share: [0, 1]}, data: {M: [500, 2000]}}
+  - {graph: {N: 10, lag: 2, in_degree: 2}, data: {M: [500, 2000]}}
+  - {graph: {N: 10, T: 24, lag: 8, in_degree: 2}, data: {M: [500, 2000]}}
+  - {graph: {N: 80, in_degree: 2}, data: {M: [50, 200, 2000]}, scoring: {targets: all}}
+  # Nonlinear data with the GCM test: minutes per run.
+  - {ci_test: gcm, graph: {N: 10, T: 8, in_degree: 2, stationary: true}, data: {mechanism: nonlinear, M: 500}}
+  # Gene networks: runs of gene_networks.yaml. The repository holds the data of data set 0 with M 200.
+  - graph: {generator: gene_networks, network: [3, 5], path: ../data/gene_networks}
+    data: {mechanism: stored, M: [200, 500, 2000]}
+    graphs: 0-2
+    scoring: {view: regulatory}
+scoring:
+  view: edges
+  targets: common
+report:
+  metrics: [f1]
+  relative_to: ITPD
+  pool: {by: M, cap: 2000}
+  bootstrap: {resamples: 10000, seed: 20261113}

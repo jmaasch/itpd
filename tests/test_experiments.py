@@ -10,16 +10,19 @@ import pytest
 import yaml
 
 from itpd import ITPD, CICounter, FisherZ, metrics
-from itpd.experiments import run, table
-from itpd.experiments.aggregate import cells, rows
+from itpd.experiments import gene_networks, run, scores, table
+from itpd.experiments.ablations import ITPDAblation, Switches, exhaustive_check, extended_bic_level
+from itpd.experiments.aggregate import cells, columns, rows
 from itpd.experiments.__main__ import main
-from itpd.experiments.config import ConfigError, indices, load, resolve
+from itpd.experiments.config import ConfigError, indices, load
 from itpd.experiments.methods import run_method
 from itpd.experiments.runner import run_path, specifications
 from itpd.external import run_external
-from itpd.simulation import linear, nonlinear, redrawn_edges, stepwise
+from itpd.graphs import graph_hash
+from itpd.simulation import Instance, linear, nonlinear, redrawn_edges, stepwise, violations
 
 CONFIGS = Path(__file__).resolve().parent.parent / "configs"
+GENE_DATA = CONFIGS.parent / "data" / "gene_networks"
 SETTING = "standard_N3_T4_lag1_in_degree1_nonstationary"
 
 # Three series, four steps. With 9 observations the last step cannot be tested given all earlier nodes.
@@ -41,7 +44,8 @@ def write(folder, name="small.yaml", **changes) -> str:
 
 
 def read(out, name, g=0, M=100, ci_test="fisherz", setting=SETTING) -> dict:
-    return json.loads((Path(out) / setting / f"g{g:02d}" / f"M{M}" / ci_test / f"{name}.json").read_text())
+    folder = Path(out) / setting / f"g{g:02d}" / (f"M{M}" if M else "")
+    return json.loads((folder / ci_test / f"{name}.json").read_text())
 
 
 @pytest.fixture
@@ -97,6 +101,15 @@ def test_main_setting_config():
     ({"methods": [{"name": "ITPD", "switches": {}}]}, "label"),
     ({"methods": [{"name": "ITPD", "switches": {}, "label": "ITPD"}]}, "label"),
     ({"methods": [{"name": "ITPD", "label": "plain"}]}, "label"),
+    ({"methods": [{"name": "ITPD", "gamma": 0.1}]}, "label"),
+    ({"methods": [{"name": "ITPD", "label": "level", "gamma": 2}]}, "gamma"),
+    ({"methods": [{"name": "ITPD", "label": "changed", "switches": {"line12": "X"}}]}, "line12"),
+    # YAML reads an unquoted off as False.
+    ({"methods": [{"name": "ITPD", "label": "changed", "switches": {"line9": False}}]}, "line9"),
+    ({"ci_test": "oracle", "data": {"mechanism": "none"},
+      "methods": [{"name": "ITPD", "label": "level", "switches": {"phase2_level": "extended_bic"}}]}, "number of observations"),
+    ({"ci_test": "oracle", "data": {"mechanism": "none"}, "methods": [{"name": "IAMB"}],
+      "graph": {"generator": "enumerate", "N": 2, "T": 3, "latent_first_step": False}}, "ITPD only"),
 ])
 def test_invalid_config_is_an_error(tmp_path, changes, message):
     with pytest.raises(ConfigError, match=message):
@@ -118,11 +131,35 @@ def test_settings_merge_over_the_top_level(tmp_path):
     assert indices("0-2,7") == [0, 1, 2, 7] and indices(4) == [4]
 
 
-def test_paths_resolve_against_the_folder_of_the_config(tmp_path, monkeypatch):
-    config = load(write(tmp_path / "somewhere"))
+def test_gene_network_data(tmp_path, monkeypatch, no_interpreters):
+    """Stored data: the path is relative to the folder of the config, and every M has its own centered array."""
+    folder = tmp_path / "somewhere"
+    folder.mkdir()
+    (folder / "data").symlink_to(GENE_DATA, target_is_directory=True)
+    graph = {"generator": "gene_networks", "network": 3, "path": "data"}
+    config = write(folder, graph=graph, data={"mechanism": "stored", "M": [30, 40]}, graphs=[0], methods=[{"name": "Lasso"}],
+                   scoring={"view": "regulatory"})
     monkeypatch.chdir(tmp_path)
-    assert resolve(config, "data/x.csv") == str(tmp_path / "somewhere" / "data" / "x.csv")
-    assert resolve(config, "../data") == str(tmp_path / "data")
+    out = tmp_path / "out"
+    assert run(config, out) == {"written": 2, "skipped": 0}
+
+    instance = gene_networks.load(3, 0, GENE_DATA)
+    X = instance.sample(200)
+    assert X.shape == (200, 40, 20) and float(np.abs(X.mean(axis=0)).max()) < 1e-12
+    assert linear.data_hash(X) == "869a7968ba9795e125170e91687f990a004f2ddf"
+    for M in (30, 40):
+        stored = read(out, "Lasso", M=M, setting="gene_networks_network3")
+        assert stored["spec"]["graph"] == graph and stored["graph_sha1"] == instance.graph_sha1 and stored["status"] == "ok"
+        assert stored["data_sha1"] == linear.data_hash(instance.sample(M))
+    # The table needs the truth tables only.
+    scored = rows(load(config), out)
+    assert [row["scores"]["regulatory"]["common"]["tp"] > 0 for row in scored] == [True, True]
+    # The repository holds 200 observations of data set 0.
+    with pytest.raises(FileNotFoundError, match="net3_g0.npy"):
+        instance.sample(201)
+    more = write(folder, "more.yaml", graph=graph, data={"mechanism": "stored", "M": 30}, graphs=[1], methods=[{"name": "Lasso"}])
+    with pytest.raises(ConfigError, match="net3_g1.npy.*README.md"):
+        run(more, out)
 
 
 # The runner.
@@ -218,6 +255,8 @@ def test_oracle_runs_recover_the_graph(tmp_path):
      lambda g: redrawn_edges.make_instance(3, 4, 1, 0.5, g)),
     ({"generator": "standard", "N": 2, "T": 3, "lag": 1, "in_degree": 1, "stationary": False}, "nonlinear", "gcm",
      lambda g: nonlinear.make_instance(2, 3, 1, 1, g, stationary=False)),
+    ({"generator": "violations", "N": 3, "T": 4, "in_degree": 1, "no_self_edge_share": 0, "same_step_share": 0.5}, "linear_gaussian",
+     "fisherz", lambda g: violations.make_instance(1, g, same_step_share=0.5, N=3, T=4)),
 ])
 def test_other_generators_and_the_gcm_test(tmp_path, no_interpreters, graph, mechanism, ci_test, make):
     config = write(tmp_path, graph=graph, data={"mechanism": mechanism, "M": 60}, ci_test=ci_test, graphs=[1],
@@ -252,6 +291,28 @@ def test_configs_share_runs():
     others = runs("scaling_time", lambda spec: spec["method"]["name"] not in ("ITPD", "IAMB", "Lasso"))
     known = {**f1, **runs("scalability")}
     assert len(others) == 20 * 4 + 2 * 5 * 2 and all(known.get(path) == spec for path, spec in others.items())
+    # The runs of ITPD as Algorithm 1 in the tables on levels are runs of the main setting.
+    for name in ("extended_bic", "gamma_kappa"):
+        shared = runs(name, lambda spec: spec["method"] == {"name": "ITPD"} and spec["graph"] in (f1[path]["graph"] for path in f1))
+        assert len(shared) >= 2 * 3 * 5 and all(f1.get(path) == spec for path, spec in shared.items())
+    # Gene networks: the two tables score the same runs, and the table on levels has runs of ITPD among them.
+    genes = runs("gene_networks")
+    assert runs("gene_networks_indirect") == genes
+    shared = runs("extended_bic", lambda spec: spec["method"] == {"name": "ITPD"} and spec["graph"]["generator"] == "gene_networks")
+    assert len(shared) == 2 * 3 * 3 and all(genes.get(path) == spec for path, spec in shared.items())
+    # Dropped steps: Algorithm 1 and the changed Line 11 are runs of the ablation table.
+    ablation = runs("ablation")
+    shared = runs("dropped_steps", lambda spec: "9'" not in spec["method"]["label"])
+    assert len(shared) == 12 * 20 * 2 and all(ablation.get(path) == spec for path, spec in shared.items())
+
+
+def test_a_changed_run_never_has_the_file_of_plain_itpd():
+    plain, changed = set(), set()
+    for path in sorted(CONFIGS.glob("*.yaml")):
+        for spec in specifications(load(path)):
+            if spec["method"]["name"] == "ITPD":
+                (changed if set(spec["method"]) - {"name"} else plain).add(run_path(spec))
+    assert plain and changed and not plain & changed and all(Path(path).name != "ITPD.json" for path in changed)
 
 
 def test_every_config_has_a_table_and_expected_means(tmp_path):
@@ -266,7 +327,7 @@ def test_every_config_has_a_table_and_expected_means(tmp_path):
         with open(CONFIGS / "expected" / f"{path.stem}.csv", newline="") as f:
             expected = list(csv.DictReader(line for line in f if line[0] != "#"))
         assert expected and all((r["setting"], r["M"], r["method"], r["level"]) in known for r in expected)
-        assert {r["metric"] for r in expected} <= set(config["report"]["metrics"])
+        assert {r["metric"] for r in expected} <= set(columns(config))
         assert all(float(r["mean"]) >= 0 and r["better_level"] in ("True", "False") and int(r["graphs"]) for r in expected)
 
 
@@ -375,6 +436,183 @@ def test_a_run_without_common_targets_has_no_f1(tmp_path):
     all_targets = write(tmp_path, "all.yaml", data={"mechanism": "linear_gaussian", "M": 5}, graphs=[0], methods=[{"name": "Lasso"}],
                         scoring={"targets": "all"})
     assert rows(load(all_targets), out)[0]["values"]["f1"] == row["scores"]["edges"]["all"]["f1"]
+
+
+# The scores of the violation tables and of the gene networks.
+
+def counts(score, targets="all") -> tuple:
+    return tuple(score[targets][key] for key in ("tp", "fp", "fn"))
+
+
+def test_violation_scores():
+    # Three series, three steps; node = 3 * step + series. Besides the self edges: one lag-1 edge 0 -> 4, the
+    # same-step edge 5 -> 4 at step 1, and the same-step chain 6 -> 7 -> 8 at step 2.
+    A = np.zeros((9, 9), dtype=bool)
+    for u, v in [(0, 3), (1, 4), (2, 5), (3, 6), (4, 7), (5, 8), (0, 4), (5, 4), (6, 7), (7, 8)]:
+        A[u, v] = True
+    truth = Instance(A, 3, 3, 1, None, graph_hash(A))
+    # Markov boundary among the earlier nodes: of 4: 0, 1, and 2 (the parent of 5); of 7: 4 and 3 (parent of 6);
+    # of 8: 5, 4 and 3. The self pairs 1 -> 4, 4 -> 7 and 5 -> 8 are not scored.
+    boundary = scores.markov_boundary_among_earlier(A, 3)
+    assert {v: np.flatnonzero(boundary[:, v]).tolist() for v in (3, 4, 7, 8)} == {3: [0], 4: [0, 1, 2], 7: [3, 4], 8: [3, 4, 5]}
+    estimate = np.zeros((9, 9), dtype=bool)
+    for u, v in [(0, 4), (2, 4), (3, 8), (1, 4), (0, 7)]:
+        estimate[u, v] = True
+    # Lag-1 edges: 0 -> 4 is the one true edge; 2 -> 4, 3 -> 8 and 0 -> 7 are false.
+    assert counts(scores.lag1_edges(truth, estimate)) == (1, 3, 0)
+    # Markov boundary: 0 -> 4, 2 -> 4 and 3 -> 8 are true, 0 -> 7 is false, 3 -> 7 and 4 -> 8 are missed.
+    assert counts(scores.markov_boundary(truth, estimate)) == (3, 1, 2)
+    # An untested target has no parents.
+    assert counts(scores.markov_boundary(truth, estimate, untested=[8])) == (2, 1, 3)
+    # With 6 observations the common targets are those of step 1.
+    assert counts(scores.lag1_edges(truth, estimate, 6), "common") == (1, 1, 0)
+    assert counts(scores.markov_boundary(truth, estimate, 6), "common") == (2, 0, 0)
+
+    # Without an edge inside a step both truths are the graph; with such edges every lag-1 edge is in the boundary.
+    plain = violations.make_instance(1, 0, N=4, T=4)
+    assert np.array_equal(scores.markov_boundary_among_earlier(plain.A, 4), plain.A)
+    assert scores.lag1_edges(plain, plain.A) == scores.markov_boundary(plain, plain.A) == metrics.score(plain.A, plain.A, 4, 4)
+    moved = violations.make_instance(1, 0, same_step_share=0.5, N=4, T=4)
+    assert moved.info["n_moved_edges"] > 0 and not (moved.info["A_lag1"] & ~scores.markov_boundary_among_earlier(moved.A, 4)).any()
+    assert counts(scores.lag1_edges(moved, moved.info["A_lag1"])) == (int(moved.info["A_lag1"].sum()) - 12, 0, 0)
+    assert scores.markov_boundary(moved, moved.info["A_lag1"])["all"]["fn"] > 0
+
+
+def test_gene_network_scores_by_hand():
+    """Twelve estimated edges on network 3, with the counts worked out by hand from the two truth tables."""
+    truth = gene_networks.load(3, 0, GENE_DATA)
+    per_step = {key: int(truth.info[key][:20, 20:40].sum()) for key in ("regulatory", "translation", "indirect")}
+    assert per_step == {"regulatory": 15, "translation": 10, "indirect": 18} and int(truth.A[:20, 20:40].sum()) == 45
+    other = gene_networks.load(5, 0, GENE_DATA)
+    assert [int(other.info[key][:20, 20:40].sum()) for key in ("regulatory", "translation", "indirect")] == [12, 10, 32]
+
+    def m(gene):
+        return gene - 1          # series of the mRNA of a gene
+
+    def p(gene):
+        return 10 + gene - 1     # series of its protein
+    edges = [(0, p(7), 1, m(1)),     # regulatory edge
+             (0, p(1), 1, m(2)),     # regulatory edge
+             (0, m(1), 1, p(1)),     # translation edge: not in the regulatory score
+             (1, p(7), 2, m(1)),     # regulatory edge
+             (1, m(7), 2, m(1)),     # indirect pair (through the protein of gene 7): false
+             (1, m(2), 2, m(2)),     # self edge: never scored
+             (0, p(2), 2, m(3)),     # lag 2: false
+             (0, m(4), 1, m(9)),     # no edge and no indirect pair: false
+             (11, p(7), 12, m(1)),   # regulatory edge at step 12, which is no common target with 200 observations
+             (1, m(7), 2, p(1)),     # indirect pair: false
+             (5, m(3), 6, m(2)),     # indirect pair: false
+             (3, p(3), 4, m(4))]     # regulatory edge
+    estimate = np.zeros((800, 800), dtype=bool)
+    for step, source, later, target in edges:
+        estimate[20 * step + source, 20 * later + target] = True
+    # (regulatory, false edges without indirect pairs, every edge of the graph), on the common and on all targets.
+    for untested, common, every in [((), ((4, 5, 131), 2, (5, 5, 220)), ((5, 5, 580), 2, (6, 5, 969))),
+                                    # The mRNA of gene 1 at step 2 is untested: two of its edges leave the estimate.
+                                    ([40], ((3, 4, 132), 2, (4, 4, 221)), ((4, 4, 581), 2, (5, 4, 970)))]:
+        regulatory = gene_networks.regulatory(truth, estimate, 200, untested)
+        ignored = gene_networks.regulatory_ignore_indirect(truth, estimate, 200, untested)
+        graph = metrics.score(truth.A, estimate, 20, 40, 200, untested)
+        assert regulatory["last_common_step"] == 9
+        for targets, (expected, not_indirect, all_edges) in (("common", common), ("all", every)):
+            assert counts(regulatory, targets) == expected and counts(graph, targets) == all_edges
+            assert counts(ignored, targets) == (expected[0], not_indirect, expected[2])
+
+
+# The ablations.
+
+CHANGES = [{"name": "ITPD"}, {"name": "ITPD", "label": "Algorithm 1", "switches": {}},
+           {"name": "ITPD", "label": "Phase II removed", "switches": {"phase2": False}},
+           {"name": "ITPD", "label": "alpha1 = 0.05", "gamma": 0.05, "kappa": 1000}]
+
+
+def recorded(make, V):
+    """Fit make(test) on V, where test is a Fisher-z test that records its calls. Return the calls and the model."""
+    calls, test = [], FisherZ(V)
+
+    def record(x, y, S):
+        calls.append((x, y, S))
+        return test(x, y, S)
+    return calls, make(record).fit(V)
+
+
+def test_default_switches_are_algorithm_1():
+    V = linear.make_instance(4, 6, 1, 2, 0, stationary=False).sample(150)
+    calls, model = recorded(ITPD, V)
+    for switches in (Switches(), {}):
+        same, ablation = recorded(lambda test: ITPDAblation(test, switches=switches), V)
+        assert same == calls and ablation.adjacency_ == model.adjacency_ and ablation.ci_queries_ == model.ci_queries_
+    assert sorted(ablation.screened_sizes_) == list(range(4, 24)) and min(ablation.screened_sizes_.values()) >= 1
+    assert ITPDAblation(switches={"line9": "X"}).switches == Switches(line9="X")
+    for bad in ({"line9": "T"}, {"line9": False}, {"phase2": "off"}, {"ancestor_gate": 1}):
+        with pytest.raises(ValueError, match="is not one of"):
+            Switches(**bad)
+
+
+def test_switches_change_single_lines():
+    instance = linear.make_instance(4, 6, 2, 2, 0, stationary=False)
+    V, truth = instance.sample(150), instance.A.tolist()
+    # These changes keep the output exact under the oracle.
+    for switches in ({"candidate_order": "ascending"}, {"ancestor_gate": False}, {"marginal_test": False}, {"line9": "X"},
+                     {"line9": "off"}, {"dropped_lines": True}, {"markov_test": False}, {"phase2_order": "descending"}):
+        model = ITPDAblation(oracle_adjacency=instance.A, switches=switches).fit(n_variables=4)
+        assert (model.get_adjacency_matrix() != 0).tolist() == truth, switches
+    # Phase II removed: S is returned.
+    calls, model = recorded(lambda test: ITPDAblation(test, switches={"phase2": False}), V)
+    assert model.ci_queries_["II"] == 0 and all(len(model.adjacency_[y]) == size for y, size in model.screened_sizes_.items())
+    # Line 11 with the members of S at the step of X: a target at the second step has all of S as parents.
+    model = ITPDAblation("fisherz", switches={"line11": "same_step"}).fit(V)
+    assert all(len(model.adjacency_[y]) == model.screened_sizes_[y] for y in range(4, 8))
+    # Lines 9' and 10': tests of Z and X. Algorithm 1 never tests two nodes of one step.
+    calls, model = recorded(lambda test: ITPDAblation(test, switches={"dropped_lines": True}), V)
+    assert any(x // 4 == z // 4 and not S for z, x, S in calls)
+    assert not any(y // 4 == z // 4 for z, y, S in recorded(ITPD, V)[0])
+    # The levels.
+    model = ITPDAblation("fisherz", switches={"phase1_level": "alpha", "phase2_level": "extended_bic"}).fit(V)
+    assert model._levels(2) == (0.01, extended_bic_level(150, 11)) and ITPDAblation(switches={"phase2_level": "alpha"}).fit(V)._levels(2)[1] == 0.01
+    # P(chi2_1 > log(M m)) = erfc(sqrt(log(M m) / 2)).
+    assert extended_bic_level(200, 19) == pytest.approx(0.004091495235204291, rel=1e-12)
+
+
+def test_exhaustive_check():
+    for latent, judged in ((False, 4 * 256), (True, 128)):
+        result = exhaustive_check(None, 2, 3, range(256), latent_first_step=latent)
+        assert result == exhaustive_check({}, 2, 3, range(256), latent_first_step=latent)
+        assert result["graphs"] == result["exact"] == 256 and result["first_failure"] is None and result["wrong_targets"] == 0
+        assert result["judged_targets"] == judged and result["requested_phase1"] > result["requested_phase2"] > 0
+    # Without Phase II the nonparents in S stay: the smallest failing graph has two optional edges.
+    removed = exhaustive_check({"phase2": False}, 2, 3, range(256))
+    assert removed["exact"] == 184 and removed["first_failure"][0] == 2 and removed["requested_phase2"] == 0
+    assert exhaustive_check(Switches(phase2=False), 2, 3, [removed["first_failure"][1]])["exact"] == 0
+
+
+def test_changed_runs_have_their_own_files(tmp_path):
+    blocks = {"ci_test": "oracle", "data": {"mechanism": "none"}, "graphs": [0], "methods": CHANGES[:3],
+              "graph": {"generator": "enumerate", "N": 2, "T": 3, "latent_first_step": [False, True]}}
+    report = {"metrics": ["exact", "f1", "screened_size"], "relative_to": "Algorithm 1", "pool": {"by": "M", "cap": 100}}
+    config = write(tmp_path, methods=CHANGES, graphs=[0], settings=[{}, blocks], report=report)
+    out = tmp_path / "out"
+    assert run(config, out) == {"written": 2 * 4 + 2 * 3, "skipped": 0}
+    plain, same, removed, level = (read(out, name) for name in ("ITPD", "Algorithm-1", "Phase-II-removed", "alpha1-0-05"))
+    assert [r["spec"]["method"] for r in (plain, same, removed, level)] == CHANGES
+    assert all(same[key] == plain[key] for key in ("edges", "requested", "unique", "largest_set", "mean_set"))
+    assert "screened_size" not in plain and "screened_size" not in level and same["screened_size"] >= 1
+    assert len(removed["edges"]) == round(9 * removed["screened_size"]) > len(same["edges"])
+    block = read(out, "Phase-II-removed", M=None, ci_test="oracle", setting="enumerate_N2_T3_nonlatent_first_step")
+    assert block["edges"] is None and block["graphs"] == 256 > block["exact"] and block["graph_sha1"] is None
+    scored = {(row["setting"], row["M"], row["method"]): row["values"] for row in rows(load(config), out)}
+    assert scored[("enumerate_N2_T3_nonlatent_first_step", None, "Phase II removed")]["exact"] == block["exact"] / 256
+    assert scored[(SETTING, 100, "Algorithm 1")]["screened_size"] == same["screened_size"]
+    assert scored[(SETTING, 100, "ITPD")]["screened_size"] is None
+    text = table(config, out).splitlines()
+    assert text[1] == "14 runs: 14 with a result" and "exact: mean of the cell means by M" in text
+    start = text.index("screened_size: mean of the cell means by M")
+    assert text[start + 1].split() == ["M", "method", "cells", "mean", "minus", "Algorithm", "1", "higher", "tied", "lower"]
+    assert [line.split()[0] for line in text[start + 2:start + 6]] == ["9", "9", ">=", ">="]
+    # The same label with other switches in the same folder stops the runner.
+    other = [CHANGES[0], {**CHANGES[1], "switches": {"line9": "X"}}]
+    with pytest.raises(ConfigError, match="another specification"):
+        run(write(tmp_path, "other.yaml", methods=other, graphs=[0]), out)
 
 
 # The command line.

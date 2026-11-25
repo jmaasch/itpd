@@ -8,17 +8,27 @@ specification of the run and must have the graph hash of the run file.
 
 Keys of a config that are read here:
 
-    scoring.view      "edges" (itpd.metrics.score), or a list of views
+    scoring.view      a view, or a list of views. "edges": every edge of
+                      the true graph (itpd.metrics.score). "lag1_edges" and
+                      "markov_boundary": itpd.experiments.scores.
+                      "regulatory" and "regulatory_ignore_indirect":
+                      itpd.experiments.gene_networks. With a list, a score
+                      has one column per view, such as "f1 (lag1_edges)".
     scoring.targets   "common" (default) or "all": the targets of f1,
                       precision and recall. With the oracle and the GCM test
                       every target is a common target.
     report.metrics    list from f1, precision, recall, exact,
-                      unique_per_candidate, mean_set, largest_set, seconds
+                      unique_per_candidate, mean_set, largest_set,
+                      screened_size (mean |S| before Phase II, for ITPD
+                      with switches), seconds
     report.level_by   {view, targets}: the F1 that chooses the level
                       (default: the first view on scoring.targets)
     report.bootstrap  {resamples, seed}: 95% percentile interval of a mean
     report.relative_to  a method: every other method gets its mean
                       difference to it, paired by graph
+    report.pool       {by, cap}: after the cells of a metric, the mean of
+                      the cell means for every value of by (M, or a graph
+                      parameter); the values from cap on are one group
 
 A cell is one setting with one M; its mean is over the graphs with a result.
 Runs with the status timeout, error or skipped, and missing runs, have no
@@ -31,6 +41,10 @@ The bootstrap draws one index matrix per number of graphs, from a generator
 seeded with report.bootstrap.seed, and uses it for every mean and every
 difference of that number of graphs, so differences are paired by graph. A
 difference is "higher" or "lower" when its interval excludes 0, else "tied".
+
+A run of the generator "enumerate" is a block of graphs. Its exact is the
+share of the graphs of the block with an exact output, and it has no other
+score.
 """
 import csv
 import json
@@ -43,12 +57,16 @@ from .. import metrics
 from ..counting import n_candidates
 from . import instances
 from .config import ConfigError, load
+from .gene_networks import regulatory, regulatory_ignore_indirect
 from .runner import run_path, specifications
+from .scores import lag1_edges, markov_boundary
 
-# View -> function (A_true, A_hat, N, T, M, untested) -> {"common": scores or None, "all": scores}.
-VIEWS = {"edges": metrics.score}
+# View -> function (truth, A_hat, M, untested) -> {"common": scores or None, "all": scores}; truth is the instance.
+VIEWS = {"edges": lambda truth, A_hat, M, untested: metrics.score(truth.A, A_hat, truth.N, truth.T, M, untested),
+         "lag1_edges": lag1_edges, "markov_boundary": markov_boundary,
+         "regulatory": regulatory, "regulatory_ignore_indirect": regulatory_ignore_indirect}
 SCORES = ("f1", "precision", "recall", "exact")
-METRICS = SCORES + ("unique_per_candidate", "mean_set", "largest_set", "seconds")
+METRICS = SCORES + ("unique_per_candidate", "mean_set", "largest_set", "screened_size", "seconds")
 
 
 def _views(scoring) -> list:
@@ -56,15 +74,20 @@ def _views(scoring) -> list:
     return views if isinstance(views, list) else [views]
 
 
+def _several(config) -> bool:
+    return any(len(_views(setting["scoring"])) > 1 for setting in config["settings"])
+
+
 def columns(config: dict) -> list:
-    """Return the columns of the table: one per metric, and per view for a score when the config has several views."""
+    """Return the columns of the table: one per metric, and per view for a score when a setting has several views."""
     views = list(dict.fromkeys(view for setting in config["settings"] for view in _views(setting["scoring"])))
+    several = _several(config)
     names = config["report"].get("metrics", ["f1"])
     chooser = config["report"].get("level_by", {}).get("view", "edges")
     unknown = [name for name in names if name not in METRICS] + [view for view in [*views, chooser] if view not in VIEWS]
     if unknown:
         raise ConfigError(f"unknown metric or view: {', '.join(map(str, unknown))}")
-    return [name + (f" ({view})" if len(views) > 1 else "") for name in names for view in (views if name in SCORES else views[:1])]
+    return [name + (f" ({view})" if several else "") for name in names for view in (views if several and name in SCORES else views[:1])]
 
 
 def score_run(run: dict, truth, view: str = "edges") -> dict:
@@ -76,7 +99,7 @@ def score_run(run: dict, truth, view: str = "edges") -> dict:
     A_hat[run["edges"]] = True
     # The Fisher-z test sets the common targets; the oracle and the GCM test can test every target.
     M = spec["data"].get("M") if spec["ci_test"] == "fisherz" else None
-    return VIEWS[view](truth.A, A_hat.reshape(size, size), truth.N, truth.T, M, run["untested"])
+    return VIEWS[view](truth, A_hat.reshape(size, size), M, run["untested"])
 
 
 def rows(config: dict, runs) -> list:
@@ -111,18 +134,22 @@ def rows(config: dict, runs) -> list:
             row["status"] = run["status"]
             if run["status"] not in ("ok", "partial"):
                 continue
+            if run["edges"] is None:      # A block of enumerated graphs: its one score is the share of exact outputs.
+                share = run["exact"] / run["graphs"]
+                row.update(run=run, scores={}, values={"exact": share, "level_by": share, "largest_set": run["largest_set"]})
+                continue
             key = (spec["graph"], spec["seed"], spec["graph_index"])
             if key != built:
-                truth, built = instances.make_instance(spec["graph"], "none", spec["seed"], spec["graph_index"]), key
+                truth, built = instances.make_instance(spec["graph"], "none", spec["seed"], spec["graph_index"], config["folder"]), key
             scores = {view: score_run(run, truth, view) for view in dict.fromkeys([*views, by["view"]])}
             per_candidate = run.get("unique_per_candidate")
             if per_candidate is None and method["name"] == "DF-PC":
                 per_candidate = run["unique"] / n_candidates(truth.N, truth.T)
             values = {"level_by": (scores[by["view"]][by["targets"]] or {}).get("f1"), "unique_per_candidate": per_candidate,
                       "mean_set": run.get("mean_set"), "largest_set": run.get("largest_set"),
-                      "seconds": float(np.median(run["seconds"]))}
+                      "screened_size": run.get("screened_size"), "seconds": float(np.median(run["seconds"]))}
             for view in views:
-                part, suffix = scores[view][targets] or {}, f" ({view})" if len(views) > 1 else ""
+                part, suffix = scores[view][targets] or {}, f" ({view})" if _several(config) else ""
                 values.update({name + suffix: part.get(name) for name in SCORES[:3]})
                 values["exact" + suffix] = float(scores[view]["all"]["fp"] == 0 and scores[view]["all"]["fn"] == 0)
             row.update(run=run, scores=scores, values=values)
@@ -193,12 +220,42 @@ def _number(x, form=".3f") -> str:
     return "-" if x is None else format(x, form)
 
 
+def _lines(body: list) -> list:
+    """Return a block as aligned lines. A column without an entry is left out (M with the oracle, lo and hi without the bootstrap)."""
+    keep = [i for i in range(len(body[0])) if len(body) == 1 or any(line[i] != "-" for line in body[1:])]
+    body = [[line[i] for i in keep] for line in body]
+    widths = [max(len(line[i]) for line in body) for i in range(len(body[0]))]
+    return ["  ".join(word.ljust(width) for word, width in zip(line, widths)).rstrip() for line in body]
+
+
+def _pooled(groups: list, name: str, pool: dict, reference) -> list:
+    """Return the block of report.pool for one metric: per value of pool["by"] and method, the mean of the cell means."""
+    found = {}
+    for group in groups:
+        value = {"M": group["M"], **group["graph"]}.get(pool["by"])
+        if group["shown"] and group["mean"][name] and value is not None:
+            key = (min(value, pool["cap"]), group["method"], group["level"] or "-")
+            found.setdefault(key, []).append((group["mean"][name]["mean"], group.get("difference", {}).get(name)))
+    body = [[pool["by"], "method", "level", "cells", "mean"] + ([f"minus {reference}", "higher", "tied", "lower"] if reference else [])]
+    for (value, method, level), cells_ in sorted(found.items(), key=lambda item: item[0][0]):
+        line = [(">= " if value == pool["cap"] else "") + f"{value:g}", method, level, str(len(cells_)),
+                _number(float(np.mean([mean for mean, _ in cells_])))]
+        if reference:
+            differences = [d for _, d in cells_ if d]
+            verdicts = Counter(d["verdict"] for d in differences)
+            line += [_number(float(np.mean([d["mean"] for d in differences])) if differences else None, "+.3f"),
+                     *(str(verdicts[word]) if differences else "-" for word in ("higher", "tied", "lower"))]
+        body.append(line)
+    return body
+
+
 def table(config, runs, *, compare: bool = False) -> str:
     """Return the table of a config file as text, from the run files in the folder runs.
 
     One block per metric, one line per cell and method; a method with two
-    levels is shown at its better level. compare=True adds the mean of
-    configs/expected/<config>.csv and the difference to it."""
+    levels is shown at its better level. With report.pool a second block
+    per metric has the means of the cell means. compare=True adds the mean
+    of configs/expected/<config>.csv and the difference to it."""
     config = load(config)
     names, reference = columns(config), config["report"].get("relative_to")
     all_rows = rows(config, runs)
@@ -208,7 +265,7 @@ def table(config, runs, *, compare: bool = False) -> str:
                      for row in all_rows)
     lines = [config["paper_item"] or "", f"{len(all_rows)} runs: " + ", ".join(f"{count} {word}" for word, count in status.items())]
     graph_keys = [key for key in dict.fromkeys(key for group in groups for key in group["graph"])
-                  if len({str(group["graph"].get(key)) for group in groups}) > 1]
+                  if key != "path" and len({str(group["graph"].get(key)) for group in groups}) > 1]
     differences, other_graphs, other_level = [], 0, 0
     for name in names:
         head = [*graph_keys, "M", "method", "level", "graphs", "mean", "lo", "hi"]
@@ -231,11 +288,10 @@ def table(config, runs, *, compare: bool = False) -> str:
             if compare:
                 line += ["-", "-"] if not (stored and mean) else [_number(float(stored["mean"])), format(differences[-1], "+.1e")]
             body.append(line)
-        # A column without an entry is left out (M with the oracle, lo and hi without the bootstrap).
-        keep = [i for i in range(len(body[0])) if len(body) == 1 or any(line[i] != "-" for line in body[1:])]
-        body = [[line[i] for i in keep] for line in body]
-        widths = [max(len(line[i]) for line in body) for i in range(len(body[0]))]
-        lines += ["", name] + ["  ".join(word.ljust(width) for word, width in zip(line, widths)).rstrip() for line in body]
+        lines += ["", name] + _lines(body)
+        if config["report"].get("pool"):
+            pool = config["report"]["pool"]
+            lines += ["", f"{name}: mean of the cell means by {pool['by']}"] + _lines(_pooled(groups, name, pool, reference))
     if compare:
         lines += ["", f"{len(differences)} means compared with the expected means: largest absolute difference "
                       f"{max(map(abs, differences), default=0):.1e}; {other_graphs} with another number of graphs; "

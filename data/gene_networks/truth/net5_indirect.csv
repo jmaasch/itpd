@@ -1,0 +1,33 @@
+source,target,ratio_before,ratio_after,two_step_via
+mRNA_G3,mRNA_G4,0.183,0.082,protein_G3
+mRNA_G3,protein_G4,0.072,0.032,longer chain
+mRNA_G4,mRNA_G2,0.580,0.527,protein_G4
+mRNA_G4,protein_G2,0.085,0.077,longer chain
+mRNA_G5,mRNA_G6,0.012,0.174,protein_G5
+mRNA_G5,protein_G6,0.026,0.368,longer chain
+mRNA_G6,mRNA_G8,0.106,1.235,protein_G6
+mRNA_G6,protein_G8,0.022,0.258,longer chain
+mRNA_G7,mRNA_G2,0.404,0.431,protein_G7
+mRNA_G7,protein_G2,0.058,0.062,longer chain
+mRNA_G8,mRNA_G7,0.458,0.041,protein_G8
+mRNA_G8,mRNA_G9,0.083,0.120,protein_G8
+mRNA_G8,protein_G7,0.071,0.006,longer chain
+mRNA_G8,protein_G9,0.111,0.160,longer chain
+mRNA_G9,mRNA_G1,0.285,0.419,protein_G9
+mRNA_G9,protein_G1,0.060,0.088,longer chain
+mRNA_G10,mRNA_G3,0.208,0.163,protein_G10
+mRNA_G10,protein_G3,0.097,0.076,longer chain
+protein_G3,mRNA_G2,0.071,0.029,longer chain
+protein_G3,protein_G4,0.187,0.084,mRNA_G4
+protein_G4,protein_G2,0.248,0.225,mRNA_G2
+protein_G5,mRNA_G8,0.001,0.237,longer chain
+protein_G5,protein_G6,0.101,1.401,mRNA_G6
+protein_G6,protein_G8,0.028,0.328,mRNA_G8
+protein_G7,protein_G2,0.292,0.312,mRNA_G2
+protein_G8,mRNA_G1,0.031,0.065,longer chain
+protein_G8,mRNA_G2,0.172,0.016,longer chain
+protein_G8,protein_G7,0.318,0.028,mRNA_G7
+protein_G8,protein_G9,0.488,0.701,mRNA_G9
+protein_G9,protein_G1,0.103,0.152,mRNA_G1
+protein_G10,mRNA_G4,0.051,0.018,longer chain
+protein_G10,protein_G3,0.577,0.453,mRNA_G3

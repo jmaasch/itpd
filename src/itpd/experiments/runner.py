@@ -5,12 +5,16 @@ observations. Its file is
 
     OUT/<generator and its parameters>/g<graph index>/M<M>/<ci_test>/<method>[__<level>][__lag<K>][__unit].json
 
-(no M folder with the oracle). The file holds the specification of the run
+(no M folder with the oracle; an ITPD entry with a label has the label as <method>; the graph parameter path is not in the
+folder name). The file holds the specification of the run
 (key "spec": graph parameters, graph index, seed, data mechanism, M, CI
 test, alpha, the method with its level and options, repeat), the SHA-1 of the
-true graph and of the data, what the method returned (status, edges,
+true graph and of the data (the whole draw of simulated data; the M centered
+observations of stored data), what the method returned (status, edges,
 untested targets, counts of CI tests), the seconds of every repetition, and
 the package versions. It holds no score: a score is computed from the edges.
+A run of the generator "enumerate" is a block of graphs: its file holds the
+counts of the exhaustive check, and no edges.
 
 The name of a file does not hold the whole specification. So a file that
 exists is compared with the specification of the run before anything
@@ -38,7 +42,7 @@ def run_path(spec: dict) -> str:
     graph, method, M = spec["graph"], spec["method"], spec["data"].get("M")
     words = [graph["generator"]]
     for key, value in graph.items():
-        if key != "generator":
+        if key not in ("generator", "path"):
             words.append(("" if value else "non") + key if isinstance(value, bool) else f"{key}{value:g}")
     stem = slug(method.get("label", method["name"]))
     stem += "".join("__" + part for part in (method.get("level"), f"lag{method['max_lag']}" if "max_lag" in method else None,
@@ -102,8 +106,8 @@ def run(config, out, *, graphs=None, methods=None, M=None) -> dict:
     dict
         written: number of runs made; skipped: number of finished runs found.
     """
-    planned = {}
-    for spec in specifications(load(config), graphs, methods, M):
+    planned, config = {}, load(config)
+    for spec in specifications(config, graphs, methods, M):
         path = os.path.join(out, run_path(spec))
         if planned.setdefault(path, spec) != spec:
             raise ConfigError(f"two runs of the config have the file {path}")
@@ -118,12 +122,15 @@ def run(config, out, *, graphs=None, methods=None, M=None) -> dict:
         for path, spec in pending:
             key = (spec["graph"], spec["data"]["mechanism"], spec["seed"], spec["graph_index"])
             if key != built:
-                instance, built, draws = instances.make_instance(*key), key, {}
+                instance, built, draws = instances.make_instance(*key, config["folder"]), key, {}
             V = data_sha1 = None
             if "M" in spec["data"]:
-                rows = max(instances.ROWS, spec["data"]["M"])
+                rows = instances.rows(spec["data"]["mechanism"], spec["data"]["M"])
                 if rows not in draws:
-                    draws[rows] = instances.draw(instance, rows)
+                    try:
+                        draws[rows] = instances.draw(instance, rows)
+                    except FileNotFoundError as error:
+                        raise ConfigError(str(error)) from None
                 V, data_sha1 = draws[rows][0][:spec["data"]["M"]], draws[rows][1]
             results = [run_method(spec["method"], instance, V, spec["ci_test"], spec["alpha"]) for _ in range(spec["repeat"])]
             record = {"spec": spec, "graph_sha1": instance.graph_sha1, "data_sha1": data_sha1, **results[0],

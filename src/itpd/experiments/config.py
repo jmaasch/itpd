@@ -21,6 +21,14 @@ entry of settings, a graph block with a generator, or a data block with a
 mechanism, replaces the block; otherwise its keys are merged over the block.
 The oracle goes with the data mechanism "none" and no M. An unknown key is
 an error.
+
+The generator "enumerate" stands for every time graph of N series and T
+steps. Its graph index g is block g of 65536 graphs, and a run is the
+exhaustive check of ITPD on a block (itpd.experiments.ablations).
+
+The generator "gene_networks" reads stored data (data mechanism "stored").
+Its parameter path is the data folder, relative to the folder of the config
+file, and its graph index is the number of a data set.
 """
 import itertools
 import os
@@ -39,7 +47,7 @@ PER_SETTING = ("alpha", "ci_test", "seed", "graph", "data", "graphs", "methods",
 TOP = PER_SETTING + ("paper_item", "description", "report", "settings")
 CI_TESTS = ("fisherz", "gcm", "oracle")
 SCORING = ("view", "targets")
-REPORT = ("metrics", "level_by", "bootstrap", "relative_to")
+REPORT = ("metrics", "level_by", "bootstrap", "relative_to", "pool")
 
 
 def _check(condition, message):
@@ -90,6 +98,8 @@ def _settings(merged) -> list:
     for values in itertools.product(*(graph[key] if isinstance(graph[key], list) else [graph[key]] for key in parameters)):
         one = {"generator": graph["generator"], **dict(zip(parameters, values))}
         runs = [run for entry in merged["methods"] for run in expand(entry, one.get("lag", 1), ci_test)]
+        _check(one["generator"] != "enumerate" or all(run["name"] == "ITPD" for run in runs),
+               "the generator enumerate checks ITPD only")
         settings.append({**{key: merged[key] for key in ("alpha", "ci_test", "seed", "repeat")}, "graph": one,
                          "data": {"mechanism": mechanism, "M": M}, "graphs": indices(merged["graphs"]),
                          "methods": runs, "scoring": dict(merged["scoring"])})
@@ -129,7 +139,3 @@ def load(path) -> dict:
     return {"path": path, "folder": os.path.dirname(path), "paper_item": raw.get("paper_item"),
             "description": raw.get("description"), "report": raw.get("report", {}), "settings": settings}
 
-
-def resolve(config: dict, path: str) -> str:
-    """Return a path of the config as an absolute path: it is relative to the folder of the config file."""
-    return os.path.normpath(os.path.join(config["folder"], path))

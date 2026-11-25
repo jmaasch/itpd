@@ -1,0 +1,256 @@
+# Means over graphs of the stored runs of the paper, at full precision (source: the stored runs of the ablation and of the runs with Lines 9' and 10').
+# setting is the folder of the setting in the output of run; an empty M is the oracle; an empty level is a method
+# with one level; better_level marks the level with the higher mean F1 of the cell.
+setting,M,method,level,better_level,metric,mean,graphs
+standard_N20_T16_lag1_in_degree1_nonstationary,200,Algorithm 1,,True,f1,0.9677192467139342,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,Algorithm 1,,True,precision,0.9886215571582422,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,Algorithm 1,,True,recall,0.9478533848869013,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,Algorithm 1,,True,unique_per_candidate,1.2958563941299792,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,Algorithm 1,,True,mean_set,5.969771634359318,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,Algorithm 1,,True,largest_set,26.85,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,Algorithm 1,,True,screened_size,12.002166666666668,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,With Lines 9' and 10',,True,f1,0.967846606296199,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,With Lines 9' and 10',,True,precision,0.9886084619255975,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,With Lines 9' and 10',,True,recall,0.9481207645660458,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,With Lines 9' and 10',,True,unique_per_candidate,1.8867295597484273,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,With Lines 9' and 10',,True,mean_set,3.917954411801541,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,With Lines 9' and 10',,True,largest_set,26.6,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,With Lines 9' and 10',,True,screened_size,11.7585,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,Line 11 with the members of S at the step of X,,True,f1,0.6102956375213467,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,Line 11 with the members of S at the step of X,,True,precision,0.4429948436308259,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,Line 11 with the members of S at the step of X,,True,recall,0.982328241910636,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,Line 11 with the members of S at the step of X,,True,unique_per_candidate,1.2757337526205448,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,Line 11 with the members of S at the step of X,,True,mean_set,6.623931864647257,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,Line 11 with the members of S at the step of X,,True,largest_set,27.25,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,Line 11 with the members of S at the step of X,,True,screened_size,12.166666666666668,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,Algorithm 1,,True,f1,0.9945456305593341,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,Algorithm 1,,True,precision,0.9922781857455286,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,Algorithm 1,,True,recall,0.9968363093024225,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,Algorithm 1,,True,unique_per_candidate,1.3161383647798741,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,Algorithm 1,,True,mean_set,6.3163846101684715,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,Algorithm 1,,True,largest_set,29.05,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,Algorithm 1,,True,screened_size,12.718499999999999,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,With Lines 9' and 10',,True,f1,0.994286587326297,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,With Lines 9' and 10',,True,precision,0.991936842045917,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,With Lines 9' and 10',,True,recall,0.9966632989217997,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,With Lines 9' and 10',,True,unique_per_candidate,1.9261781970649892,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,With Lines 9' and 10',,True,mean_set,4.028596222810383,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,With Lines 9' and 10',,True,largest_set,28.1,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,With Lines 9' and 10',,True,screened_size,12.321166666666667,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,Line 11 with the members of S at the step of X,,True,f1,0.6270842214154584,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,Line 11 with the members of S at the step of X,,True,precision,0.45734874423795374,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,Line 11 with the members of S at the step of X,,True,recall,0.9981586538426244,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,Line 11 with the members of S at the step of X,,True,unique_per_candidate,1.2942746331236896,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,Line 11 with the members of S at the step of X,,True,mean_set,6.978910120001854,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,Line 11 with the members of S at the step of X,,True,largest_set,29.05,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,Line 11 with the members of S at the step of X,,True,screened_size,12.911666666666667,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,Algorithm 1,,True,f1,0.9970824119221696,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,Algorithm 1,,True,precision,0.9941909852500981,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,Algorithm 1,,True,recall,1.0,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,Algorithm 1,,True,unique_per_candidate,1.3541802935010483,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,Algorithm 1,,True,mean_set,6.683328355467745,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,Algorithm 1,,True,largest_set,29.85,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,Algorithm 1,,True,screened_size,13.546833333333336,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,With Lines 9' and 10',,True,f1,0.9974938537610072,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,With Lines 9' and 10',,True,precision,0.9950084753852654,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,With Lines 9' and 10',,True,recall,1.0,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,With Lines 9' and 10',,True,unique_per_candidate,1.9954800838574425,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,With Lines 9' and 10',,True,mean_set,4.041133138082125,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,With Lines 9' and 10',,True,largest_set,28.85,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,With Lines 9' and 10',,True,screened_size,12.858666666666664,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,Line 11 with the members of S at the step of X,,True,f1,0.6140324563316358,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,Line 11 with the members of S at the step of X,,True,precision,0.44320668683147224,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,Line 11 with the members of S at the step of X,,True,recall,1.0,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,Line 11 with the members of S at the step of X,,True,unique_per_candidate,1.3240188679245282,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,Line 11 with the members of S at the step of X,,True,mean_set,7.419130781850116,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,Line 11 with the members of S at the step of X,,True,largest_set,30.65,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,Line 11 with the members of S at the step of X,,True,screened_size,13.776999999999997,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,Algorithm 1,,True,f1,0.9452209281084999,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,Algorithm 1,,True,precision,0.9922521024491809,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,Algorithm 1,,True,recall,0.9025529674141932,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,Algorithm 1,,True,unique_per_candidate,1.3080136268343816,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,Algorithm 1,,True,mean_set,6.941609474061887,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,Algorithm 1,,True,largest_set,27.85,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,Algorithm 1,,True,screened_size,12.649666666666667,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,With Lines 9' and 10',,True,f1,0.9453475257097542,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,With Lines 9' and 10',,True,precision,0.992699502959631,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,With Lines 9' and 10',,True,recall,0.9024152263673612,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,With Lines 9' and 10',,True,unique_per_candidate,2.0121341719077566,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,With Lines 9' and 10',,True,mean_set,4.270016179986833,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,With Lines 9' and 10',,True,largest_set,27.35,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,With Lines 9' and 10',,True,screened_size,12.322166666666664,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,Line 11 with the members of S at the step of X,,True,f1,0.7575115575508058,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,Line 11 with the members of S at the step of X,,True,precision,0.6264758116310551,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,Line 11 with the members of S at the step of X,,True,recall,0.9584357674734889,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,Line 11 with the members of S at the step of X,,True,unique_per_candidate,1.2871729559748428,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,Line 11 with the members of S at the step of X,,True,mean_set,7.319833467772679,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,Line 11 with the members of S at the step of X,,True,largest_set,28.2,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,Line 11 with the members of S at the step of X,,True,screened_size,12.679666666666666,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,Algorithm 1,,True,f1,0.9916630060261851,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,Algorithm 1,,True,precision,0.9952228015116826,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,Algorithm 1,,True,recall,0.9881380645366731,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,Algorithm 1,,True,unique_per_candidate,1.3349109014675054,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,Algorithm 1,,True,mean_set,7.405282000760614,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,Algorithm 1,,True,largest_set,28.9,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,Algorithm 1,,True,screened_size,13.507,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,With Lines 9' and 10',,True,f1,0.9915312810440022,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,With Lines 9' and 10',,True,precision,0.9952237569267333,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,With Lines 9' and 10',,True,recall,0.9878748855177945,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,With Lines 9' and 10',,True,unique_per_candidate,2.07369392033543,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,With Lines 9' and 10',,True,mean_set,4.383296081363909,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,With Lines 9' and 10',,True,largest_set,28.55,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,With Lines 9' and 10',,True,screened_size,12.957166666666666,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,Line 11 with the members of S at the step of X,,True,f1,0.7780319389451514,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,Line 11 with the members of S at the step of X,,True,precision,0.6399425758815892,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,Line 11 with the members of S at the step of X,,True,recall,0.9922508490278152,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,Line 11 with the members of S at the step of X,,True,unique_per_candidate,1.3118301886792454,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,Line 11 with the members of S at the step of X,,True,mean_set,7.79338550930696,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,Line 11 with the members of S at the step of X,,True,largest_set,28.9,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,Line 11 with the members of S at the step of X,,True,screened_size,13.588333333333335,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,Algorithm 1,,True,f1,0.9972712126859639,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,Algorithm 1,,True,precision,0.9957314979133158,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,Algorithm 1,,True,recall,0.99881846279018,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,Algorithm 1,,True,unique_per_candidate,1.3848553459119497,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,Algorithm 1,,True,mean_set,8.221942618891326,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,Algorithm 1,,True,largest_set,32.6,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,Algorithm 1,,True,screened_size,14.982833333333332,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,With Lines 9' and 10',,True,f1,0.9970032410587774,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,With Lines 9' and 10',,True,precision,0.9954546726615329,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,With Lines 9' and 10',,True,recall,0.9985596411647087,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,With Lines 9' and 10',,True,unique_per_candidate,2.2037358490566032,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,With Lines 9' and 10',,True,mean_set,4.508287491905532,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,With Lines 9' and 10',,True,largest_set,31.05,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,With Lines 9' and 10',,True,screened_size,13.981333333333334,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,Line 11 with the members of S at the step of X,,True,f1,0.7439839294540999,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,Line 11 with the members of S at the step of X,,True,precision,0.5929505881115013,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,Line 11 with the members of S at the step of X,,True,recall,0.99881846279018,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,Line 11 with the members of S at the step of X,,True,unique_per_candidate,1.3538668763102726,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,Line 11 with the members of S at the step of X,,True,mean_set,8.693129196552297,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,Line 11 with the members of S at the step of X,,True,largest_set,33.35,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,Line 11 with the members of S at the step of X,,True,screened_size,15.092833333333335,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,Algorithm 1,,True,f1,0.9051675739984459,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,Algorithm 1,,True,precision,0.9943314707600301,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,Algorithm 1,,True,recall,0.8309633660101425,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,Algorithm 1,,True,unique_per_candidate,1.3249056603773586,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,Algorithm 1,,True,mean_set,7.853375383676815,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,Algorithm 1,,True,largest_set,29.15,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,Algorithm 1,,True,screened_size,13.655333333333331,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,With Lines 9' and 10',,True,f1,0.9049539886757996,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,With Lines 9' and 10',,True,precision,0.9943351595007796,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,With Lines 9' and 10',,True,recall,0.8305920812694583,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,With Lines 9' and 10',,True,unique_per_candidate,2.080005241090147,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,With Lines 9' and 10',,True,mean_set,4.722788670185574,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,With Lines 9' and 10',,True,largest_set,28.3,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,With Lines 9' and 10',,True,screened_size,13.2905,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,Line 11 with the members of S at the step of X,,True,f1,0.8098674089314899,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,Line 11 with the members of S at the step of X,,True,precision,0.717984441754291,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,Line 11 with the members of S at the step of X,,True,recall,0.9291497873242041,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,Line 11 with the members of S at the step of X,,True,unique_per_candidate,1.2990744234800837,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,Line 11 with the members of S at the step of X,,True,mean_set,8.159663292920754,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,Line 11 with the members of S at the step of X,,True,largest_set,28.65,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,Line 11 with the members of S at the step of X,,True,screened_size,13.618833333333333,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,Algorithm 1,,True,f1,0.9849031489873324,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,Algorithm 1,,True,precision,0.996308605307733,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,Algorithm 1,,True,recall,0.9737723238398633,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,Algorithm 1,,True,unique_per_candidate,1.350766247379455,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,Algorithm 1,,True,mean_set,8.473118566947997,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,Algorithm 1,,True,largest_set,30.6,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,Algorithm 1,,True,screened_size,14.661666666666665,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,With Lines 9' and 10',,True,f1,0.9846146161782203,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,With Lines 9' and 10',,True,precision,0.9963586028107694,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,With Lines 9' and 10',,True,recall,0.9731591882830463,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,With Lines 9' and 10',,True,unique_per_candidate,2.1560828092243183,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,With Lines 9' and 10',,True,mean_set,4.8681795512045705,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,With Lines 9' and 10',,True,largest_set,29.7,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,With Lines 9' and 10',,True,screened_size,14.056833333333334,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,Line 11 with the members of S at the step of X,,True,f1,0.8313933074086552,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,Line 11 with the members of S at the step of X,,True,precision,0.7202824430781234,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,Line 11 with the members of S at the step of X,,True,recall,0.9831189254990026,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,Line 11 with the members of S at the step of X,,True,unique_per_candidate,1.3232232704402516,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,Line 11 with the members of S at the step of X,,True,mean_set,8.79613405211477,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,Line 11 with the members of S at the step of X,,True,largest_set,30.55,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,Line 11 with the members of S at the step of X,,True,screened_size,14.686000000000002,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,Algorithm 1,,True,f1,0.9961488613680402,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,Algorithm 1,,True,precision,0.9951350227085044,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,Algorithm 1,,True,recall,0.9971682624073253,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,Algorithm 1,,True,unique_per_candidate,1.3971404612159328,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,Algorithm 1,,True,mean_set,9.441967021219444,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,Algorithm 1,,True,largest_set,34.85,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,Algorithm 1,,True,screened_size,16.4125,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,With Lines 9' and 10',,True,f1,0.9961234334212085,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,With Lines 9' and 10',,True,precision,0.9954689821915995,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,With Lines 9' and 10',,True,recall,0.9967812750974601,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,With Lines 9' and 10',,True,unique_per_candidate,2.309215932914046,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,With Lines 9' and 10',,True,mean_set,5.011046259955269,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,With Lines 9' and 10',,True,largest_set,32.35,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,With Lines 9' and 10',,True,screened_size,15.368499999999997,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,Line 11 with the members of S at the step of X,,True,f1,0.8065769951024908,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,Line 11 with the members of S at the step of X,,True,precision,0.6772391543822204,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,Line 11 with the members of S at the step of X,,True,recall,0.9971147864714963,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,Line 11 with the members of S at the step of X,,True,unique_per_candidate,1.3633825995807127,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,Line 11 with the members of S at the step of X,,True,mean_set,9.855016257351204,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,Line 11 with the members of S at the step of X,,True,largest_set,34.6,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,Line 11 with the members of S at the step of X,,True,screened_size,16.453833333333336,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,Algorithm 1,,True,f1,0.813413198819981,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,Algorithm 1,,True,precision,0.9925961770307996,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,Algorithm 1,,True,recall,0.6892368122822635,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,Algorithm 1,,True,unique_per_candidate,1.3515796645702307,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,Algorithm 1,,True,mean_set,9.350737803948139,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,Algorithm 1,,True,largest_set,30.6,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,Algorithm 1,,True,screened_size,15.489166666666662,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,With Lines 9' and 10',,True,f1,0.8125742226598642,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,With Lines 9' and 10',,True,precision,0.9926549960083756,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,With Lines 9' and 10',,True,recall,0.6880051040825663,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,With Lines 9' and 10',,True,unique_per_candidate,2.148812368972746,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,With Lines 9' and 10',,True,mean_set,5.5518544895031035,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,With Lines 9' and 10',,True,largest_set,30.15,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,With Lines 9' and 10',,True,screened_size,15.123166666666666,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,Line 11 with the members of S at the step of X,,True,f1,0.827040341326083,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,Line 11 with the members of S at the step of X,,True,precision,0.8011097565947829,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,Line 11 with the members of S at the step of X,,True,recall,0.8548707361877963,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,Line 11 with the members of S at the step of X,,True,unique_per_candidate,1.318059748427673,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,Line 11 with the members of S at the step of X,,True,mean_set,9.662367899714692,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,Line 11 with the members of S at the step of X,,True,largest_set,30.85,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,Line 11 with the members of S at the step of X,,True,screened_size,15.350166666666663,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,Algorithm 1,,True,f1,0.9605880624176006,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,Algorithm 1,,True,precision,0.9964230858889913,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,Algorithm 1,,True,recall,0.9272653007331149,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,Algorithm 1,,True,unique_per_candidate,1.375721174004193,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,Algorithm 1,,True,mean_set,10.31148459122316,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,Algorithm 1,,True,largest_set,32.65,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,Algorithm 1,,True,screened_size,16.788666666666668,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,With Lines 9' and 10',,True,f1,0.9597044551264382,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,With Lines 9' and 10',,True,precision,0.9963809383406478,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,With Lines 9' and 10',,True,recall,0.9256575948058314,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,With Lines 9' and 10',,True,unique_per_candidate,2.2347023060796647,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,With Lines 9' and 10',,True,mean_set,5.823796774118625,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,With Lines 9' and 10',,True,largest_set,31.55,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,With Lines 9' and 10',,True,screened_size,16.163333333333334,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,Line 11 with the members of S at the step of X,,True,f1,0.881447153294217,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,Line 11 with the members of S at the step of X,,True,precision,0.8165974999386755,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,Line 11 with the members of S at the step of X,,True,recall,0.9576030799698815,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,Line 11 with the members of S at the step of X,,True,unique_per_candidate,1.3395387840670858,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,Line 11 with the members of S at the step of X,,True,mean_set,10.619012894755496,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,Line 11 with the members of S at the step of X,,True,largest_set,33.05,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,Line 11 with the members of S at the step of X,,True,screened_size,16.782666666666664,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,Algorithm 1,,True,f1,0.9908299778831919,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,Algorithm 1,,True,precision,0.9925862514071924,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,Algorithm 1,,True,recall,0.9890831516825985,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,Algorithm 1,,True,unique_per_candidate,1.4161352201257862,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,Algorithm 1,,True,mean_set,11.557514866194538,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,Algorithm 1,,True,largest_set,37.25,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,Algorithm 1,,True,screened_size,18.88266666666667,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,With Lines 9' and 10',,True,f1,0.9899118294198388,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,With Lines 9' and 10',,True,precision,0.9925166794260871,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,With Lines 9' and 10',,True,recall,0.9873239142163914,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,With Lines 9' and 10',,True,unique_per_candidate,2.402081761006289,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,With Lines 9' and 10',,True,mean_set,6.054044306866992,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,With Lines 9' and 10',,True,largest_set,35.75,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,With Lines 9' and 10',,True,screened_size,17.919000000000004,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,Line 11 with the members of S at the step of X,,True,f1,0.8687049046795081,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,Line 11 with the members of S at the step of X,,True,precision,0.7744811888159338,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,Line 11 with the members of S at the step of X,,True,recall,0.9891163742739606,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,Line 11 with the members of S at the step of X,,True,unique_per_candidate,1.3750817610062893,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,Line 11 with the members of S at the step of X,,True,mean_set,11.93518205843136,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,Line 11 with the members of S at the step of X,,True,largest_set,37.3,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,Line 11 with the members of S at the step of X,,True,screened_size,18.8685,20

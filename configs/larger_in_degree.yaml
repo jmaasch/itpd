@@ -1,0 +1,31 @@
+paper_item: "Text: unique CI tests per candidate of ITPD and IAMB at larger in-degrees"
+description: >
+  The generator of the main finite data setting (20 series, 16 time steps, lag-1 edges) at in-degree 8, 10 and 15
+  with 200, 500, 2000 and 5000 observations, and at in-degree 5 with 5000 observations; 10 graphs; Fisher-z test.
+  These are the 13 settings that the sentence on 76 finite data settings counts beside the settings of the other
+  tables. IAMB at its better level.
+alpha: 0.01
+ci_test: fisherz
+seed: 0
+graph:
+  generator: standard
+  N: 20
+  T: 16
+  lag: 1
+  in_degree: [8, 10, 15]
+  stationary: false
+data:
+  mechanism: linear_gaussian
+  M: [200, 500, 2000, 5000]       # the first M rows of one draw of 2000 rows; 5000 is a separate draw of 5000 rows
+graphs: 0-9
+settings:
+  - {}
+  - {graph: {in_degree: 5}, data: {M: 5000}}
+methods:
+  - {name: ITPD}
+  - {name: IAMB, levels: [alpha, corrected]}
+scoring:
+  view: edges
+  targets: common
+report:
+  metrics: [f1, unique_per_candidate, largest_set]
