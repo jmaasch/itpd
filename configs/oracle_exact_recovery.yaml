@@ -1,0 +1,29 @@
+# Table: unique CI tests per candidate and conditioning set sizes under the exact oracle
+paper_item: "Table: unique CI tests per candidate and conditioning set sizes under the exact oracle"
+description: >
+  Stationary graphs of 20 series over 16 time steps with lag-1 edges, in-degree 1, 2, 3, 5 and 8; 200 graphs
+  per in-degree; every CI test is answered by d-separation in the true graph, so no data are drawn and the
+  levels are not used. exact is the share of graphs that a method returns without an error.
+alpha: 0.01
+ci_test: oracle
+seed: 0
+data:
+  mechanism: none
+graph:
+  generator: standard
+  N: 20
+  T: 16
+  lag: 1
+  in_degree: [1, 2, 3, 5, 8]
+  stationary: true
+graphs: 0-199
+methods:
+  - {name: ITPD}
+  - {name: IAMB}
+  - {name: IPaDL}
+  - {name: FullCI}
+scoring:
+  view: edges
+  targets: all
+report:
+  metrics: [exact, unique_per_candidate, mean_set, largest_set]

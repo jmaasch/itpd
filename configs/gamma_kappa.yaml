@@ -1,0 +1,32 @@
+# Text: choice of gamma and kappa
+paper_item: "Paragraph: choice of gamma and kappa"
+description: >
+  ITPD with alpha1 = max(alpha, min(gamma, kappa / m)) at gamma = 0.2 and kappa = 50 (Algorithm 1), against a
+  fixed level alpha1 in Lines 8, 9 and 10: gamma is the level, and kappa is so large that kappa / m is never the
+  smaller term. 16 settings: the main finite data setting (20 graphs), and 50 and 100 series over 20 time steps
+  with in-degree 2 (500 and 2000 observations, 5 graphs).
+alpha: 0.01
+ci_test: fisherz
+seed: 0
+data:
+  mechanism: linear_gaussian      # the first M rows of one draw of 2000 rows
+methods:
+  - {name: ITPD}
+  - {name: ITPD, label: "alpha1 = 0.01", gamma: 0.01, kappa: 1000000}
+  - {name: ITPD, label: "alpha1 = 0.05", gamma: 0.05, kappa: 1000000}
+  - {name: ITPD, label: "alpha1 = 0.1", gamma: 0.1, kappa: 1000000}
+  - {name: ITPD, label: "alpha1 = 0.2", gamma: 0.2, kappa: 1000000}
+settings:
+  - graph: {generator: standard, N: 20, T: 16, lag: 1, in_degree: [1, 2, 3, 5], stationary: false}
+    data: {M: [200, 500, 2000]}
+    graphs: 0-19
+  - graph: {generator: stepwise, N: [50, 100], T: 20, in_degree: 2}
+    data: {M: [500, 2000]}
+    graphs: 0-4
+scoring:
+  view: edges
+  targets: common
+report:
+  metrics: [f1, largest_set, unique_per_candidate]
+  relative_to: ITPD
+  bootstrap: {resamples: 10000, seed: 20261113}

@@ -1,0 +1,40 @@
+# Table: mean F1 with nonlinear causal mechanisms
+paper_item: "Table: mean F1 with nonlinear causal mechanisms"
+description: >
+  Data with tanh-and-sine mechanisms and additive Gaussian noise from stationary and nonstationary graphs with lag-1
+  edges and in-degree 2; four settings (series, time steps, observations) per kind of graph; 10 graphs per setting.
+  ITPD, IAMB, IPaDL and FullCI use the GCM test, which can test every target. Every baseline at its better level.
+  One run takes minutes to hours. The table also has PCMCI and DF-PC with a GCM test, which this package does not run.
+alpha: 0.01
+ci_test: gcm
+seed: 0
+graph:
+  generator: standard
+  lag: 1
+  in_degree: 2
+data:
+  mechanism: nonlinear            # the first M rows of one draw of 2000 rows
+graphs: 0-9
+methods:
+  - &itpd {name: ITPD}
+  - &iamb {name: IAMB, levels: [alpha, corrected]}
+  - &ipadl {name: IPaDL, levels: [alpha, corrected]}
+  - {name: FullCI, levels: [corrected]}
+  - &lasso {name: Lasso}
+  - &dynotears {name: DYNOTEARS}
+settings:
+  - {graph: {N: 10, T: 8, stationary: [true, false]}, data: {M: [500, 2000]}}
+  - {graph: {N: 20, T: 8, stationary: false}, data: {M: 500}}
+  # In the next three settings the FullCI runs did not finish within 4 hours (a dash in the table). In the last one
+  # IAMB runs at the corrected level only: the paper has no IAMB run at the level alpha there.
+  - {graph: {N: 10, T: 16, stationary: true}, data: {M: 2000}, methods: [*itpd, *iamb, *ipadl, *lasso, *dynotears]}
+  - {graph: {N: 20, T: 8, stationary: true}, data: {M: 2000}, methods: [*itpd, *iamb, *ipadl, *lasso, *dynotears]}
+  - graph: {N: 20, T: 8, stationary: false}
+    data: {M: 2000}
+    methods: [*itpd, {name: IAMB, levels: [corrected]}, *ipadl, *lasso, *dynotears]
+scoring:
+  view: edges
+  targets: common
+report:
+  metrics: [f1]
+  bootstrap: {resamples: 10000, seed: 20261113}

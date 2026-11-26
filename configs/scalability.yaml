@@ -1,0 +1,33 @@
+# Table: mean F1 and unique CI tests per candidate on larger graphs
+paper_item: "Table: mean F1 and unique CI tests per candidate on larger graphs"
+description: >
+  Linear-Gaussian data of 50 and 100 series over 20 time steps from nonstationary graphs with lag-1 edges and
+  in-degree 2, with 500 and 2000 observations; 5 graphs per setting; Fisher-z test. F1 on the common targets and
+  unique CI tests per candidate, every baseline at its better level.
+alpha: 0.01
+ci_test: fisherz
+seed: 0
+graph:
+  generator: stepwise
+  N: [50, 100]
+  T: 20
+  in_degree: 2
+data:
+  mechanism: linear_gaussian
+  M: [500, 2000]                  # the first M rows of one draw of 2000 rows
+graphs: 0-4
+methods:
+  - {name: ITPD}
+  - {name: IAMB, levels: [alpha, corrected]}
+  - {name: IPaDL, levels: [alpha, corrected]}
+  - {name: FullCI, levels: [alpha, corrected]}
+  - {name: Lasso}
+  - {name: PCMCI, levels: [alpha, corrected], max_lag: 1}
+  - {name: DF-PC, levels: [alpha, corrected], time_limit: 12600}
+  - {name: CD-NOD, levels: [alpha, corrected], max_lag: 1, time_limit: 6600}
+scoring:
+  view: edges
+  targets: common
+report:
+  metrics: [f1, unique_per_candidate]
+  bootstrap: {resamples: 10000, seed: 20261113}

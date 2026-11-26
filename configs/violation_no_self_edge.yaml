@@ -1,0 +1,34 @@
+# Table: mean F1 with one assumption violated (no lag-1 self edge)
+paper_item: "Table: mean F1 with one assumption violated (no lag-1 self edge)"
+description: >
+  The main finite data setting with in-degree 2 (20 series, 16 time steps, nonstationary graphs with lag-1 edges,
+  linear-Gaussian data, Fisher-z test), in which a share of the series has no lag-1 self edge at any step.
+  Share 0 is the main setting. 20 graphs per share; 500 and 2000 observations (the table shows 2000).
+  F1 on the lag-1 edges between two series over the common targets; every baseline at its better level.
+alpha: 0.01
+ci_test: fisherz
+seed: 0
+graph:
+  generator: violations
+  N: 20
+  T: 16
+  in_degree: 2
+  no_self_edge_share: [0, 0.1, 0.25, 0.5, 1]
+  same_step_share: 0
+data:
+  mechanism: linear_gaussian
+  M: [500, 2000]                  # the first M rows of one draw of 2000 rows
+graphs: 0-19
+methods:
+  - {name: ITPD}
+  - {name: IAMB, levels: [alpha, corrected]}
+  - {name: FullCI, levels: [alpha, corrected]}
+  - {name: Lasso}
+  - {name: PCMCI, levels: [alpha, corrected], max_lag: 1}
+scoring:
+  view: lag1_edges
+  targets: common
+report:
+  metrics: [f1]
+  level_by: {view: lag1_edges, targets: common}
+  bootstrap: {resamples: 10000, seed: 20261113}

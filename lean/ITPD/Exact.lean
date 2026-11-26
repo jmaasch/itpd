@@ -9,10 +9,12 @@ does not contain it, and `Y` has the local Markov property with weak union. The 
 `P` is any relation on the observed variables; `Latent.lean` takes the parent relation of a
 graph that may have latent time steps before the first observed one.
 
-Main result, `itpdS_correct`: with Line 11 as in the paper (`onlyX = true`), for both values of
-the switch `givenS`, every candidate order (Line 6), every Phase II order (Line 13) and every
-series order (Line 3), the returned entry `A[Y]` is `pa(Y)`. No hypothesis is made on other
-targets, on the first time step, or on the correctness of the learned graph at earlier steps.
+Main result, `itpdS_correct`: for a target `Y` that meets `TargetHyp`,
+`itpdS ci true givenS candOrd ord2 N T serOrd` returns the entry `A[Y]` equal to `pa(Y)`. This holds
+with `onlyX = true` (Line 11 of Algorithm 1), for both values of the Boolean parameter `givenS`,
+every candidate order (Line 6), every Phase II order (Line 13), and every series order (Line 3). No
+hypothesis is made on other targets, on the first time step, or on the correctness of the learned
+graph at earlier steps.
 
 Outline of the proof.
 * Phase I keeps every parent (`phaseIS_parents`): each of the tests of Lines 8, 9 and 10 reports
@@ -66,7 +68,8 @@ theorem LearnedPast.past_of_mem {N : Nat} {A : Adj} (hA : LearnedPast N A) {t : 
 
 /-! ## Phase I and Phase II for arbitrary CI answers -/
 
-/-- The alternative step `stepIGivenX` keeps `S` or adds `Z`. -/
+/-- `stepIGivenX` (Lines 7-10 for `givenS = false`) keeps `S` or adds `Z` to it, adding `Z` only
+when the Line 10 test reports dependence. -/
 theorem stepIGivenX_cases (ci : CI) (A : Adj) (x y : Vertex) (S : List Vertex) (z : Vertex) :
     stepIGivenX ci A x y S z = S ∨
       (stepIGivenX ci A x y S z = insertAll S [z] ∧ ci z y (A z) = false) := by
@@ -159,8 +162,9 @@ theorem foldII_mem (ci : CI) (y : Vertex) :
         · exact Or.inr (List.mem_cons.mpr (Or.inl (List.mem_singleton.mp h)))
     · exact Or.inr (List.mem_cons.mpr (Or.inr h))
 
-/-- The output of Lines 4-15 is `X` or a member of `V_{1:t}`, for arbitrary CI answers, all values
-of the switches and every order. -/
+/-- Every member of the output of Lines 4-15 is `X` or a member of `V_{1:t}`, for arbitrary CI
+answers, both values of `onlyX`, both values of `givenS`, and all orders `candOrd` and `ord2` with
+`IsOrder`. -/
 theorem discoverS_mem (ci : CI) (onlyX givenS : Bool) (candOrd ord2 : List Vertex → List Vertex)
     (hc : IsOrder candOrd) (h2 : IsOrder ord2) (N : Nat) (A : Adj) (t n : Nat) (u : Vertex)
     (hu : u ∈ discoverS ci onlyX givenS candOrd ord2 N A t n) :
@@ -205,8 +209,9 @@ theorem runSeriesS_learnedPast (ci : CI) (onlyX givenS : Bool)
       omega
   · exact hB v u hu
 
-/-- **Learned parents are earlier observed variables**, for arbitrary CI answers, all values of
-the switches and every order. -/
+/-- **Learned parents are earlier observed variables** (`LearnedPast` on the adjacency list that
+`itpdS` returns), for arbitrary CI answers, both values of `onlyX`, both values of `givenS`, all
+orders with `IsOrder` and every series order with `IsSeriesOrder`. -/
 theorem itpdS_learnedPast (ci : CI) (onlyX givenS : Bool)
     (candOrd ord2 : List Vertex → List Vertex) (hc : IsOrder candOrd) (h2 : IsOrder ord2)
     (N T : Nat) (serOrd : Nat → List Nat) (hser : IsSeriesOrder N serOrd) :
@@ -234,7 +239,9 @@ section OneTarget
 
 variable {P : Vertex → Vertex → Prop} {ci : CI} {N t n : Nat}
 
-/-- A parent of `Y` that is not yet in `S` is added by the alternative step `stepIGivenX`. -/
+/-- Under `TargetHyp`, with `X ∈ S` and `LearnedPast N A`, a parent `p` of `Y` is in `S` after
+`stepIGivenX` visits `p` (a parent not yet in `S` is added). Case `givenS = false` of
+`stepIS_parent`. -/
 theorem stepIGivenX_parent (H : TargetHyp P ci N t n) (A : Adj) (hA : LearnedPast N A)
     (S : List Vertex) (hx : (⟨t, n⟩ : Vertex) ∈ S)
     (p : Vertex) (hp : P p ⟨t + 1, n⟩) :
@@ -260,9 +267,10 @@ theorem stepIGivenX_parent (H : TargetHyp P ci N t n) (A : Adj) (hA : LearnedPas
     rw [e]
     exact (mem_insertAll S [p] p).mpr (Or.inr (List.mem_singleton.mpr rfl))
 
-/-- A parent of `Y` that is not yet in `S` is added by Lines 7-10. The test of Line 9 is given
-`S`; `S ⊆ V_{1:t}` and the parent is not in `S`, so `adj` reports dependence. Line 7 only decides
-if Line 8 is asked. -/
+/-- A parent of `Y` that is not yet in `S` is added by Lines 7-10, for both values of `givenS`. For
+`givenS = true`, the test of Line 9 is given `S`; `S ⊆ V_{1:t}` and the parent is not in `S`, so
+`adj` reports dependence, and Line 7 only decides if Line 8 is asked. For `givenS = false`, this is
+`stepIGivenX_parent`. -/
 theorem stepIS_parent (givenS : Bool) (H : TargetHyp P ci N t n) (A : Adj)
     (hA : LearnedPast N A) (S : List Vertex) (hS : ∀ s, s ∈ S → s ∈ past N t)
     (hx : (⟨t, n⟩ : Vertex) ∈ S) (p : Vertex) (hp : P p ⟨t + 1, n⟩) :
@@ -386,9 +394,10 @@ theorem foldII_correct (H : TargetHyp P ci N t n) :
           · exact absurd (h ▸ hp) hzp
           · exact Or.inr h
 
-/-- **One target.** Under `TargetHyp` for `Y = V^n_{t+1}`, Lines 4-15 with Line 11 as in the
-paper return exactly `pa(Y)`, for both values of `givenS`, every learned graph `A` whose entries
-are earlier observed variables, every candidate order and every order of Line 13. -/
+/-- **One target.** Under `TargetHyp` for `Y = V^n_{t+1}`, Lines 4-15
+(`discoverS ci true givenS candOrd ord2 N A t n`) return `pa(Y)`, for `onlyX = true` (Line 11 of
+Algorithm 1), both values of `givenS`, every learned graph `A` with `LearnedPast N A` (entries are
+earlier observed variables), every candidate order (Line 6) and every order of Line 13. -/
 theorem discoverS_correct (givenS : Bool) (H : TargetHyp P ci N t n) (A : Adj)
     (hA : LearnedPast N A) (candOrd ord2 : List Vertex → List Vertex) (hc : IsOrder candOrd)
     (h2 : IsOrder ord2) :
@@ -442,10 +451,10 @@ end OneTarget
 
 /-! ## Exactness for the whole run -/
 
-/-- **Exactness of Algorithm 1** (Line 11 as in the paper, both values of `givenS`). For every
-target `Y = V^n_{t+1}` (`1 ≤ t < T`) that satisfies `TargetHyp`, the returned entry `A[Y]` is
-`pa(Y)`. No hypothesis is made on other targets, on the first step or on the learned graph.
-Every candidate order (Line 6), Phase II order (Line 13) and series order (Line 3). -/
+/-- **Exactness of Algorithm 1** (`onlyX = true`, Line 11 of Algorithm 1; both values of `givenS`).
+For every target `Y = V^n_{t+1}` (`1 ≤ t < T`) that satisfies `TargetHyp`, the returned entry `A[Y]`
+is `pa(Y)`. No hypothesis is made on other targets, on the first step or on the learned graph. Every
+candidate order (Line 6), Phase II order (Line 13) and series order (Line 3). -/
 theorem itpdS_correct (P : Vertex → Vertex → Prop) (ci : CI) (givenS : Bool)
     (candOrd ord2 : List Vertex → List Vertex) (hc : IsOrder candOrd) (h2 : IsOrder ord2)
     (N T : Nat) (serOrd : Nat → List Nat) (hser : IsSeriesOrder N serOrd) (t n : Nat)

@@ -12,13 +12,14 @@ dist/
 .venv/
 venv/
 
-# Experiment output (written by the run_* drivers)
-results/
-*.pkl
-*.npz
+# Output of the experiment runner
+out/
 
-# local job scripts stay untracked
-jobs/
+# Arrays written by data/gene_networks/simulate.py
+data/gene_networks/net*_g*.npy
+
+# Lean build output
+.lake/
 
 # macOS
 .DS_Store

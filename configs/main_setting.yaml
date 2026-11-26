@@ -1,0 +1,53 @@
+# Main finite data setting: the two tables and the two figures below
+description: >
+  Linear-Gaussian data of 20 series over 16 time steps from nonstationary graphs with lag-1 edges,
+  in-degree 1, 2, 3 and 5, with 200, 500 and 2000 observations; 20 graphs per setting; Fisher-z test.
+  F1 is on the common targets, and every baseline is shown at the level with the higher mean F1.
+alpha: 0.01
+ci_test: fisherz
+seed: 0
+graph:
+  generator: standard
+  N: 20
+  T: 16
+  lag: 1
+  in_degree: [1, 2, 3, 5]
+  stationary: false
+data:
+  mechanism: linear_gaussian
+  M: [200, 500, 2000]             # the first M rows of one draw of 2000 rows
+graphs: 0-19
+methods:
+  - {name: ITPD}
+  - {name: IAMB, levels: [alpha, corrected]}
+  - {name: IPaDL, levels: [alpha, corrected]}
+  - {name: FullCI, levels: [alpha, corrected]}
+  - {name: Lasso}
+  - {name: PCMCI, levels: [alpha, corrected], max_lag: 1}
+  - {name: DF-PC, levels: [alpha, corrected], time_limit: 600}
+  - {name: DYNOTEARS, max_lag: 1}
+  - {name: CD-NOD, levels: [alpha, corrected], max_lag: 1, time_limit: 1800}
+scoring:
+  view: edges
+  targets: common
+# One entry per table or figure. `select` keeps a part of the runs above.
+reports:
+  # With the difference to ITPD, paired by graph.
+  - paper_item: "Table: mean F1 in the main finite data setting"
+    metrics: [f1]
+    bootstrap: {resamples: 10000, seed: 20261113}
+    relative_to: ITPD
+  # The methods that run CI tests. PCMCI has no count per candidate.
+  - paper_item: "Table: unique CI tests per candidate and conditioning set sizes in the main finite data setting"
+    select: {M: 2000, methods: [ITPD, IAMB, IPaDL, FullCI, PCMCI, DF-PC]}
+    metrics: [unique_per_candidate, mean_set, largest_set]
+    bootstrap: {resamples: 10000, seed: 20261113}
+  # A point of the figure is the mean F1 and the mean seconds of one method. Seconds depend on the machine:
+  # only F1 has expected means.
+  - paper_item: "Figure: mean F1 against wall-clock time in the main setting (Pareto frontier)"
+    select: {M: 500, in_degree: [2, 5], methods: [ITPD, IAMB, IPaDL, FullCI, Lasso, PCMCI, DF-PC, DYNOTEARS]}
+    metrics: [f1, seconds]
+  # The methods that count CI tests per candidate. A point is the mean F1 and the mean count of one method.
+  - paper_item: "Figure: mean F1 against unique CI tests per candidate in the main setting"
+    select: {M: 500, in_degree: [2, 5], methods: [ITPD, IAMB, IPaDL, FullCI, DF-PC]}
+    metrics: [f1, unique_per_candidate]

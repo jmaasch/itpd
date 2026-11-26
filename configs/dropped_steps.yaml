@@ -1,0 +1,30 @@
+# Table: steps dropped from Algorithm 1, each added back alone
+paper_item: "Table: steps dropped from Algorithm 1, each added back alone"
+description: >
+  The main finite data setting (20 series, 16 time steps, in-degree 1, 2, 3, 5; 200, 500, 2000 observations; 20
+  graphs; Fisher-z test). ITPD as Algorithm 1; with Lines 9' and 10' before Line 9 (a CI test of Z and X at the
+  nominal level and, when it finds dependence, a test of Z and Y given X); and with a Line 11 that also takes the
+  members of S at the time step of X as parents without a test. The table gives the range of the 12 cell means.
+alpha: 0.01
+ci_test: fisherz
+seed: 0
+graph:
+  generator: standard
+  N: 20
+  T: 16
+  lag: 1
+  in_degree: [1, 2, 3, 5]
+  stationary: false
+data:
+  mechanism: linear_gaussian
+  M: [200, 500, 2000]             # the first M rows of one draw of 2000 rows
+graphs: 0-19
+methods:                          # the first and the last entry are runs of ablation.yaml
+  - {name: ITPD, label: "Algorithm 1", switches: {}}
+  - {name: ITPD, label: "With Lines 9' and 10'", switches: {dropped_lines: true}}
+  - {name: ITPD, label: "Line 11 with the members of S at the step of X", switches: {line11: same_step}}
+scoring:
+  view: edges
+  targets: common
+report:
+  metrics: [f1, precision, recall, unique_per_candidate, mean_set, largest_set, screened_size]

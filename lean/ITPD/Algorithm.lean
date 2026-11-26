@@ -3,7 +3,7 @@ import ITPD.Graph
 /-!
 # Algorithm.lean : Algorithm 1 (ITPD) as Lean functions (definitions only)
 
-"Line k" is the line number of the algorithm box of the paper:
+"Line k" means Line k of Algorithm 1 of the paper:
 
 * Line 1: `A ← {V^i_1 ↦ ∅}`. Lines 2-3: loops over `t` and `n`.
 * Line 4: `X ← V^n_t`, `Y ← V^n_{t+1}`, `Z ← V_{1:t} \ {X, Y}`.
@@ -21,11 +21,18 @@ Sets are lists. All functions are total. The parameters are the CI answers `ci`,
 adjacency list `A`, the candidate order `candOrd` (Line 6), the Phase II order `ord2` (Line 13)
 and the series order `serOrd` (Line 3).
 
-`itpdS` has two Boolean switches, `givenS` (Line 9) and `onlyX` (Line 11). The algorithm of the
-paper is the value `true` of both; the value `false` of a switch is an alternative step that is
-not in the paper. `Paper.lean` fixes both switches and the three orders of the box.
+`itpdS` has two Boolean parameters, `givenS` and `onlyX`; Algorithm 1 is the instance with both set
+to `true`.
+* `givenS` sets the conditioning set of the Line 9 test. `true`: `S` (Line 9 of Algorithm 1).
+  `false`: `{X}`, and that test counts only when `Z` and `X` are reported dependent given the empty
+  set.
+* `onlyX` sets the start of `pa_hat(Y)` in Line 11. `true`: `{X}` (Line 11 of Algorithm 1). `false`:
+  `{X} ∪ (S ∩ V_t)`, where `V_t` is the time step of `X`.
+* `itpdPaper` in `Paper.lean` sets both to `true` and uses the orders `descTime`, `ascNode` and
+  `natSeries N`.
 
-The significance levels of the box are not modeled: a CI test is its Boolean answer.
+The significance levels `α_1` and `α_2` of Algorithm 1 are not modeled: a CI test is its Boolean
+answer.
 -/
 
 set_option autoImplicit false
@@ -54,7 +61,8 @@ def anHat (A : Adj) (v : Vertex) : List Vertex := ancFuel A v.time v
 def inAnHatOfSet (A : Adj) (S : List Vertex) (z : Vertex) : Bool :=
   S.any (fun s => decide (z ∈ anHat A s))
 
-/-- `S ∪ L`, adding the new members of `L` one at a time (no duplicate is created). -/
+/-- Result `S ∪ L`, adding the members of `L` one at a time. A member already in the list is not
+added again, so no duplicate is created. -/
 def insertAll (S L : List Vertex) : List Vertex := L.foldl (fun acc v => acc.insert v) S
 
 /-! ## Phase I (Lines 5-10) -/
@@ -63,19 +71,19 @@ def insertAll (S L : List Vertex) : List Vertex := L.foldl (fun acc v => acc.ins
 Line 6 is applied. `Y` is at time `t + 1` and is not in `V_{1:t}`. -/
 def candidates (N t : Nat) (x : Vertex) : List Vertex := (past N t).filter (fun z => z != x)
 
-/-- An alternative to Lines 7-10 that is not in the paper (the value `givenS = false` of
-`stepIS`): the test of Line 9 conditions on `X` only, and is asked only when the test reports
-that `Z` and `X` are marginally dependent. Lines 7, 8 and 10 are the same. -/
+/-- Lines 7-10 for `givenS = false` (called by `stepIS`). Its second test is `Z ⊥ Y | {X}`
+(`ci z y [x]`), and counts only when `Z` and `X` are reported dependent given the empty set
+(`ci z x [] = false`). Lines 7, 8 and 10 are the same as for `givenS = true`. -/
 def stepIGivenX (ci : CI) (A : Adj) (x y : Vertex) (S : List Vertex) (z : Vertex) :
     List Vertex :=
   if (!(inAnHatOfSet A S z) && ci z y []) = true then S   -- Lines 7-8
-  else if (!(ci z x []) && ci z y [x]) = true then S      -- in place of Line 9
+  else if (!(ci z x []) && ci z y [x]) = true then S      -- Line 9 for `givenS = false`
   else if ci z y (A z) = false then insertAll S [z]       -- Line 10
   else S
 
-/-- Lines 7-10 for one candidate `z` with the current set `S`; returns the new `S`.
-`givenS = true` is the paper's box: Line 9 conditions on `S` as it is when `z` is visited.
-`givenS = false` is the alternative `stepIGivenX`. -/
+/-- Lines 7-10 for one candidate `z` and the current set `S`; returns `S` after the step.
+`givenS = true`: Line 9 of Algorithm 1, the test given `S` as it is when `z` is visited.
+`givenS = false`: `stepIGivenX`. The argument `x` is used for `givenS = false` only. -/
 def stepIS (ci : CI) : Bool → Adj → Vertex → Vertex → List Vertex → Vertex → List Vertex
   | false, A, x, y, S, z => stepIGivenX ci A x y S z
   | true, A, _, y, S, z =>
@@ -91,12 +99,13 @@ def phaseIS (ci : CI) (givenS : Bool) (A : Adj) (x y : Vertex) (cands : List Ver
 
 /-! ## Phase II (Lines 11-15) -/
 
-/-- `{X} ∪ (S ∩ V_t)`, where `V_t` is the time step of `X`: an alternative start of `pa_hat(Y)`
-that is not in the paper (the value `onlyX = false` of `initPa`). -/
+/-- `{X} ∪ (S ∩ V_t)`, where `V_t` is the time step of `X`. Start of `pa_hat(Y)` for
+`onlyX = false`, used by `initPa`. -/
 def promote (x : Vertex) (S : List Vertex) : List Vertex :=
   x :: S.filter (fun z => z.time == x.time && z != x)
 
-/-- Line 11: `pa_hat(Y) ← {X}` when `onlyX = true` (the paper's box). -/
+/-- Start of `pa_hat(Y)` in Line 11. `onlyX = true`: `{X}`, which is Line 11 of Algorithm 1
+(`pa_hat(Y) ← {X}`). `onlyX = false`: `promote x S`. -/
 def initPa (onlyX : Bool) (x : Vertex) (S : List Vertex) : List Vertex :=
   if onlyX then [x] else promote x S
 
@@ -147,9 +156,10 @@ def emptyAdj : Adj := fun _ => []
 def run (d : Adj → Nat → Nat → List Vertex) (T : Nat) (serOrd : Nat → List Nat) : Adj :=
   (timeSteps T).foldl (runTime d serOrd) emptyAdj
 
-/-- **Algorithm 1 with the two switches** `onlyX` (Line 11) and `givenS` (Line 9), candidate
-order `candOrd`, Phase II order `ord2` and series order `serOrd`. Returns the adjacency list
-`A`. -/
+/-- **Algorithm 1 with two Boolean parameters**, `onlyX` (Line 11) and `givenS` (Line 9), candidate
+order `candOrd` (Line 6), Phase II order `ord2` (Line 13) and series order `serOrd` (Line 3).
+Returns the adjacency list `A`. Algorithm 1 of the paper is `itpdPaper` (`Paper.lean`):
+`itpdS ci true true descTime ascNode N T (natSeries N)`. -/
 def itpdS (ci : CI) (onlyX givenS : Bool) (candOrd ord2 : List Vertex → List Vertex)
     (N T : Nat) (serOrd : Nat → List Nat) : Adj :=
   run (fun A t n => discoverS ci onlyX givenS candOrd ord2 N A t n) T serOrd

@@ -1,0 +1,37 @@
+# Text: exact recovery in all 32 exact-oracle settings
+paper_item: "Text, oracle validation: exact recovery in all 32 exact-oracle settings"
+description: >
+  Stationary graphs under the d-separation oracle: 20 settings with lag 1 and in-degree 1, 2, 3, 5, 8
+  (200 graphs each) and 12 settings with in-degree 2 and lag 1 or 2 (20 graphs each); 4240 graphs.
+  The oracle is pure Python: the settings with 80 series take hours.
+alpha: 0.01
+ci_test: oracle
+seed: 0
+data:
+  mechanism: none
+graph:
+  generator: standard
+  lag: 1
+  in_degree: 2
+  stationary: true
+graphs: 0-19
+settings:
+  - {graphs: 0-199, graph: {N: 20, T: 16, in_degree: [1, 2, 3, 5, 8]}}
+  - {graphs: 0-199, graph: {N: 40, T: [16, 25], in_degree: [1, 2, 3, 5, 8]}}
+  - {graphs: 0-199, graph: {N: 80, T: 16, in_degree: [1, 2, 3, 5, 8]}}
+  - graph: {N: 20, T: 16, lag: 2}
+  - graph: {N: 20, T: [25, 50], lag: [1, 2]}
+  - graph: {N: 40, T: [16, 25], lag: 2}
+  - graph: {N: 40, T: 50, lag: [1, 2]}
+  - graph: {N: 80, T: 16, lag: 2}
+  - graph: {N: 80, T: 25, lag: [1, 2]}
+methods:
+  - {name: ITPD}
+  - {name: IAMB}
+  - {name: IPaDL}
+  - {name: FullCI}
+scoring:
+  view: edges
+  targets: all
+report:
+  metrics: [exact, unique_per_candidate, mean_set, largest_set]

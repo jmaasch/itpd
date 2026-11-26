@@ -1,0 +1,244 @@
+# Means over graphs of the stored runs of the paper, at full precision (source: the stored runs with a fixed level alpha1 and of ITPD).
+# setting is the folder of the setting in the output of run; an empty M is the oracle; an empty level is a method
+# with one level; better_level marks the level with the higher mean F1 of the cell.
+setting,M,method,level,better_level,metric,mean,graphs
+standard_N20_T16_lag1_in_degree1_nonstationary,200,ITPD,,True,f1,0.9677192467139342,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,ITPD,,True,largest_set,26.85,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,ITPD,,True,unique_per_candidate,1.2958563941299792,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,alpha1 = 0.01,,True,f1,0.9292648350133513,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,alpha1 = 0.01,,True,largest_set,5.4,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,alpha1 = 0.01,,True,unique_per_candidate,1.0330618448637314,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,alpha1 = 0.05,,True,f1,0.95369328346593,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,alpha1 = 0.05,,True,largest_set,10.3,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,alpha1 = 0.05,,True,unique_per_candidate,1.0880041928721176,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,alpha1 = 0.1,,True,f1,0.9629572936700622,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,alpha1 = 0.1,,True,largest_set,16.5,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,alpha1 = 0.1,,True,unique_per_candidate,1.1561928721174002,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,alpha1 = 0.2,,True,f1,0.9677192467139342,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,alpha1 = 0.2,,True,largest_set,29.9,20
+standard_N20_T16_lag1_in_degree1_nonstationary,200,alpha1 = 0.2,,True,unique_per_candidate,1.3063280922431866,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,ITPD,,True,f1,0.9945456305593341,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,ITPD,,True,largest_set,29.05,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,ITPD,,True,unique_per_candidate,1.3161383647798741,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,alpha1 = 0.01,,True,f1,0.9904314845622837,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,alpha1 = 0.01,,True,largest_set,6.15,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,alpha1 = 0.01,,True,unique_per_candidate,1.043970649895178,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,alpha1 = 0.05,,True,f1,0.9931427949206137,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,alpha1 = 0.05,,True,largest_set,10.75,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,alpha1 = 0.05,,True,unique_per_candidate,1.1031844863731657,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,alpha1 = 0.1,,True,f1,0.9934749116785003,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,alpha1 = 0.1,,True,largest_set,17.4,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,alpha1 = 0.1,,True,unique_per_candidate,1.1744811320754716,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,alpha1 = 0.2,,True,f1,0.994380418395501,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,alpha1 = 0.2,,True,largest_set,32.1,20
+standard_N20_T16_lag1_in_degree1_nonstationary,500,alpha1 = 0.2,,True,unique_per_candidate,1.327335429769392,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,ITPD,,True,f1,0.9970824119221696,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,ITPD,,True,largest_set,29.85,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,ITPD,,True,unique_per_candidate,1.3541802935010483,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,alpha1 = 0.01,,True,f1,0.9970788228367813,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,alpha1 = 0.01,,True,largest_set,6.85,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,alpha1 = 0.01,,True,unique_per_candidate,1.0762473794549268,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,alpha1 = 0.05,,True,f1,0.9967917663028816,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,alpha1 = 0.05,,True,largest_set,11.0,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,alpha1 = 0.05,,True,unique_per_candidate,1.140843815513627,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,alpha1 = 0.1,,True,f1,0.9972372241650744,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,alpha1 = 0.1,,True,largest_set,17.8,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,alpha1 = 0.1,,True,unique_per_candidate,1.2127704402515724,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,alpha1 = 0.2,,True,f1,0.9969151551158303,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,alpha1 = 0.2,,True,largest_set,33.0,20
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,alpha1 = 0.2,,True,unique_per_candidate,1.3652798742138363,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,ITPD,,True,f1,0.9452209281084999,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,ITPD,,True,largest_set,27.85,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,ITPD,,True,unique_per_candidate,1.3080136268343816,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,alpha1 = 0.01,,True,f1,0.876748195703078,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,alpha1 = 0.01,,True,largest_set,6.45,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,alpha1 = 0.01,,True,unique_per_candidate,1.0514088050314465,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,alpha1 = 0.05,,True,f1,0.9213749264282903,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,alpha1 = 0.05,,True,largest_set,11.0,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,alpha1 = 0.05,,True,unique_per_candidate,1.1082327044025155,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,alpha1 = 0.1,,True,f1,0.9373054676681821,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,alpha1 = 0.1,,True,largest_set,16.3,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,alpha1 = 0.1,,True,unique_per_candidate,1.1745251572327042,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,alpha1 = 0.2,,True,f1,0.9452209281084999,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,alpha1 = 0.2,,True,largest_set,30.45,20
+standard_N20_T16_lag1_in_degree2_nonstationary,200,alpha1 = 0.2,,True,unique_per_candidate,1.3188941299790353,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,ITPD,,True,f1,0.9916630060261851,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,ITPD,,True,largest_set,28.9,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,ITPD,,True,unique_per_candidate,1.3349109014675054,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,alpha1 = 0.01,,True,f1,0.9739152327831538,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,alpha1 = 0.01,,True,largest_set,7.75,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,alpha1 = 0.01,,True,unique_per_candidate,1.0684570230607968,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,alpha1 = 0.05,,True,f1,0.9852937905348302,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,alpha1 = 0.05,,True,largest_set,12.2,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,alpha1 = 0.05,,True,unique_per_candidate,1.129553459119497,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,alpha1 = 0.1,,True,f1,0.9898188208991933,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,alpha1 = 0.1,,True,largest_set,17.9,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,alpha1 = 0.1,,True,unique_per_candidate,1.1983144654088052,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,alpha1 = 0.2,,True,f1,0.9916629844747845,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,alpha1 = 0.2,,True,largest_set,32.15,20
+standard_N20_T16_lag1_in_degree2_nonstationary,500,alpha1 = 0.2,,True,unique_per_candidate,1.3459014675052408,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,ITPD,,True,f1,0.9972712126859639,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,ITPD,,True,largest_set,32.6,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,ITPD,,True,unique_per_candidate,1.3848553459119497,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,alpha1 = 0.01,,True,f1,0.9958336980528781,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,alpha1 = 0.01,,True,largest_set,8.7,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,alpha1 = 0.01,,True,unique_per_candidate,1.1173259958071278,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,alpha1 = 0.05,,True,f1,0.9964186986490986,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,alpha1 = 0.05,,True,largest_set,13.05,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,alpha1 = 0.05,,True,unique_per_candidate,1.1805408805031448,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,alpha1 = 0.1,,True,f1,0.997097389999025,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,alpha1 = 0.1,,True,largest_set,20.1,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,alpha1 = 0.1,,True,unique_per_candidate,1.2494748427672957,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,alpha1 = 0.2,,True,f1,0.9973157360706969,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,alpha1 = 0.2,,True,largest_set,36.05,20
+standard_N20_T16_lag1_in_degree2_nonstationary,2000,alpha1 = 0.2,,True,unique_per_candidate,1.3958186582809224,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,ITPD,,True,f1,0.9051675739984459,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,ITPD,,True,largest_set,29.15,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,ITPD,,True,unique_per_candidate,1.3249056603773586,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,alpha1 = 0.01,,True,f1,0.8137607350906961,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,alpha1 = 0.01,,True,largest_set,7.55,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,alpha1 = 0.01,,True,unique_per_candidate,1.0685230607966456,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,alpha1 = 0.05,,True,f1,0.8710590415330243,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,alpha1 = 0.05,,True,largest_set,12.45,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,alpha1 = 0.05,,True,unique_per_candidate,1.1282232704402515,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,alpha1 = 0.1,,True,f1,0.8902889200323054,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,alpha1 = 0.1,,True,largest_set,17.7,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,alpha1 = 0.1,,True,unique_per_candidate,1.1944685534591195,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,alpha1 = 0.2,,True,f1,0.9051675739984459,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,alpha1 = 0.2,,True,largest_set,31.35,20
+standard_N20_T16_lag1_in_degree3_nonstationary,200,alpha1 = 0.2,,True,unique_per_candidate,1.3350167714884695,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,ITPD,,True,f1,0.9849031489873324,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,ITPD,,True,largest_set,30.6,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,ITPD,,True,unique_per_candidate,1.350766247379455,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,alpha1 = 0.01,,True,f1,0.9528140075866492,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,alpha1 = 0.01,,True,largest_set,9.15,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,alpha1 = 0.01,,True,unique_per_candidate,1.0891991614255767,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,alpha1 = 0.05,,True,f1,0.9737264502812245,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,alpha1 = 0.05,,True,largest_set,13.5,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,alpha1 = 0.05,,True,unique_per_candidate,1.1498469601677148,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,alpha1 = 0.1,,True,f1,0.9801412603819962,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,alpha1 = 0.1,,True,largest_set,19.25,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,alpha1 = 0.1,,True,unique_per_candidate,1.2169234800838575,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,alpha1 = 0.2,,True,f1,0.9849636986757819,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,alpha1 = 0.2,,True,largest_set,32.75,20
+standard_N20_T16_lag1_in_degree3_nonstationary,500,alpha1 = 0.2,,True,unique_per_candidate,1.3615503144654089,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,ITPD,,True,f1,0.9961488613680402,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,ITPD,,True,largest_set,34.85,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,ITPD,,True,unique_per_candidate,1.3971404612159328,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,alpha1 = 0.01,,True,f1,0.9920708404297212,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,alpha1 = 0.01,,True,largest_set,10.35,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,alpha1 = 0.01,,True,unique_per_candidate,1.1378721174004192,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,alpha1 = 0.05,,True,f1,0.994355157734307,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,alpha1 = 0.05,,True,largest_set,15.05,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,alpha1 = 0.05,,True,unique_per_candidate,1.1980482180293504,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,alpha1 = 0.1,,True,f1,0.9954488776925272,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,alpha1 = 0.1,,True,largest_set,20.85,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,alpha1 = 0.1,,True,unique_per_candidate,1.2637651991614256,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,alpha1 = 0.2,,True,f1,0.9962002030918088,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,alpha1 = 0.2,,True,largest_set,36.9,20
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,alpha1 = 0.2,,True,unique_per_candidate,1.4080178197064988,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,ITPD,,True,f1,0.813413198819981,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,ITPD,,True,largest_set,30.6,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,ITPD,,True,unique_per_candidate,1.3515796645702307,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,alpha1 = 0.01,,True,f1,0.6911358546615815,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,alpha1 = 0.01,,True,largest_set,8.45,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,alpha1 = 0.01,,True,unique_per_candidate,1.0931236897274634,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,alpha1 = 0.05,,True,f1,0.7652996328758138,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,alpha1 = 0.05,,True,largest_set,14.05,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,alpha1 = 0.05,,True,unique_per_candidate,1.157975890985325,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,alpha1 = 0.1,,True,f1,0.7926732711107815,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,alpha1 = 0.1,,True,largest_set,20.15,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,alpha1 = 0.1,,True,unique_per_candidate,1.2237945492662474,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,alpha1 = 0.2,,True,f1,0.813413198819981,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,alpha1 = 0.2,,True,largest_set,33.15,20
+standard_N20_T16_lag1_in_degree5_nonstationary,200,alpha1 = 0.2,,True,unique_per_candidate,1.3615922431865828,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,ITPD,,True,f1,0.9605880624176006,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,ITPD,,True,largest_set,32.65,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,ITPD,,True,unique_per_candidate,1.375721174004193,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,alpha1 = 0.01,,True,f1,0.9003050747303194,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,alpha1 = 0.01,,True,largest_set,10.55,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,alpha1 = 0.01,,True,unique_per_candidate,1.1213218029350105,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,alpha1 = 0.05,,True,f1,0.9389124893454183,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,alpha1 = 0.05,,True,largest_set,15.15,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,alpha1 = 0.05,,True,unique_per_candidate,1.181518867924528,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,alpha1 = 0.1,,True,f1,0.951567483587743,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,alpha1 = 0.1,,True,largest_set,20.95,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,alpha1 = 0.1,,True,unique_per_candidate,1.2464696016771488,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,alpha1 = 0.2,,True,f1,0.9608216287749999,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,alpha1 = 0.2,,True,largest_set,34.7,20
+standard_N20_T16_lag1_in_degree5_nonstationary,500,alpha1 = 0.2,,True,unique_per_candidate,1.3857893081761004,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,ITPD,,True,f1,0.9908299778831919,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,ITPD,,True,largest_set,37.25,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,ITPD,,True,unique_per_candidate,1.4161352201257862,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,alpha1 = 0.01,,True,f1,0.9813274943896466,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,alpha1 = 0.01,,True,largest_set,13.25,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,alpha1 = 0.01,,True,unique_per_candidate,1.1640807127882602,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,alpha1 = 0.05,,True,f1,0.9863529786616383,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,alpha1 = 0.05,,True,largest_set,17.95,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,alpha1 = 0.05,,True,unique_per_candidate,1.219475890985325,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,alpha1 = 0.1,,True,f1,0.98825107818635,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,alpha1 = 0.1,,True,largest_set,24.5,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,alpha1 = 0.1,,True,unique_per_candidate,1.2838668763102725,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,alpha1 = 0.2,,True,f1,0.9908813443845086,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,alpha1 = 0.2,,True,largest_set,40.35,20
+standard_N20_T16_lag1_in_degree5_nonstationary,2000,alpha1 = 0.2,,True,unique_per_candidate,1.4267840670859542,20
+stepwise_N50_T20_in_degree2,500,ITPD,,True,f1,0.9944482905726705,5
+stepwise_N50_T20_in_degree2,500,ITPD,,True,largest_set,31.4,5
+stepwise_N50_T20_in_degree2,500,ITPD,,True,unique_per_candidate,1.1492260310093871,5
+stepwise_N50_T20_in_degree2,500,alpha1 = 0.01,,True,f1,0.9802831054368204,5
+stepwise_N50_T20_in_degree2,500,alpha1 = 0.01,,True,largest_set,9.8,5
+stepwise_N50_T20_in_degree2,500,alpha1 = 0.01,,True,unique_per_candidate,1.0320261575783145,5
+stepwise_N50_T20_in_degree2,500,alpha1 = 0.05,,True,f1,0.9905445449123634,5
+stepwise_N50_T20_in_degree2,500,alpha1 = 0.05,,True,largest_set,22.0,5
+stepwise_N50_T20_in_degree2,500,alpha1 = 0.05,,True,unique_per_candidate,1.0884940407130048,5
+stepwise_N50_T20_in_degree2,500,alpha1 = 0.1,,True,f1,0.9924052107232866,5
+stepwise_N50_T20_in_degree2,500,alpha1 = 0.1,,True,largest_set,39.6,5
+stepwise_N50_T20_in_degree2,500,alpha1 = 0.1,,True,unique_per_candidate,1.1591270962978588,5
+stepwise_N50_T20_in_degree2,500,alpha1 = 0.2,,True,f1,0.994564855451239,5
+stepwise_N50_T20_in_degree2,500,alpha1 = 0.2,,True,largest_set,77.2,5
+stepwise_N50_T20_in_degree2,500,alpha1 = 0.2,,True,unique_per_candidate,1.3076793587174351,5
+stepwise_N50_T20_in_degree2,2000,ITPD,,True,f1,0.998246338053795,5
+stepwise_N50_T20_in_degree2,2000,ITPD,,True,largest_set,35.0,5
+stepwise_N50_T20_in_degree2,2000,ITPD,,True,unique_per_candidate,1.1837038287100516,5
+stepwise_N50_T20_in_degree2,2000,alpha1 = 0.01,,True,f1,0.9986164789985239,5
+stepwise_N50_T20_in_degree2,2000,alpha1 = 0.01,,True,largest_set,11.2,5
+stepwise_N50_T20_in_degree2,2000,alpha1 = 0.01,,True,unique_per_candidate,1.0585115494146187,5
+stepwise_N50_T20_in_degree2,2000,alpha1 = 0.05,,True,f1,0.99819261399623,5
+stepwise_N50_T20_in_degree2,2000,alpha1 = 0.05,,True,largest_set,21.8,5
+stepwise_N50_T20_in_degree2,2000,alpha1 = 0.05,,True,unique_per_candidate,1.1219242695918152,5
+stepwise_N50_T20_in_degree2,2000,alpha1 = 0.1,,True,f1,0.9980886307934561,5
+stepwise_N50_T20_in_degree2,2000,alpha1 = 0.1,,True,largest_set,41.2,5
+stepwise_N50_T20_in_degree2,2000,alpha1 = 0.1,,True,unique_per_candidate,1.1944533277080478,5
+stepwise_N50_T20_in_degree2,2000,alpha1 = 0.2,,True,f1,0.9984595159757979,5
+stepwise_N50_T20_in_degree2,2000,alpha1 = 0.2,,True,largest_set,87.4,5
+stepwise_N50_T20_in_degree2,2000,alpha1 = 0.2,,True,unique_per_candidate,1.3443653623035543,5
+stepwise_N100_T20_in_degree2,500,ITPD,,True,f1,0.9921067915471486,5
+stepwise_N100_T20_in_degree2,500,ITPD,,True,largest_set,30.8,5
+stepwise_N100_T20_in_degree2,500,ITPD,,True,unique_per_candidate,1.077568410515779,5
+stepwise_N100_T20_in_degree2,500,alpha1 = 0.01,,True,f1,0.9825469819418646,5
+stepwise_N100_T20_in_degree2,500,alpha1 = 0.01,,True,largest_set,11.4,5
+stepwise_N100_T20_in_degree2,500,alpha1 = 0.01,,True,unique_per_candidate,1.021862599441547,5
+stepwise_N100_T20_in_degree2,500,alpha1 = 0.05,,True,f1,0.9891030147013511,5
+stepwise_N100_T20_in_degree2,500,alpha1 = 0.05,,True,largest_set,31.2,5
+stepwise_N100_T20_in_degree2,500,alpha1 = 0.05,,True,unique_per_candidate,1.0767481165375903,5
+stepwise_N100_T20_in_degree2,500,alpha1 = 0.1,,True,f1,0.9920959522347236,5
+stepwise_N100_T20_in_degree2,500,alpha1 = 0.1,,True,largest_set,59.8,5
+stepwise_N100_T20_in_degree2,500,alpha1 = 0.1,,True,unique_per_candidate,1.147466835256309,5
+stepwise_N100_T20_in_degree2,500,alpha1 = 0.2,,True,f1,0.9927235232217841,5
+stepwise_N100_T20_in_degree2,500,alpha1 = 0.2,,True,largest_set,133.6,5
+stepwise_N100_T20_in_degree2,500,alpha1 = 0.2,,True,unique_per_candidate,1.2904642537274116,5
+stepwise_N100_T20_in_degree2,2000,ITPD,,True,f1,0.9982962327316194,5
+stepwise_N100_T20_in_degree2,2000,ITPD,,True,largest_set,33.6,5
+stepwise_N100_T20_in_degree2,2000,ITPD,,True,unique_per_candidate,1.099722775406986,5
+stepwise_N100_T20_in_degree2,2000,alpha1 = 0.01,,True,f1,0.9987636248997044,5
+stepwise_N100_T20_in_degree2,2000,alpha1 = 0.01,,True,largest_set,13.4,5
+stepwise_N100_T20_in_degree2,2000,alpha1 = 0.01,,True,unique_per_candidate,1.037264949159686,5
+stepwise_N100_T20_in_degree2,2000,alpha1 = 0.05,,True,f1,0.9982914884740002,5
+stepwise_N100_T20_in_degree2,2000,alpha1 = 0.05,,True,largest_set,34.8,5
+stepwise_N100_T20_in_degree2,2000,alpha1 = 0.05,,True,unique_per_candidate,1.0990429376745166,5
+stepwise_N100_T20_in_degree2,2000,alpha1 = 0.1,,True,f1,0.9978221610666672,5
+stepwise_N100_T20_in_degree2,2000,alpha1 = 0.1,,True,largest_set,70.6,5
+stepwise_N100_T20_in_degree2,2000,alpha1 = 0.1,,True,unique_per_candidate,1.1731012064696276,5
+stepwise_N100_T20_in_degree2,2000,alpha1 = 0.2,,True,f1,0.9977162528408453,5
+stepwise_N100_T20_in_degree2,2000,alpha1 = 0.2,,True,largest_set,156.2,5
+stepwise_N100_T20_in_degree2,2000,alpha1 = 0.2,,True,unique_per_candidate,1.3199288762446657,5

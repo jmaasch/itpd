@@ -1,0 +1,72 @@
+# Means over graphs of the stored runs of the paper, at full precision (source: the stored runs of the two Phase II levels).
+# setting is the folder of the setting in the output of run; an empty M is the oracle; an empty level is a method
+# with one level; better_level marks the level with the higher mean F1 of the cell.
+setting,M,method,level,better_level,metric,mean,graphs
+standard_N20_T16_lag1_in_degree1_nonstationary,200,ITPD,,True,f1,0.9641534826432745,5
+standard_N20_T16_lag1_in_degree1_nonstationary,200,extended BIC,,True,f1,0.9229582929771369,5
+standard_N20_T16_lag1_in_degree1_nonstationary,500,ITPD,,True,f1,0.9946381095904296,5
+standard_N20_T16_lag1_in_degree1_nonstationary,500,extended BIC,,True,f1,0.9551591122818565,5
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,ITPD,,True,f1,0.9987989427312776,5
+standard_N20_T16_lag1_in_degree1_nonstationary,2000,extended BIC,,True,f1,0.9779838217794437,5
+standard_N20_T16_lag1_in_degree3_nonstationary,200,ITPD,,True,f1,0.9085184504043673,5
+standard_N20_T16_lag1_in_degree3_nonstationary,200,extended BIC,,True,f1,0.921785782617986,5
+standard_N20_T16_lag1_in_degree3_nonstationary,500,ITPD,,True,f1,0.9837628570143666,5
+standard_N20_T16_lag1_in_degree3_nonstationary,500,extended BIC,,True,f1,0.9734861664908063,5
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,ITPD,,True,f1,0.9973235451600255,5
+standard_N20_T16_lag1_in_degree3_nonstationary,2000,extended BIC,,True,f1,0.992076043583683,5
+standard_N20_T16_lag1_in_degree8_nonstationary,200,ITPD,,True,f1,0.6488481582736576,5
+standard_N20_T16_lag1_in_degree8_nonstationary,200,extended BIC,,True,f1,0.7566860077351767,5
+standard_N20_T16_lag1_in_degree8_nonstationary,500,ITPD,,True,f1,0.9063365459072532,5
+standard_N20_T16_lag1_in_degree8_nonstationary,500,extended BIC,,True,f1,0.924944509463906,5
+standard_N20_T16_lag1_in_degree8_nonstationary,2000,ITPD,,True,f1,0.9821017690797194,5
+standard_N20_T16_lag1_in_degree8_nonstationary,2000,extended BIC,,True,f1,0.9770785248110417,5
+standard_N20_T16_lag1_in_degree8_nonstationary,5000,ITPD,,True,f1,0.9794381181344172,5
+standard_N20_T16_lag1_in_degree8_nonstationary,5000,extended BIC,,True,f1,0.975457492520739,5
+standard_N20_T16_lag1_in_degree15_nonstationary,200,ITPD,,True,f1,0.35633919889241406,5
+standard_N20_T16_lag1_in_degree15_nonstationary,200,extended BIC,,True,f1,0.5267428732491412,5
+standard_N20_T16_lag1_in_degree15_nonstationary,500,ITPD,,True,f1,0.736689965637023,5
+standard_N20_T16_lag1_in_degree15_nonstationary,500,extended BIC,,True,f1,0.798512687849424,5
+standard_N20_T16_lag1_in_degree15_nonstationary,2000,ITPD,,True,f1,0.955681048525102,5
+standard_N20_T16_lag1_in_degree15_nonstationary,2000,extended BIC,,True,f1,0.9527357146448884,5
+standard_N20_T16_lag1_in_degree15_nonstationary,5000,ITPD,,True,f1,0.9650290394272817,5
+standard_N20_T16_lag1_in_degree15_nonstationary,5000,extended BIC,,True,f1,0.9590911558350431,5
+stepwise_N50_T20_in_degree2,500,ITPD,,True,f1,0.9944482905726705,5
+stepwise_N50_T20_in_degree2,500,extended BIC,,True,f1,0.9732810454107904,5
+stepwise_N50_T20_in_degree2,2000,ITPD,,True,f1,0.998246338053795,5
+stepwise_N50_T20_in_degree2,2000,extended BIC,,True,f1,0.9848249086004394,5
+redrawn_edges_N20_T16_in_degree5_share0,500,ITPD,,True,f1,0.9202261658692608,5
+redrawn_edges_N20_T16_in_degree5_share0,500,extended BIC,,True,f1,0.9021727635757021,5
+redrawn_edges_N20_T16_in_degree5_share0,2000,ITPD,,True,f1,0.9359994262359029,5
+redrawn_edges_N20_T16_in_degree5_share0,2000,extended BIC,,True,f1,0.925184012062853,5
+redrawn_edges_N20_T16_in_degree5_share1,500,ITPD,,True,f1,0.9553484295294625,5
+redrawn_edges_N20_T16_in_degree5_share1,500,extended BIC,,True,f1,0.9470211090272846,5
+redrawn_edges_N20_T16_in_degree5_share1,2000,ITPD,,True,f1,0.9681893339527227,5
+redrawn_edges_N20_T16_in_degree5_share1,2000,extended BIC,,True,f1,0.9619160994663691,5
+standard_N10_T16_lag2_in_degree2_nonstationary,500,ITPD,,True,f1,0.9803525896182101,5
+standard_N10_T16_lag2_in_degree2_nonstationary,500,extended BIC,,True,f1,0.9644112084797996,5
+standard_N10_T16_lag2_in_degree2_nonstationary,2000,ITPD,,True,f1,0.991283128222005,5
+standard_N10_T16_lag2_in_degree2_nonstationary,2000,extended BIC,,True,f1,0.9861256901198763,5
+standard_N10_T24_lag8_in_degree2_nonstationary,500,ITPD,,True,f1,0.9850613828027142,5
+standard_N10_T24_lag8_in_degree2_nonstationary,500,extended BIC,,True,f1,0.9690243881573917,5
+standard_N10_T24_lag8_in_degree2_nonstationary,2000,ITPD,,True,f1,0.9956238286171473,5
+standard_N10_T24_lag8_in_degree2_nonstationary,2000,extended BIC,,True,f1,0.9888399038051352,5
+standard_N80_T16_lag1_in_degree2_nonstationary,50,ITPD,,True,f1,0.2998624772756493,5
+standard_N80_T16_lag1_in_degree2_nonstationary,50,extended BIC,,True,f1,0.43605092437310533,5
+standard_N80_T16_lag1_in_degree2_nonstationary,200,ITPD,,True,f1,0.9101610189832409,5
+standard_N80_T16_lag1_in_degree2_nonstationary,200,extended BIC,,True,f1,0.8845383502617159,5
+standard_N80_T16_lag1_in_degree2_nonstationary,2000,ITPD,,True,f1,0.9979733964422586,5
+standard_N80_T16_lag1_in_degree2_nonstationary,2000,extended BIC,,True,f1,0.9851697349078317,5
+standard_N10_T8_lag1_in_degree2_stationary,500,ITPD,,True,f1,0.9629038214945757,5
+standard_N10_T8_lag1_in_degree2_stationary,500,extended BIC,,True,f1,0.9402155795704022,5
+gene_networks_network3,200,ITPD,,True,f1,0.5367424049882241,3
+gene_networks_network3,200,extended BIC,,True,f1,0.5721056413959668,3
+gene_networks_network3,500,ITPD,,True,f1,0.6760246790583627,3
+gene_networks_network3,500,extended BIC,,True,f1,0.6446835922304843,3
+gene_networks_network3,2000,ITPD,,True,f1,0.6543617752138977,3
+gene_networks_network3,2000,extended BIC,,True,f1,0.6140898613459805,3
+gene_networks_network5,200,ITPD,,True,f1,0.4646548541897379,3
+gene_networks_network5,200,extended BIC,,True,f1,0.43961385368516853,3
+gene_networks_network5,500,ITPD,,True,f1,0.5418233004193608,3
+gene_networks_network5,500,extended BIC,,True,f1,0.5066438389609121,3
+gene_networks_network5,2000,ITPD,,True,f1,0.4817684495595325,3
+gene_networks_network5,2000,extended BIC,,True,f1,0.4536155467204244,3

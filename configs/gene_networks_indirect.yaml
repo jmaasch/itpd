@@ -1,0 +1,38 @@
+# Table: mean F1 on simulated gene regulatory networks (regulatory edges, indirect pairs left out)
+paper_item: "Table: mean F1 on simulated gene regulatory networks (regulatory edges, indirect pairs left out)"
+description: >
+  Two gene regulatory networks of 10 genes, simulated with GeneNetWeaver: 20 series (mRNA and protein of every
+  gene) over 40 time steps; 10 data sets per network; the first 200, 500 and 2000 observations of a data set,
+  centered per series and time step; Fisher-z test. Same runs as gene_networks.yaml. F1 on the regulatory edges
+  over the common targets, with an estimated edge of an indirect pair counted neither as true nor as false (an
+  indirect pair: two series without an edge, of which the first changes the second within one time step through
+  a third series). Every baseline at the level of gene_networks.yaml: the level with the higher mean F1 when the
+  indirect pairs count as false. The repository holds the first 200 observations of data set 0 of both networks
+  (run with --graphs 0 --M 200); data/gene_networks/README.md says how to simulate the other data.
+alpha: 0.01
+ci_test: fisherz
+graph:
+  generator: gene_networks
+  network: [3, 5]
+  path: ../data/gene_networks     # relative to the folder of this file
+data:
+  mechanism: stored
+  M: [200, 500, 2000]             # the first M observations of a data set
+graphs: 0-9                       # data sets
+methods:
+  - {name: ITPD}
+  - {name: IAMB, levels: [alpha, corrected]}
+  - {name: IPaDL, levels: [alpha, corrected]}
+  - {name: FullCI, levels: [alpha, corrected]}
+  - {name: DF-PC, levels: [alpha, corrected], time_limit: 10800}
+  - {name: Lasso}
+  - {name: PCMCI, levels: [alpha, corrected], max_lag: 1}
+  - {name: CD-NOD, levels: [alpha, corrected], max_lag: 1}
+  - {name: DYNOTEARS, max_lag: 1, unit_variance: true}
+scoring:
+  view: regulatory_ignore_indirect
+  targets: common
+report:
+  metrics: [f1]
+  level_by: {view: regulatory, targets: common}
+  bootstrap: {resamples: 10000, seed: 20261113}

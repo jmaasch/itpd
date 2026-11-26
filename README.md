@@ -1,100 +1,39 @@
-# Iterative Temporal Parent Discovery
+# Iterative Temporal Parent Discovery (ITPD)
 
-Iterative Temporal Parent Discovery (ITPD) is a constraint-based causal discovery algorithm for multivariate time series.
+ITPD (Iterative Temporal Parent Discovery) is a constraint-based algorithm for causal structure learning on multivariate time series without assuming causal stationarity. It finds the parent set of every variable in time order with conditional independence (CI) tests. This repository holds the Python package `itpd`, the configuration files of the paper's experiments, and a Lean 4 proof that Algorithm 1 is exact with a d-separation oracle.
 
-## Repository structure
+## Install and use
 
-```
-.
-├── itpd/                # Instrumented implementation of ITPD, ITPD_naive, ITPD-S (blanket-screened shrink), ITPD-S+ (ITPD-S with a forward-backward second pass) and baselines (package; see itpd/README.md). itpd/experiments and itpd/tables hold the experiment drivers and the collectors.
-├── itpd_clear/          # ITPD, Algorithm 1 of the paper, in one file (itpd_clear/itpd.py); see the section below.
-├── tests/                # Tests of the package, including parity tests against legacy/.
-├── pyproject.toml
-├── legacy/
-│   ├── itpd.py               # ITPD with CI test reduction.
-│   ├── padl_itpd.py          # The version of PaDL used by ITPD.
-│   ├── itpd_naive.py         # ITPD_naive (no CI test reduction).
-│   ├── padl_naive.py         # The version of PaDL used by ITPD_naive.
-│   ├── itpd_test.ipynb       # A notebook comparing ITPD to ITPD_naive with an oracle independence test.
-│   └── itpd_naive_test.ipynb # A notebook using ITPD_naive with finite data simulation (finite data have errors; just for ITPD syntax demo).
-├── LICENSE
-└── README.md
+```bash
+pip install -c requirements/constraints.txt ".[test]"
+python examples/fit_simulated_data.py
 ```
 
-## Install
+The package needs Python 3.10 or newer. On Python 3.12, `requirements/constraints.txt` installs the exact versions behind the paper's numbers, and `test` adds pytest and matplotlib. `pip install .` installs the package alone.
 
-```
-pip install -e '.[test]'
-```
+The example fits ITPD on 500 observations of 5 series over 8 time steps in a few seconds and prints F1 and CI test counts. In Python, call `ITPD().fit(V)` on an array `V` of shape (M, T, N) and read `adjacency_`.
 
-This installs the package `itpd` and the test dependencies. It needs Python 3.10 or newer. The d-separation oracle uses the optional C extension `fastdsep` when it is installed and a pure-Python implementation otherwise; both give the same answers.
-
-## Quick start
-
-```python
-import numpy as np
-from itpd import method_runner, sim
-
-graph = sim.sample_time_graph(N=4, T=6, d=2, tau=2, rng=np.random.default_rng(0))   # random time graph, 4 series, 6 steps
-for method in ("itpd_naive", "itpd", "full_conditioning"):
-    out = method_runner.run_s2_method(method, None, graph=graph, ci_kind="oracle", alpha=0.01)
-    print(method, "exact:", out["metrics"]["exact"], "unique tests:", out["tests"]["unique_tests"])
-```
-
-The example runs ITPD_naive, ITPD and the full-conditioning baseline with the d-separation oracle on the true graph and prints the number of unique CI tests of each method.
-
-## Tests
-
-```
+```bash
+python -m itpd.experiments run configs/main_setting.yaml --out out/main_setting --methods ITPD --M 500
+python -m itpd.experiments table configs/main_setting.yaml --runs out/main_setting --compare
 python -m pytest -q
 ```
 
-## ITPD, Algorithm 1 of the paper (`itpd_clear/`)
+The first command makes the 80 runs of ITPD with 500 observations in about 5 minutes. The second command prints the tables of the main setting with each mean next to its expected mean. It ends with `largest absolute difference 0.0e+00`. The third command runs 194 tests in about one minute. `python -m pytest -q -m slow` runs 7 more tests on stored runs. See `configs/README.md` for all configurations.
 
-`itpd_clear/itpd.py` is a single-file implementation of ITPD as printed in Algorithm 1 of the paper. The comments in `_discover` carry the line numbers of the algorithm. The file needs only `numpy` and `networkx` (`matplotlib` for `plot_graph`, `causal-learn` or `tigramite` for their CI tests) and does not import the package above.
+## Project layout
 
-```python
-from itpd import ITPD          # run from inside itpd_clear/, or add that folder to sys.path
-
-model = ITPD(ci_test="fisherz", alpha=0.01, gamma=0.2, kappa=50).fit(V)    # V has shape (M, T, N)
-parents = model.adjacency_     # node t * N + n -> frozenset of parents
-```
-
-The algorithm tests at two levels. For a target at time step t + 1 (the paper's indexing), let m = N t - 1 be its number of candidates.
-
-| Level | Formula | Used on | Arguments and defaults |
-| --- | --- | --- | --- |
-| α1 | max(α, min(γ, κ / m)) | Lines 8, 9 and 10 (Phase I) | `alpha=0.01`, `gamma=0.2`, `kappa=50` |
-| α2 | α / m | Line 14 (Phase II) | `alpha=0.01` |
-
-- A test answers "independent" if and only if p is larger than the level.
-- Line 6 visits the candidates in descending time and Line 13 in ascending time; inside a time step both go by increasing series index.
-- A CI test that returns a NaN p-value cannot be evaluated (for example `itpd.ci.FisherZ` when M - |S| - 3 <= 0; causal-learn's `fisherz`, the default, returns p = 1 at 0 and raises an error below 0). The target of such a test keeps only its lag-1 self edge and is listed in `untested_targets_`, and `fit` emits one warning. Exclude these targets from a score.
-- `python itpd_clear/itpd.py` runs an example with the d-separation oracle and checks exact recovery.
-
-Tests of this file:
-
-```
-python -m pytest tests/test_itpd_clear.py                 # about 20 seconds
-python -m pytest tests/test_itpd_clear.py -m "not slow"   # without the finite-data runs, a few seconds
-```
-
-They check exact recovery with the d-separation oracle (all 256 graphs with N = 2 and T = 3, and random graphs with N = 2, T = 4 and N = 3, T = 3), the two levels, and the edge counts and CI test counts of three finite-data runs behind the paper's results, with data regenerated from seeds.
-
-The Lean 4 proof that Algorithm 1 returns the true parent set of every target whose parents are all observed, under the paper's assumptions and with a d-separation oracle as the CI test, is in the folder `lean/`. The proof does not cover the significance levels or this Python code.
-
-## Counting conventions
-
-- Every CI test goes through one counting wrapper, `Recorder` in `itpd/ci.py`, so the counts of different methods are comparable.
-- A unique test is a distinct (unordered pair of nodes, sorted conditioning set); it is the headline count. A raw call is every call that reaches the recorder.
-- Marginal tests are memoised inside one PaDL call, so raw counts match the original code in `legacy/`.
-- Lazy counting issues a test only when its result can change a label; non-lazy counting issues both tests of every step, as the original code does. Both give the same graphs.
-- A test that the data cannot evaluate (Fisher-z with n - |S| - 3 <= 0) is never answered "independent": the target is reported as infeasible and is scored apart.
-
-## Experiments
-
-`itpd/README.md` has the module map, the table of method names and the table "Experiment -> command" with the driver and the collector of every experiment. The drivers run with `python -m itpd.experiments <name>`; the collectors turn their JSON output into tables with `python -m itpd.tables <name>`. Put your cluster job scripts in the ignored folder `jobs/`; they are not part of the repository.
-
-## Legacy code
-
-`legacy/` holds the original modules and notebooks. They moved there unchanged, except for three type annotations in each of `itpd.py` and `itpd_naive.py` that Python older than 3.14 could not import. The modules import each other by their flat names, so run the notebooks and the scripts from inside `legacy/`. They import `cdt`, which needs R; the tests replace it with a stub. `tests/test_parity.py` checks that the package `itpd` gives the same results as these modules. The package and the module `legacy/itpd.py` share a name: inside `legacy/`, `import itpd` gives the original module, and the tests load the original modules by file path under the names `legacy_itpd`, `legacy_itpd_naive`, `legacy_padl_itpd` and `legacy_padl_naive`.
+- `src/itpd/algorithm.py`: the class `ITPD` (Algorithm 1; read this first). Comments in `_discover` give Lines 5 to 16, and the defaults match the paper (alpha = 0.01, gamma = 0.2, kappa = 50, Fisher-z test).
+- `src/itpd/ci_tests.py`: the CI tests `FisherZ` (linear-Gaussian data), `GCM` (nonlinear data) and `DSeparation` (d-separation oracle).
+- `src/itpd/counting.py`: `CICounter`, a CI test wrapper that counts every test call in the same way across all methods.
+- `src/itpd/baselines/`: the baselines IAMB, IPaDL, FullCI and Lasso, one file per baseline.
+- `src/itpd/simulation/`: the generators of the simulated graphs and data, with data shape (M, T, N).
+- `src/itpd/external/`: one wrapper script per external baseline (PCMCI, DF-PC, DYNOTEARS and CD-NOD); the files in `requirements/` pin the external tools.
+- `src/itpd/experiments/`: the command line `python -m itpd.experiments`. `runner.py` runs the methods of a configuration, `aggregate.py` builds the table of means, and `ablations.py` runs Algorithm 1 with single-line changes for the ablation tables.
+- `configs/`: 19 YAML files for the paper's experiments and `configs/expected/` for expected means. See `configs/README.md` for status and what is not reproduced.
+- `examples/`: `examples/fit_simulated_data.py` fits ITPD on simulated data, and `examples/oracle_exact_recovery.py` recovers a random graph with the d-separation oracle.
+- `tests/`: the package tests, including `tests/test_reference_runs.py` for comparing runs with stored runs of the paper's experiments.
+- `data/gene_networks/`: the data for the two tables on simulated gene regulatory networks; see `data/gene_networks/README.md`.
+- `lean/`: the Lean 4 proof (`lean/ITPD/Paper.lean` states `itpdPaper` and `itpd_exact`); run `lake build` here, and see `lean/README.md`.
+- `legacy/`: earlier code, kept for reference. The package and the configurations do not use it.
+- `LICENSE`, `NOTICE.md`: the GPL-3.0 license and the third-party notices.

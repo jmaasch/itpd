@@ -1,0 +1,54 @@
+# Table: one change at a time to ITPD
+paper_item: "Table: one change at a time to ITPD"
+description: >
+  Every entry of methods is ITPD with one change (itpd.experiments.ablations.Switches); "Algorithm 1" has none, and
+  the table gives each change minus "Algorithm 1". Data: the main finite data setting (20 series, 16 time steps,
+  in-degree 1, 2, 3, 5; 200, 500, 2000 observations; 20 graphs). Exact oracle: the first 50 graphs of each in-degree,
+  and 20 graphs each with edges up to lag 2 and lag 4 (in-degree 2). Column "Exact": the exhaustive check on every
+  time graph of 2 series over 4 steps (4 blocks of 65536 graphs) and of 3 series over 3 steps (32 blocks), with all
+  steps observed and with the first step latent; exact is the share of graphs with an exact output.
+alpha: 0.01
+ci_test: fisherz
+seed: 0
+graph:
+  generator: standard
+  N: 20
+  T: 16
+  lag: 1
+  in_degree: [1, 2, 3, 5]
+  stationary: false
+data:
+  mechanism: linear_gaussian
+  M: [200, 500, 2000]             # the first M rows of one draw of 2000 rows
+graphs: 0-19
+methods:
+  - &algorithm_1 {name: ITPD, label: "Algorithm 1", switches: {}}
+  - &ascending {name: ITPD, label: "Z in ascending time order", switches: {candidate_order: ascending}}
+  - &line9_x {name: ITPD, label: "Line 9 given X", switches: {line9: X}}
+  - &line9_off {name: ITPD, label: "Line 9 removed", switches: {line9: "off"}}
+  - &line10_off {name: ITPD, label: "Line 10 removed", switches: {markov_test: false}}
+  - {name: ITPD, label: "Lines 8 to 10 at level alpha", switches: {phase1_level: alpha}}
+  - {name: ITPD, label: "Line 14 at level alpha", switches: {phase2_level: alpha}}
+  - &phase2_off {name: ITPD, label: "Phase II removed", switches: {phase2: false}}
+  - &line11 {name: ITPD, label: "Line 11 with the members of S at the step of X", switches: {line11: same_step}}
+  - &line13 {name: ITPD, label: "Line 13 in descending time order", switches: {phase2_order: descending}}
+  - &line7_off {name: ITPD, label: "Line 7 removed", switches: {ancestor_gate: false}}
+  - &lines78_off {name: ITPD, label: "Lines 7 and 8 removed", switches: {marginal_test: false}}
+settings:
+  - {}                            # the data settings
+  # The oracle does not use the levels, so the two changes of a level are left out.
+  - &oracle
+    ci_test: oracle
+    data: {mechanism: none}
+    graphs: 0-49
+    methods: [*algorithm_1, *ascending, *line9_x, *line9_off, *line10_off, *phase2_off, *line11, *line13, *line7_off, *lines78_off]
+  - {<<: *oracle, graphs: 0-19, graph: {lag: [2, 4], in_degree: 2}}
+  - {<<: *oracle, graphs: 0-3, graph: {generator: enumerate, N: 2, T: 4, latent_first_step: [false, true]}}
+  - {<<: *oracle, graphs: 0-31, graph: {generator: enumerate, N: 3, T: 3, latent_first_step: [false, true]}}
+scoring:
+  view: edges
+  targets: common
+report:
+  metrics: [exact, f1, screened_size, unique_per_candidate]
+  relative_to: "Algorithm 1"
+  bootstrap: {resamples: 10000, seed: 20261113}

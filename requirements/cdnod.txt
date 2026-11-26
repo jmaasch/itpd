@@ -1,0 +1,34 @@
+# Packages of the interpreter for CD-NOD (src/itpd/external/cdnod.py). Python 3.12.
+# Create: uv venv --python 3.12 DIR && uv pip install --python DIR/bin/python -r requirements/cdnod.txt
+# Use: export ITPD_PYTHON_CDNOD=DIR/bin/python
+andrey-core==0.17.1
+annotated-doc==0.0.6
+annotated-types==0.8.0
+cloudpickle==3.1.2
+formulaic==1.2.2
+interface-meta==2.0.1
+joblib==1.6.0
+markdown-it-py==4.3.0
+mdurl==0.1.2
+narwhals==2.28.0
+networkx==3.7
+numpy==2.5.4
+packaging==26.3
+pandas==3.1.1
+patsy==1.0.3
+pydantic==2.14.3
+pydantic-core==2.50.4
+pygments==2.21.0
+python-dateutil==4.0.0
+pyyaml==6.0.3
+rich==15.0.0
+scikit-learn==1.9.1
+scipy==1.18.1
+shellingham==1.5.4
+statsmodels==0.15.0
+threadpoolctl==3.8.0
+typer==0.29.1
+typing-extensions==4.16.0
+typing-inspection==0.4.5
+tzdata==2026.6
+wrapt==2.5.2

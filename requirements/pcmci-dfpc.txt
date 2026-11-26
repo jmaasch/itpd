@@ -1,0 +1,36 @@
+# Packages of the interpreter for PCMCI and DF-PC (src/itpd/external/pcmci.py and dfpc.py). Python 3.11.
+# Create: uv venv --python 3.11 DIR && uv pip install --python DIR/bin/python -r requirements/pcmci-dfpc.txt
+# DF-PC is not a package and is not in this repository. Get its code (MIT license) at the commit that the scripts use:
+#   git clone https://github.com/snu-causality-lab/DF-PC && git -C DF-PC checkout bfe18f43992e58ed70a96821bc3506ce426bc0f0
+# Use: export ITPD_PYTHON_PCMCI=DIR/bin/python ITPD_PYTHON_DFPC=DIR/bin/python ITPD_DFPC_SOURCE=<folder of the DF-PC clone>
+causal-learn==0.1.3.8
+cloudpickle==3.1.2
+contourpy==1.3.3
+cycler==0.12.1
+fonttools==4.68.0
+formulaic==1.2.2
+graphviz==0.21
+interface-meta==2.0.1
+joblib==1.6.0
+kiwisolver==1.5.1
+matplotlib==3.11.2
+narwhals==2.28.0
+networkx==3.6.1
+numpy==2.4.6
+packaging==26.3
+pandas==3.1.1
+patsy==1.0.3
+pillow==13.0.0
+pydot==4.0.1
+pyparsing==3.3.3
+python-dateutil==4.0.0
+scikit-learn==1.9.1
+scipy==1.17.1
+six==1.17.0
+statsmodels==0.15.0
+threadpoolctl==3.8.0
+tigramite==5.2.8.2
+tqdm==4.70.1
+typing-extensions==4.16.0
+tzdata==2026.6
+wrapt==2.5.2

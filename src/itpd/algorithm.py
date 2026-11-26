@@ -1,32 +1,38 @@
 """Iterative Temporal Parent Discovery (ITPD), Algorithm 1.
 
-Data have shape (replicates, times, variables). Each CI observation is an
-independent replicate trajectory. Node IDs are t * N + n, with zero-based
-time t and variable n.
+Where to look:
+- `ITPD.fit` runs Lines 1 to 4 and Line 16 of Algorithm 1 (the roots, the loop
+  over time steps and series, and the update of the adjacency list).
+- `ITPD._discover` runs Lines 5 to 15 for one target; its comments give the
+  line numbers.
+- `ITPD._levels` returns `alpha1` and `alpha2`.
 
-For a target at the paper's time t + 1, m = N * t - 1 excludes its lag-1
-self parent. Lines 8, 9, and 10 use alpha1 = max(alpha, min(gamma, kappa / m));
-Line 14 uses alpha2 = alpha / m. A test returns independent when p > level.
-Line 6 visits candidates in descending time; Line 13 uses ascending time.
-Both visit variables in increasing index within a time step.
+Data have shape (M, T, N): M independent observations of N series at T time
+steps. The node of series n at step t is t * N + n, both zero-based. The paper
+counts time from 1 and a target is at time t + 1; then m = N * t - 1 counts its
+candidates without the lag-1 self parent. The code counts steps from 0.
 
-A CI test that returns a NaN p-value cannot be evaluated. For example,
-itpd_aistats.ci.FisherZ returns NaN when M - |S| - 3 <= 0; causal-learn's
-fisherz returns p = 1 at 0 and raises an error below 0. A target with a NaN
-p-value keeps only its lag-1 self edge and is listed in untested_targets_.
-The run continues, and fit emits one warning for all such targets.
-Backend exceptions propagate.
+Lines 8, 9 and 10 use alpha1 = max(alpha, min(gamma, kappa / m)) (`alpha1` is
+the paper's alpha_1); Line 14 uses alpha2 = alpha / m (`alpha2` is alpha_2). A
+test answers independent when p > level (dependent when p <= level). Line 6
+visits candidates in descending time; Line 13 uses ascending time. Both visit
+series in increasing index within a time step.
+
+A CI test that returns a NaN p-value, or raises `NotEvaluable`, cannot be
+evaluated. For example, `FisherZ` returns NaN when M - |S| - 3 <= 0. The target
+of such a test keeps only its lag-1 self edge and is listed in
+`untested_targets_`. The run continues, and `fit` emits one warning for all
+such targets. Other exceptions of a CI test propagate.
 
 The algorithm assumes a causally sufficient, faithful temporal DAG with no
-contemporaneous edges, empty first-slice parent sets, and every lag-1 self
-edge. Oracle correctness does not imply finite-sample correctness.
+edges inside a time step, no parents in the first time step, and every lag-1
+self edge. Exact recovery with a d-separation oracle does not imply exact
+recovery from finite data.
 
-Lag-1 self edges make each series' ancestors a prefix. Cached prefix
-endpoints and initial-root bitsets describe the learned graph. Do not mutate
-graph_ after fit; get_graph() returns an independent copy.
-
-Run the oracle example with python itpd_clear/itpd.py. It requires NumPy,
-NetworkX, and Matplotlib; --seed and --output set the seed and PNG path."""
+Lag-1 self edges make the ancestors of a node a prefix of each series: for a
+node and a series, the ancestors in that series are the steps 0, ..., k for
+some k, and the fitted object stores k. Do not mutate `graph_` after `fit`;
+`get_graph()` returns an independent copy."""
 
 import warnings
 from collections import Counter
@@ -36,49 +42,50 @@ from pathlib import Path
 import networkx as nx
 import numpy as np
 
-
-class _NotEvaluable(Exception):
-    """A CI test returned a NaN p-value."""
+from .ci_tests import GCM, DSeparation, FisherZ, NotEvaluable
+from .graphs import check_temporal
 
 
 class ITPD:
-    """Discover parent sets in chronological order.
+    """Algorithm 1: discover parent sets in chronological order.
 
     Parameters
     ----------
-    ci_test : str, callable, or Tigramite CondIndTest
-        A causal-learn CIT method name (default 'fisherz'), a bound callable
-        (x_id, y_id, conditioning_ids) -> p-value, or a configured Tigramite
-        test such as ParCorr() or CMIknn(). Use a test appropriate to the data.
-    backend : {'causal-learn', 'tigramite', 'oracle'}
-        CI backend. Defaults to 'causal-learn'.
+    ci_test : {'fisherz', 'gcm'} or callable
+        'fisherz' (default) is the Fisher-z test `FisherZ` and 'gcm' is the
+        test `GCM`, each on the data given to `fit`. A callable (x, y,
+        S) -> p-value takes node IDs and a sorted tuple of node IDs. Use a test
+        appropriate to the data.
     alpha : float
-        Base significance level (default 0.01). Independence is rejected
+        Nominal significance level (default 0.01). Independence is rejected
         when p <= the test level.
     gamma, kappa : float
-        Phase I constants (defaults 0.2 and 50). For m target candidates,
-        alpha1 = max(alpha, min(gamma, kappa / m)); Phase II uses alpha / m.
-    ci_kwargs : dict or None
-        Options for causal-learn's CIT constructor. Configure Tigramite
-        options on the supplied test object.
+        Phase I constants (defaults 0.2 and 50). For m candidates of a target,
+        alpha1 = max(alpha, min(gamma, kappa / m)); Phase II uses
+        alpha2 = alpha / m.
     oracle_adjacency : array-like or None
-        Square ground-truth matrix with nonzero [u, v] indicating u -> v.
-        Requires backend='oracle' and the temporal assumptions above.
-        Oracle d-separation returns 1 for independence and 0 for dependence.
-        These values encode decisions, not statistical p-values.
+        True graph as a square matrix with nonzero [u, v] for u -> v. When
+        given, the CI test is the d-separation oracle of this graph
+        (`DSeparation`) and `ci_test` is not used. The graph must meet the
+        temporal assumptions above.
 
-    After fit, adjacency_ maps node IDs to frozen parent sets, and graph_
-    contains the learned directed graph. ci_queries_ counts requested calls
-    by phase, including calls a backend serves from its cache.
-    max_conditioning_size_ records the largest conditioning set requested.
-    untested_targets_ lists targets with a NaN p-value; each keeps only its
-    lag-1 self edge, and fit emits one warning if the list is nonempty.
+    Attributes
+    ----------
+    adjacency_ : dict
+        Maps node IDs to frozen parent sets (`frozenset`).
+    graph_ : networkx.DiGraph
+        The learned directed graph.
+    ci_queries_ : Counter
+        Counts the requested tests by phase (keys `'I'` and `'II'`).
+    max_conditioning_size_ : int
+        Largest conditioning set requested.
+    untested_targets_ : list of int
+        Targets with a test that could not be evaluated; each keeps only its
+        lag-1 self edge, and `fit` emits one warning if the list is nonempty.
+    M_, T_, N_ : int
+        Number of observations, time steps, and series."""
 
-    Graph caches use O(N^2 T) prefix entries and O(N^2 T) root bits.
-    CI backends may allocate additional caches or dense matrices."""
-
-    def __init__(self, ci_test="fisherz", *, backend="causal-learn",
-                 alpha=0.01, gamma=0.2, kappa=50, ci_kwargs=None,
+    def __init__(self, ci_test="fisherz", *, alpha=0.01, gamma=0.2, kappa=50,
                  oracle_adjacency=None):
         if not 0 < alpha < 1:
             raise ValueError("alpha must lie strictly between 0 and 1")
@@ -86,16 +93,10 @@ class ITPD:
             raise ValueError("gamma must lie strictly between 0 and 1")
         if not kappa > 0:
             raise ValueError("kappa must be positive")
-        if backend not in {"causal-learn", "tigramite", "oracle"}:
-            raise ValueError("backend must be 'causal-learn', 'tigramite', or 'oracle'")
-        if backend != "oracle" and oracle_adjacency is not None:
-            raise ValueError("oracle_adjacency requires backend='oracle'")
         self.ci_test = ci_test
-        self.backend = backend
         self.alpha = alpha
         self.gamma = gamma
         self.kappa = kappa
-        self.ci_kwargs = dict(ci_kwargs or {})
         self.oracle_adjacency = oracle_adjacency
 
     def fit(self, V: np.ndarray | None = None, *, n_variables: int | None = None):
@@ -105,16 +106,21 @@ class ITPD:
         ----------
         V : ndarray or None
             Finite real data of shape (M, T, N), with M >= 2 independent
-            replicate trajectories, T >= 1 time steps, and N >= 1 variables.
-            Oracle mode uses the shape and ignores the values after validation.
+            observations, T >= 1 time steps, and N >= 1 series. With
+            `oracle_adjacency`, only the shape is used, and V may be omitted.
         n_variables : int or None
-            Number of variables. Required when V is omitted in oracle mode;
-            T is then the oracle matrix dimension divided by n_variables.
-            If V is supplied, this value must agree with V.shape[2]."""
+            Number of series N. Required when V is omitted; T is then the
+            dimension of `oracle_adjacency` divided by `n_variables`. If V is
+            supplied, this value must agree with `V.shape[2]`.
+
+        Returns
+        -------
+        self : ITPD
+            This fitted estimator. With `oracle_adjacency` and no V, `M_` is 0."""
         self._fitted = False
         if V is None:
             matrix = np.asarray(self.oracle_adjacency)
-            if (self.backend != "oracle" or matrix.ndim != 2
+            if (self.oracle_adjacency is None or matrix.ndim != 2
                     or matrix.shape[0] != matrix.shape[1]
                     or not isinstance(n_variables, (int, np.integer))
                     or isinstance(n_variables, (bool, np.bool_))
@@ -138,7 +144,6 @@ class ITPD:
         self.graph_ = nx.DiGraph()
         self.adjacency_ = {}
         self._prefix = np.full((p, self.N_), -1, dtype=np.intp)
-        self._roots = [0] * p
         self.ci_queries_ = Counter()
         self.max_conditioning_size_ = 0
         self.untested_targets_ = []
@@ -214,29 +219,18 @@ class ITPD:
                 for n, end in enumerate(self._prefix[node])
                 for t in range(int(end) + 1)}
 
-    def marginally_connected(self, a: int, b: int) -> bool:
-        """Return whether two nodes share an initial root in the learned DAG.
-
-        This is equivalent to marginal d-connection. Each root counts as its
-        own root for this query."""
-        if a not in self.adjacency_ or b not in self.adjacency_:
-            raise KeyError("Both nodes must have learned parent sets")
-        return bool(self._roots[a] & self._roots[b])
-
     def _record(self, node: int, parents: set[int]):
-        """Store parents and compute ancestor prefixes and root bitsets."""
+        """Store the parents of a node and its ancestor prefixes."""
         self.adjacency_[node] = frozenset(parents)
         self.graph_.add_node(node)
         self.graph_.add_edges_from((parent, node) for parent in sorted(parents))
         t, n = self.node_label(node)
         if t == 0:
-            self._roots[node] = 1 << n
             return
         previous = node - self.N_
         # Inherit ancestors through the mandatory lag-1 self edge.
         self._prefix[node] = self._prefix[previous]
         self._prefix[node, n] = t - 1
-        self._roots[node] = self._roots[previous]
         for parent in self.graph_.predecessors(node):
             if parent == previous:
                 continue
@@ -244,7 +238,6 @@ class ITPD:
             np.maximum(self._prefix[node], self._prefix[parent],
                        out=self._prefix[node])
             self._prefix[node, pn] = max(self._prefix[node, pn], pt)
-            self._roots[node] |= self._roots[parent]
 
     def _levels(self, t: int) -> tuple[float, float]:
         """Return (alpha1, alpha2) for a target at zero-based time t + 1.
@@ -294,7 +287,7 @@ class ITPD:
                     remaining.remove(z)
                 else:
                     parents.add(z)
-        except _NotEvaluable:
+        except NotEvaluable:
             self.untested_targets_.append(y)
             return {x}
         # Line 16: fit stores the parent set.
@@ -308,92 +301,38 @@ class ITPD:
                                           len(conditions))
         p = float(self._pvalue(x, y, conditions))
         if np.isnan(p):
-            raise _NotEvaluable
+            raise NotEvaluable
         if not 0 <= p <= 1:
             raise ValueError(f"CI test returned invalid p-value {p} for "
                              f"({x}, {y} | {conditions})")
         return p > (self.alpha if level is None else level)
 
     def _make_test(self) -> Callable:
-        if self.backend == "oracle":
+        """Return the CI test callable `(x, y, S) -> p-value` for this fit.
+
+        Use the d-separation oracle if `oracle_adjacency` is given, else
+        `FisherZ` or `GCM` on the data, else the given callable. Raise
+        `ValueError` otherwise."""
+        if self.oracle_adjacency is not None:
             return self._make_oracle()
-        if self.backend == "causal-learn":
-            if isinstance(self.ci_test, str):
-                from causallearn.utils.cit import CIT
-                return CIT(self.data_, method=self.ci_test, **self.ci_kwargs)
-            if not callable(self.ci_test) or self.ci_kwargs:
-                raise ValueError("Supply a CIT method name or a bound p-value callable")
-            return self.ci_test
-        if self.ci_kwargs or not hasattr(self.ci_test, "run_test_raw"):
-            raise ValueError("Supply a configured Tigramite test object")
-        if getattr(self.ci_test, "significance", None) == "fixed_thres":
-            raise ValueError("Use a Tigramite p-value test, not fixed_thres")
-
-        def pvalue(x, y, conditions):
-            result = self.ci_test.run_test_raw(
-                x=self.data_[:, [x]], y=self.data_[:, [y]],
-                z=self.data_[:, list(conditions)] if conditions else None,
-            )
-            return result[1]
-
-        return pvalue
+        if self.ci_test == "fisherz":
+            return FisherZ(self.data_)
+        if self.ci_test == "gcm":
+            return GCM(self.data_)
+        if not callable(self.ci_test):
+            raise ValueError("ci_test must be 'fisherz', 'gcm', or a callable "
+                             "(x, y, S) -> p-value")
+        return self.ci_test
 
     def _make_oracle(self) -> Callable:
+        """Validate `oracle_adjacency` and return its `DSeparation` oracle.
+
+        Require a finite numeric matrix of shape (T * N, T * N) that passes
+        `graphs.check_temporal`, else raise `ValueError`."""
         matrix = np.asarray(self.oracle_adjacency)
         p = self.T_ * self.N_
         if (matrix.shape != (p, p) or matrix.dtype.kind not in "biuf"
                 or not np.isfinite(matrix).all()):
             raise ValueError(f"oracle_adjacency must be a finite numeric ({p}, {p}) matrix")
-        if self.ci_kwargs:
-            raise ValueError("ci_kwargs are not used by the oracle")
-        graph = nx.from_numpy_array(matrix != 0, create_using=nx.DiGraph)
-        if any(u // self.N_ >= v // self.N_ for u, v in graph.edges):
-            raise ValueError("Oracle edges must point strictly forward in time")
-        if any(not graph.has_edge(v - self.N_, v) for v in range(self.N_, p)):
-            raise ValueError("Oracle graph must contain every lag-1 autocorrelation edge")
-
-        def pvalue(x, y, conditions):
-            return float(nx.is_d_separator(graph, {x}, {y}, set(conditions)))
-
-        return pvalue
-
-
-def run_example(*, seed=7, output="itpd_example.png") -> ITPD:
-    """Generate a temporal DAG, check oracle recovery, and save its graph.
-
-    Use three series and five time points. Sample optional forward edges
-    independently with probability 0.12 and include every lag-1 self edge.
-    The oracle uses the DAG's d-separation relations without observations."""
-    N, T = 3, 5
-    rng = np.random.default_rng(seed)
-    times = np.repeat(np.arange(T), N)
-    adjacency = ((rng.random((N * T, N * T)) < 0.12)
-                 & (times[:, None] < times[None, :])).astype(np.uint8)
-    sources = np.arange(N * (T - 1))
-    adjacency[sources, sources + N] = 1
-    truth = nx.from_numpy_array(adjacency, create_using=nx.DiGraph)
-
-    model = ITPD(backend="oracle", oracle_adjacency=adjacency).fit(n_variables=N)
-    if not np.array_equal(model.get_adjacency_matrix(), adjacency):
-        learned = set(model.get_graph().edges)
-        expected = set(truth.edges)
-        raise AssertionError(f"Oracle recovery failed: missing={expected - learned}, "
-                             f"extra={learned - expected}")
-    path = model.plot_graph(output)
-    print(f"Exact recovery verified: {N * T} nodes, {truth.number_of_edges()} edges "
-          f"(seed={seed}).")
-    print(f"CI queries: Phase I={model.ci_queries_['I']}, "
-          f"Phase II={model.ci_queries_['II']}; "
-          f"maximum conditioning size={model.max_conditioning_size_}.")
-    print(f"Learned graph saved to {path.resolve()}")
-    return model
-
-
-if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Run ITPD's random-DAG oracle example.")
-    parser.add_argument("--seed", type=int, default=7, help="Random seed (default: 7)")
-    parser.add_argument("--output", default="itpd_example.png", help="Output PNG path")
-    args = parser.parse_args()
-    run_example(seed=args.seed, output=args.output)
+        check_temporal(matrix, self.N_, self.T_)
+        return DSeparation(matrix != 0)

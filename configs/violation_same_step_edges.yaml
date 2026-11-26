@@ -1,0 +1,35 @@
+# Table: mean F1 with edges moved into the same time step
+paper_item: "Table: mean F1 with edges moved into the same time step"
+description: >
+  The main finite data setting with in-degree 2 (20 series, 16 time steps, nonstationary graphs, linear-Gaussian
+  data, Fisher-z test), in which a share of the edges between two series is moved from lag 1 into the time step of
+  its target. 20 graphs per share; 500 and 2000 observations (the table shows 2000). Two scores over the common
+  targets: F1 on the remaining lag-1 edges, and F1 on the Markov boundary of every target among the earlier
+  variables. The level of a baseline is chosen on the lag-1 score and used for both.
+alpha: 0.01
+ci_test: fisherz
+seed: 0
+graph:
+  generator: violations
+  N: 20
+  T: 16
+  in_degree: 2
+  no_self_edge_share: 0
+  same_step_share: [0.1, 0.25, 0.5]
+data:
+  mechanism: linear_gaussian
+  M: [500, 2000]                  # the first M rows of one draw of 2000 rows
+graphs: 0-19
+methods:
+  - {name: ITPD}
+  - {name: IAMB, levels: [alpha, corrected]}
+  - {name: FullCI, levels: [alpha, corrected]}
+  - {name: Lasso}
+  - {name: PCMCI, levels: [alpha, corrected], max_lag: 1}
+scoring:
+  view: [lag1_edges, markov_boundary]
+  targets: common
+report:
+  metrics: [f1]
+  level_by: {view: lag1_edges, targets: common}
+  bootstrap: {resamples: 10000, seed: 20261113}

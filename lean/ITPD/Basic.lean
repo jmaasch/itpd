@@ -1,13 +1,16 @@
 import ITPD.Algorithm
 
 /-!
-# Basic.lean : list facts, the two orders of the box, and the loops of Lines 2-3
+# Basic.lean : list facts, the orders of Lines 6 and 13, and the loops of Lines 2-3
 
 * Membership lemmas for `insertAll`, the candidate list of Line 4, the time steps of Line 2 and
   the series of Line 3.
-* `descTime` (Line 6) and `ascNode` (Line 13) are permutations and are sorted as the box says.
-* Lemmas about the loops of Lines 2-3 and the update of Line 16 for an arbitrary function in
-  place of Lines 4-15 (`run`).
+* `descTime` (Line 6) and `ascNode` (Line 13) permute their input (`isOrder_descTime`,
+  `isOrder_ascNode`). `descTime` sorts in descending time, `ascNode` in ascending time, and both in
+  increasing series index inside a time step (`descTime_sorted`, `ascNode_sorted`). Algorithm 1
+  states the order in time only.
+* Lemmas about the loops of Lines 2-3 and the update of Line 16. They hold for `run d` with every
+  function `d` as the loop body; `itpdS` uses them with `d` equal to Lines 4-15 (`discoverS`).
 -/
 
 set_option autoImplicit false

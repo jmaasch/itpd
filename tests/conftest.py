@@ -1,36 +1,16 @@
-"""Test setup: stub `cdt.metrics` (tests/legacy_modules.py loads the modules in legacy/).
+"""Shared setup of the tests."""
+import os
 
-`cdt` needs R; the legacy files import it only for scoring helpers that the tests do not use.
-"""
-import sys
-import types
+# Set before importing numpy: BLAS thread count can change simulated data in
+# the last bits.
+for _name in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
+    os.environ.setdefault(_name, "1")
 
-import numpy as np
-
-
-def _install_cdt_stub():
-    try:
-        import cdt.metrics  # noqa: F401
-        return
-    except Exception:
-        pass
-    cdt = types.ModuleType("cdt")
-    metrics = types.ModuleType("cdt.metrics")
-
-    def precision_recall(t, p):
-        t = np.asarray(t) != 0
-        p = np.asarray(p) != 0
-        return (float((t & p).sum()) / max(int(p.sum()), 1), None)
-
-    def SHD(t, p, double_for_anticausal=True):
-        return int(((np.asarray(t) != 0) != (np.asarray(p) != 0)).sum())
-
-    metrics.precision_recall = precision_recall
-    metrics.SHD = SHD
-    metrics.SID = lambda *a, **k: 0
-    cdt.metrics = metrics
-    sys.modules["cdt"] = cdt
-    sys.modules["cdt.metrics"] = metrics
+import pytest  # noqa: E402
 
 
-_install_cdt_stub()
+@pytest.fixture
+def no_interpreters(monkeypatch):
+    """Unset the variables that name the interpreters of the external baselines and the DF-PC clone."""
+    for name in ("ITPD_PYTHON_PCMCI", "ITPD_PYTHON_DFPC", "ITPD_PYTHON_DYNOTEARS", "ITPD_PYTHON_CDNOD", "ITPD_DFPC_SOURCE"):
+        monkeypatch.delenv(name, raising=False)
