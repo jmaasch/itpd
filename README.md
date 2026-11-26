@@ -1,6 +1,6 @@
 # Iterative Temporal Parent Discovery (ITPD)
 
-ITPD (Iterative Temporal Parent Discovery) is a constraint-based algorithm for causal structure learning on multivariate time series without assuming causal stationarity. It finds the parent set of every variable in time order with conditional independence (CI) tests. This repository holds the Python package `itpd`, the configuration files of the paper's experiments (one per table or figure), and a Lean 4 proof that Algorithm 1 is exact with a d-separation oracle.
+ITPD (Iterative Temporal Parent Discovery) is a constraint-based algorithm for causal structure learning on multivariate time series without assuming causal stationarity. It finds the parent set of every variable in time order with conditional independence (CI) tests. This repository holds the Python package `itpd`, the configuration files of the paper's experiments, and a Lean 4 proof that Algorithm 1 is exact with a d-separation oracle.
 
 ## Where things are
 
@@ -42,4 +42,4 @@ python -m itpd.experiments table configs/main_setting.yaml --runs out/main_setti
 python -m pytest -q
 ```
 
-The first command makes the 80 runs of ITPD with 500 observations in about 5 minutes. The second command prints the tables of the main setting with each mean next to its expected mean. It ends with `largest absolute difference 0.0e+00`. The third command runs 192 tests in about one minute. `python -m pytest -q -m slow` runs 7 more tests on stored runs. See `configs/README.md` for all configurations.
+The first command makes the 80 runs of ITPD with 500 observations in about 5 minutes. The second command prints the tables of the main setting with each mean next to its expected mean. It ends with `largest absolute difference 0.0e+00`. The third command runs 194 tests in about one minute. `python -m pytest -q -m slow` runs 7 more tests on stored runs. See `configs/README.md` for all configurations.

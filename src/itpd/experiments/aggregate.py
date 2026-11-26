@@ -287,12 +287,13 @@ def _pooled(groups: list, name: str, pool: dict, reference) -> list:
     return body
 
 
-def _table(config: dict, report: dict, runs, expected: dict, compared: dict) -> list:
+def _table(config: dict, report: dict, runs, expected: dict, compared: dict, planned: set) -> list:
     """Return the lines of the table of one entry of `config["reports"]`.
 
-    With `expected`, each line has its expected mean, and `compared` gets one
-    entry per expected mean with a result: its key -> (difference, the line is
-    shown, another number of graphs, another better level)."""
+    `planned` gets the key of every mean of the table. With `expected`, each
+    line has its expected mean, and `compared` gets one entry per expected mean
+    with a result: its key -> (difference, a table shows the line, another
+    number of graphs, another better level)."""
     names, reference = columns(config, report), report.get("relative_to")
     all_rows = rows(config, runs, report)
     groups = cells(config, all_rows, report)
@@ -300,6 +301,8 @@ def _table(config: dict, report: dict, runs, expected: dict, compared: dict) -> 
                      for row in all_rows)
     lines = [report.get("paper_item") or "", f"{len(all_rows)} runs: " + ", ".join(f"{count} {word}" for word, count in status.items())]
     present = {(row["setting"], row["M"], row["method"]) for row in all_rows if row["status"] != "missing"}
+    planned.update((group["setting"], str(group["M"] or ""), group["method"], group["level"] or "", name)
+                   for group in groups for name in names)
     if not present:
         return lines
     graph_keys = [key for key in dict.fromkeys(key for group in groups for key in group["graph"])
@@ -314,8 +317,9 @@ def _table(config: dict, report: dict, runs, expected: dict, compared: dict) -> 
             stored = expected.get(entry)
             if stored and mean:
                 difference = mean["mean"] - float(stored["mean"])
-                compared[entry] = (difference, group["shown"], mean["graphs"] != int(stored["graphs"]),
-                                 str(group["better_level"]) != stored["better_level"])
+                _, shown, _, other_level = compared.get(entry, (None, False, None, False))      # Another table has the mean.
+                compared[entry] = (difference, shown or group["shown"], mean["graphs"] != int(stored["graphs"]),
+                                   other_level or str(group["better_level"]) != stored["better_level"])
             if not group["shown"] or (group["setting"], group["M"], group["method"]) not in present:
                 continue
             line = [*(str(group["graph"].get(key, "-")) for key in graph_keys), str(group["M"] or "-"), group["method"],
@@ -345,9 +349,11 @@ def table(config, runs, *, compare: bool = False) -> str:
     separately for the levels not shown. An expected mean that several tables
     show is counted once."""
     config = load(config)
-    expected, compared, lines = _expected(config) if compare else {}, {}, []
+    expected, compared, planned, lines = _expected(config) if compare else {}, {}, set(), []
     for report in config["reports"]:
-        lines += ([""] if lines else []) + _table(config, report, runs, expected, compared)
+        lines += ([""] if lines else []) + _table(config, report, runs, expected, compared, planned)
+    if set(expected) - planned:
+        raise ConfigError(f"{len(set(expected) - planned)} expected means belong to no table of the config")
     if compare:
         shown = [abs(difference) for difference, is_shown, _, _ in compared.values() if is_shown]
         hidden = [abs(difference) for difference, is_shown, _, _ in compared.values() if not is_shown]

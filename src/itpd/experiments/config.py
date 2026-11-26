@@ -119,8 +119,8 @@ def _settings(merged) -> list:
 def _reports(raw, settings) -> list:
     """Return the report entries of the raw config `raw`.
 
-    A config with `paper_item` and `report` has one entry. A value of `select`
-    must belong to a run of `settings`."""
+    A config with `paper_item` and `report` has one entry. Every value of
+    `select` must belong to a run of `settings`, and `select` must keep a run."""
     if "reports" not in raw:
         _keys(raw.get("report", {}), REPORT, "report")
         return [{"paper_item": raw.get("paper_item"), **raw.get("report", {})}]
@@ -136,9 +136,15 @@ def _reports(raw, settings) -> list:
         _keys(entry, REPORT_ENTRY, "an entry of reports")
         _check(entry.get("paper_item"), "an entry of reports needs a paper_item")
         _keys(entry.get("select", {}), [key for key in known if key != "generator"], "select")
-        for key, wanted in entry.get("select", {}).items():
-            unknown = [value for value in (wanted if isinstance(wanted, list) else [wanted]) if value not in known[key]]
-            _check(not unknown, f"select.{key}: no run with {', '.join(map(str, unknown))}")
+        select = {key: wanted if isinstance(wanted, list) else [wanted] for key, wanted in entry.get("select", {}).items()}
+        for key, wanted in select.items():
+            unknown = [value for value in wanted if value not in known[key]]
+            _check(wanted and not unknown, f"select.{key}: no run with {', '.join(map(str, unknown)) or 'an empty list'}")
+        graph = {key: wanted for key, wanted in select.items() if key not in ("M", "methods")}
+        _check(any(all(setting["graph"].get(key) in wanted for key, wanted in graph.items())
+                   and any(M in select.get("M", [M]) for M in setting["data"]["M"])
+                   and any(run["name"] in select.get("methods", [run["name"]]) for run in setting["methods"])
+                   for setting in settings), "select: no run has all the selected values")
     return entries
 
 

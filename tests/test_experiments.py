@@ -98,6 +98,9 @@ def test_main_setting_config():
     ({"reports": [{"paper_item": "x", "select": {"graphs": 0}}]}, "unknown key graphs"),
     ({"reports": [{"paper_item": "x", "select": {"methods": ["ITPD", "DF-PC"]}}]}, "select.methods: no run with DF-PC"),
     ({"reports": [{"paper_item": "x", "select": {"M": 7}}]}, "select.M: no run with 7"),
+    ({"reports": [{"paper_item": "x", "select": {"M": []}}]}, "select.M: no run with an empty list"),
+    ({"reports": [{"paper_item": "x", "select": {"M": 100, "in_degree": 1}}],
+      "settings": [{"data": {"M": 9}}, {"data": {"M": 100}, "graph": {"in_degree": 2}}]}, "no run has all the selected values"),
     ({"scoring": {"rule": 1}}, "unknown key rule"),
     ({"settings": [{"paper_item": "x"}]}, "unknown key paper_item"),
     ({"ci_test": "oracle"}, "go together"),
@@ -367,11 +370,16 @@ def test_one_table_per_entry_of_reports(tmp_path):
     assert text[start + 1] == "2 runs: 2 with a result"
     assert "unique_per_candidate" in text[start:] and "unique_per_candidate" not in text[:start]
     assert text[-1].startswith("1 means compared with the expected means: largest absolute difference 0.0e+00;")
+    # An expected mean of a cell or a metric that no table has is an error.
+    with open(tmp_path / "expected" / "small.csv", "a") as f:
+        f.write(f"{SETTING},9,ITPD,,True,unique_per_candidate,1.0,2\n")
+    with pytest.raises(ConfigError, match="1 expected means belong to no table"):
+        table(config, out, compare=True)
     # A method has a line in a cell when one of its runs there has a file.
-    for path in out.rglob("Lasso.json"):
+    for path in out.rglob("M9/**/Lasso.json"):
         path.unlink()
     text = table(config, out).splitlines()
-    assert text[1] == "8 runs: 4 with a result, 4 missing" and not any("Lasso" in line for line in text)
+    assert text[1] == "8 runs: 6 with a result, 2 missing" and sum("Lasso" in line for line in text) == 1
 
 
 ONE_METRIC = {"settings": [{"scoring": {}}], "reports": [{"metrics": ["f1"]}]}
