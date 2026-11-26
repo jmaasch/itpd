@@ -56,11 +56,12 @@ def test_every_config_loads():
     assert paths
     for path in paths:
         config = load(path)
-        assert config["settings"] and config["paper_item"] and config["folder"] == str(CONFIGS)
+        assert config["settings"] and config["folder"] == str(CONFIGS)
+        assert all(report["paper_item"] for report in config["reports"])
 
 
 def test_main_setting_config():
-    config = load(CONFIGS / "main_setting_f1.yaml")
+    config = load(CONFIGS / "main_setting.yaml")
     assert [setting["graph"]["in_degree"] for setting in config["settings"]] == [1, 2, 3, 5]
     setting = config["settings"][1]
     assert setting["graph"] == {"generator": "standard", "N": 20, "T": 16, "lag": 1, "in_degree": 2, "stationary": False}
@@ -72,6 +73,12 @@ def test_main_setting_config():
                      "PCMCI__corrected__lag1.json", "DF-PC__alpha.json", "DF-PC__corrected.json", "DYNOTEARS__lag1.json",
                      "CD-NOD__alpha__lag1.json", "CD-NOD__corrected__lag1.json"]
     assert len(specifications(config)) == 4 * 20 * 3 * 15
+    # The two tables and the two figures of the main setting select their runs from the same runs.
+    selected = [rows(config, "no_runs", report) for report in config["reports"]]
+    assert [len(part) for part in selected] == [4 * 20 * 3 * 15, 4 * 20 * 11, 2 * 20 * 13, 2 * 20 * 9]
+    assert {row["M"] for row in selected[1]} == {2000} and {row["M"] for row in selected[2] + selected[3]} == {500}
+    assert {row["graph"]["in_degree"] for row in selected[3]} == {2, 5} and {row["method"] for row in selected[3]} == {
+        "ITPD", "IAMB", "IPaDL", "FullCI", "DF-PC"}
 
 
 @pytest.mark.parametrize("changes, message", [
@@ -84,6 +91,13 @@ def test_main_setting_config():
     ({"methods": [{"name": "PC"}]}, "unknown method"),
     ({"methods": [{"name": "IAMB", "levels": ["strict"]}]}, "levels"),
     ({"report": {"plot": True}}, "unknown key plot"),
+    # Several tables from the runs of one config: `reports`, each entry with its paper item.
+    ({"reports": [{"paper_item": "x"}], "report": {"metrics": ["f1"]}}, "go in each entry of reports"),
+    ({"reports": [{"metrics": ["f1"]}]}, "needs a paper_item"),
+    ({"reports": [{"paper_item": "x", "plot": True}]}, "unknown key plot"),
+    ({"reports": [{"paper_item": "x", "select": {"graphs": 0}}]}, "unknown key graphs"),
+    ({"reports": [{"paper_item": "x", "select": {"methods": ["ITPD", "DF-PC"]}}]}, "select.methods: no run with DF-PC"),
+    ({"reports": [{"paper_item": "x", "select": {"M": 7}}]}, "select.M: no run with 7"),
     ({"scoring": {"rule": 1}}, "unknown key rule"),
     ({"settings": [{"paper_item": "x"}]}, "unknown key paper_item"),
     ({"ci_test": "oracle"}, "go together"),
@@ -280,9 +294,7 @@ def test_configs_share_runs():
     """Configs for the same run share its file and specification."""
     def runs(name, keep=lambda spec: True):
         return {run_path(spec): spec for spec in specifications(load(CONFIGS / f"{name}.yaml")) if keep(spec)}
-    f1 = runs("main_setting_f1")
-    for name in ("main_setting_tests", "frontier_tests", "frontier_seconds"):
-        assert runs(name) and all(f1.get(path) == spec for path, spec in runs(name).items())
+    f1 = runs("main_setting")
     # `sample_size`: with 20 series and 200, 500, or 2000 observations, the
     # runs are runs of the main setting.
     shared = runs("sample_size", lambda spec: spec["graph"]["N"] == 20 and spec["data"]["M"] >= 200)
@@ -318,20 +330,51 @@ def test_a_changed_run_never_has_the_file_of_plain_itpd():
 def test_every_config_has_a_table_and_expected_means(tmp_path):
     for path in sorted(CONFIGS.glob("*.yaml")):
         config = load(path)
-        planned = rows(config, tmp_path)
         text = table(path, tmp_path, compare=True).splitlines()
-        assert text[0] == config["paper_item"] and text[1] == f"{len(planned)} runs: {len(planned)} missing"
         assert text[-1].startswith("0 means compared")
-        # Every expected mean belongs to one cell, method, level and metric of the config.
-        known = {(row["setting"], str(row["M"] or ""), row["method"], row["level"] or "") for row in planned}
+        # A table starts with its paper item and the count of its runs.
+        known = set()
+        for report in config["reports"]:
+            planned = rows(config, tmp_path, report)
+            start = text.index(report["paper_item"])
+            assert planned and text[start + 1] == f"{len(planned)} runs: {len(planned)} missing"
+            known |= {(row["setting"], str(row["M"] or ""), row["method"], row["level"] or "", metric)
+                      for row in planned for metric in columns(config, report)}
+        assert text[0] == config["reports"][0]["paper_item"]
+        # Every expected mean belongs to one cell, method, level and metric of a table of the config.
         with open(CONFIGS / "expected" / f"{path.stem}.csv", newline="") as f:
             expected = list(csv.DictReader(line for line in f if line[0] != "#"))
-        assert expected and all((r["setting"], r["M"], r["method"], r["level"]) in known for r in expected)
-        assert {r["metric"] for r in expected} <= set(columns(config))
+        assert expected and all((r["setting"], r["M"], r["method"], r["level"], r["metric"]) in known for r in expected)
         assert all(float(r["mean"]) >= 0 and r["better_level"] in ("True", "False") and int(r["graphs"]) for r in expected)
 
 
-ONE_METRIC = {"settings": [{"scoring": {}}], "report": {"metrics": ["f1"]}}
+def test_one_table_per_entry_of_reports(tmp_path):
+    """Two tables from the runs of one config; an expected mean that both tables show is counted once."""
+    reports = [{"paper_item": "Table A", "metrics": ["f1"]},
+               {"paper_item": "Figure B", "select": {"M": 100, "methods": ["ITPD"]}, "metrics": ["f1", "unique_per_candidate"]}]
+    config, out = write(tmp_path, methods=[{"name": "ITPD"}, {"name": "Lasso"}], reports=reports), tmp_path / "out"
+    run(config, out)
+    loaded = load(config)
+    first, second = (rows(loaded, out, report) for report in loaded["reports"])
+    assert len(first) == 2 * 2 * 2 and [(row["M"], row["method"]) for row in second] == [(100, "ITPD")] * 2
+    mean = cells(loaded, second, loaded["reports"][1])[0]["mean"]["f1"]["mean"]
+    (tmp_path / "expected").mkdir()
+    (tmp_path / "expected" / "small.csv").write_text(
+        f"setting,M,method,level,better_level,metric,mean,graphs\n{SETTING},100,ITPD,,True,f1,{mean!r},2\n")
+    text = table(config, out, compare=True).splitlines()
+    start = text.index("Figure B")
+    assert text[0] == "Table A" and text[1].startswith("8 runs: ") and text[start - 1] == ""
+    assert text[start + 1] == "2 runs: 2 with a result"
+    assert "unique_per_candidate" in text[start:] and "unique_per_candidate" not in text[:start]
+    assert text[-1].startswith("1 means compared with the expected means: largest absolute difference 0.0e+00;")
+    # A method has a line in a cell when one of its runs there has a file.
+    for path in out.rglob("Lasso.json"):
+        path.unlink()
+    text = table(config, out).splitlines()
+    assert text[1] == "8 runs: 4 with a result, 4 missing" and not any("Lasso" in line for line in text)
+
+
+ONE_METRIC = {"settings": [{"scoring": {}}], "reports": [{"metrics": ["f1"]}]}
 
 
 def cell_rows(f1, method="IAMB", level=None) -> list:
@@ -362,7 +405,7 @@ def test_bootstrap_interval_and_paired_difference():
     a = rng.random(20)
     b = a + 0.1 + 0.05 * rng.random(20)
     report = {"metrics": ["f1"], "bootstrap": {"resamples": 1000, "seed": 7}, "relative_to": "ITPD"}
-    config = {"settings": [{"scoring": {}}], "report": report}
+    config = {"settings": [{"scoring": {}}], "reports": [report]}
     values = [*a[:19].tolist(), None]                     # ITPD has no result on the last graph.
     reference, other = cells(config, cell_rows(values, "ITPD") + cell_rows(b.tolist(), "IAMB", "alpha"))
     index = {n: np.random.default_rng(7).integers(0, n, (1000, n)) for n in (19, 20)}

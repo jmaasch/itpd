@@ -1,7 +1,7 @@
 """Read a config file and expand it to settings.
 
-A config is a YAML file that describes the runs behind one table or figure. Its
-keys:
+A config is a YAML file that describes the runs behind one table or figure, or
+behind several that share their runs. Its keys:
 
     paper_item, description   text
     alpha                     nominal significance level (default 0.01)
@@ -12,6 +12,10 @@ keys:
     graphs                    graph indices: "0-19", "1-8,10" or a list
     methods                   list of entries {name: ..., options}
     scoring, report           read when the results are scored (aggregate.py)
+    reports                   in place of paper_item and report, for several
+                              tables or figures from the same runs: a list of
+                              entries, each with a paper_item, the keys of
+                              report and an optional select
     repeat                    timed repetitions of every run (default 1)
     settings                  list of entries; each is merged over the keys
                               above and gives one or more settings
@@ -21,6 +25,10 @@ entry of `settings`, a `graph` block with a generator, or a `data` block with a
 mechanism, replaces the block; otherwise its keys are merged over the block.
 The oracle goes with the data mechanism "none" and no M. An unknown key is an
 error.
+
+`select` in an entry of `reports` keeps a part of the runs. Its keys are M,
+methods (names) and graph parameters, each with one value or a list, such as
+`{M: 500, in_degree: [2, 5], methods: [ITPD, IAMB]}`.
 
 The generator "enumerate" stands for every time graph of N series and T steps.
 Its graph index g is block g of 65536 graphs, and a run is the exhaustive check
@@ -44,10 +52,11 @@ class ConfigError(ValueError):
 
 
 PER_SETTING = ("alpha", "ci_test", "seed", "graph", "data", "graphs", "methods", "scoring", "repeat")
-TOP = PER_SETTING + ("paper_item", "description", "report", "settings")
+TOP = PER_SETTING + ("paper_item", "description", "report", "reports", "settings")
 CI_TESTS = ("fisherz", "gcm", "oracle")
 SCORING = ("view", "targets")
 REPORT = ("metrics", "level_by", "bootstrap", "relative_to", "pool")
+REPORT_ENTRY = ("paper_item", "select") + REPORT
 
 
 def _check(condition, message):
@@ -107,12 +116,39 @@ def _settings(merged) -> list:
     return settings
 
 
+def _reports(raw, settings) -> list:
+    """Return the report entries of the raw config `raw`.
+
+    A config with `paper_item` and `report` has one entry. A value of `select`
+    must belong to a run of `settings`."""
+    if "reports" not in raw:
+        _keys(raw.get("report", {}), REPORT, "report")
+        return [{"paper_item": raw.get("paper_item"), **raw.get("report", {})}]
+    _check(not {"paper_item", "report"} & set(raw), "with reports, paper_item and the keys of report go in each entry of reports")
+    entries = raw["reports"]
+    _check(isinstance(entries, list) and entries, "reports must be a list of entries")
+    known = {"M": [M for setting in settings for M in setting["data"]["M"]],
+             "methods": [run["name"] for setting in settings for run in setting["methods"]]}
+    for setting in settings:
+        for key, value in setting["graph"].items():
+            known.setdefault(key, []).append(value)
+    for entry in entries:
+        _keys(entry, REPORT_ENTRY, "an entry of reports")
+        _check(entry.get("paper_item"), "an entry of reports needs a paper_item")
+        _keys(entry.get("select", {}), [key for key in known if key != "generator"], "select")
+        for key, wanted in entry.get("select", {}).items():
+            unknown = [value for value in (wanted if isinstance(wanted, list) else [wanted]) if value not in known[key]]
+            _check(not unknown, f"select.{key}: no run with {', '.join(map(str, unknown))}")
+    return entries
+
+
 def load(path) -> dict:
     """Read the config file at `path` and return it with its settings expanded.
 
     The result has the keys `path`, `folder` (of the config file),
-    `paper_item`, `description`, `report`, and `settings`. A setting is a dict
-    with:
+    `description`, `reports` and `settings`. An entry of `reports` has the
+    `paper_item`, the keys of `report` and, with several entries, `select`. A
+    setting is a dict with:
     - `alpha`, `ci_test`, `seed`, `repeat`
     - `graph`: generator and one value per parameter
     - `data`: mechanism and the list M (`[None]` without data)
@@ -123,7 +159,6 @@ def load(path) -> dict:
         raw = yaml.safe_load(f)
     try:
         _keys(raw, TOP, "config")
-        _keys(raw.get("report", {}), REPORT, "report")
         top = {"alpha": 0.01, "ci_test": "fisherz", "seed": 0, "repeat": 1, "scoring": {},
                **{key: raw[key] for key in PER_SETTING if key in raw}}
         entries = raw.get("settings", [{}])
@@ -138,9 +173,10 @@ def load(path) -> dict:
                     value = {**top[key], **value}
                 merged[key] = value
             settings += _settings(merged)
+        reports = _reports(raw, settings)
     except ValueError as error:
         raise ConfigError(f"{path}: {error}") from None
     path = os.path.abspath(path)
-    return {"path": path, "folder": os.path.dirname(path), "paper_item": raw.get("paper_item"),
-            "description": raw.get("description"), "report": raw.get("report", {}), "settings": settings}
+    return {"path": path, "folder": os.path.dirname(path), "description": raw.get("description"),
+            "reports": reports, "settings": settings}
 

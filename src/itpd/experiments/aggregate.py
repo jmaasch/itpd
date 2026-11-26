@@ -29,10 +29,15 @@ Keys of a config that are read here:
     report.pool       {by, cap}: after the cells of a metric, the mean of
                       the cell means for every value of by (M, or a graph
                       parameter); the values from cap on are one group
+    reports           several tables from the runs of one config: a list of
+                      entries with a paper_item, the keys of report, and
+                      select, which keeps the runs with the given M, methods
+                      and graph parameters. `table` prints one table per entry.
 
 A cell is one setting with one M; its mean is over the graphs with a result.
 Runs with the status `timeout`, `error` or `skipped`, and missing runs, have no
-result; they are counted and never filled. A method with two levels is shown at
+result; they are counted and never filled. A method has a line in a cell when
+one of its runs there has a file. A method with two levels is shown at
 its better level: the level with the higher mean F1 of the cell, rounded to 12
 digits; a tie goes to the corrected level, and a level without a result is not
 a candidate. That level is shown for every metric.
@@ -80,15 +85,26 @@ def _several(config) -> bool:
     return any(len(_views(setting["scoring"])) > 1 for setting in config["settings"])
 
 
-def columns(config: dict) -> list:
-    """Return the columns of the table.
+def _selected(spec: dict, select: dict) -> bool:
+    """Return whether the run `spec` has the M, method and graph parameters of `select`."""
+    for key, wanted in select.items():
+        value = spec["data"].get("M") if key == "M" else spec["method"]["name"] if key == "methods" else spec["graph"].get(key)
+        if value not in (wanted if isinstance(wanted, list) else [wanted]):
+            return False
+    return True
 
-    One column per metric, and per view for a score when a setting has several
+
+def columns(config: dict, report: dict = None) -> list:
+    """Return the columns of the table of `report`.
+
+    `report` is an entry of `config["reports"]` (default: the first). One
+    column per metric, and per view for a score when a setting has several
     views."""
+    report = config["reports"][0] if report is None else report
     views = list(dict.fromkeys(view for setting in config["settings"] for view in _views(setting["scoring"])))
     several = _several(config)
-    names = config["report"].get("metrics", ["f1"])
-    chooser = config["report"].get("level_by", {}).get("view", "edges")
+    names = report.get("metrics", ["f1"])
+    chooser = report.get("level_by", {}).get("view", "edges")
     unknown = [name for name in names if name not in METRICS] + [view for view in [*views, chooser] if view not in VIEWS]
     if unknown:
         raise ConfigError(f"unknown metric or view: {', '.join(map(str, unknown))}")
@@ -107,21 +123,25 @@ def score_run(run: dict, truth, view: str = "edges") -> dict:
     return VIEWS[view](truth, A_hat.reshape(size, size), M, run["untested"])
 
 
-def rows(config: dict, runs) -> list:
+def rows(config: dict, runs, report: dict = None) -> list:
     """Return one dict per run of a loaded config, in the order of the runs.
+
+    `report` is an entry of `config["reports"]` (default: the first); with
+    `select`, only the selected runs are returned.
 
     Keys: `setting` (folder of the setting), `graph`, M, `graph_index`,
     `method` (name and options), `level`, `status` ("missing" without a file).
     A run with a result also has `run` (the file), `scores` (view -> score) and
     `values` (column -> number or `None`; "level_by" is the F1 that chooses the
     level)."""
+    report = config["reports"][0] if report is None else report
     out, seen, built, truth = [], set(), None, None
     for setting in config["settings"]:
         views, targets = _views(setting["scoring"]), setting["scoring"].get("targets", "common")
-        by = {"view": views[0], "targets": targets, **config["report"].get("level_by", {})}
+        by = {"view": views[0], "targets": targets, **report.get("level_by", {})}
         for spec in specifications({"settings": [setting]}):
             relative, method = run_path(spec), spec["method"]
-            if relative in seen:      # Two entries of a config can give the same run.
+            if relative in seen or not _selected(spec, report.get("select", {})):      # Two entries of a config can give the same run.
                 continue
             seen.add(relative)
             label = method.get("label", method["name"]) + (f", max lag {method['max_lag']}" if "max_lag" in method else "")
@@ -177,15 +197,19 @@ def _mean(values, bootstrap, index):
     return {"mean": float(v.mean()), "lo": lo, "hi": hi, "graphs": len(v)}
 
 
-def cells(config: dict, rows: list) -> list:
+def cells(config: dict, rows: list, report: dict = None) -> list:
     """Return one dict per setting, M, method and level, from `rows`.
+
+    `report` is the entry of `config["reports"]` that gave `rows` (default: the
+    first).
 
     Keys: `setting`, `graph`, M, `method`, `level`, `better_level`, `shown`
     (the better level, or every level of a method without a result), `mean`
     (column -> `{mean, lo, hi, graphs}` or `None`) and, with
     `report.relative_to`, `difference` (column -> the same for the method minus
     the reference on the graphs that both have, with verdict)."""
-    report, index, names = config["report"], {}, columns(config)
+    report = config["reports"][0] if report is None else report
+    index, names = {}, columns(config, report)
     bootstrap, reference = report.get("bootstrap"), report.get("relative_to")
     groups = {}
     for row in rows:
@@ -263,55 +287,74 @@ def _pooled(groups: list, name: str, pool: dict, reference) -> list:
     return body
 
 
-def table(config, runs, *, compare: bool = False) -> str:
-    """Return the table of `config` as text, from the run files in `runs`.
+def _table(config: dict, report: dict, runs, expected: dict, compared: dict) -> list:
+    """Return the lines of the table of one entry of `config["reports"]`.
 
-    One block per metric, one line per cell and method; a method with two
-    levels is shown at its better level. With `report.pool` a second block per
-    metric has the means of the cell means. `compare=True` adds the mean of
-    `configs/expected/<config>.csv` and the difference to it; the last line
-    gives the largest difference, separately for the levels not shown."""
-    config = load(config)
-    names, reference = columns(config), config["report"].get("relative_to")
-    all_rows = rows(config, runs)
-    groups = cells(config, all_rows)
-    expected = _expected(config) if compare else {}
+    With `expected`, each line has its expected mean, and `compared` gets one
+    entry per expected mean with a result: its key -> (difference, the line is
+    shown, another number of graphs, another better level)."""
+    names, reference = columns(config, report), report.get("relative_to")
+    all_rows = rows(config, runs, report)
+    groups = cells(config, all_rows, report)
     status = Counter("with a result" if "values" in row else "missing" if row["status"] == "missing" else "without a result"
                      for row in all_rows)
-    lines = [config["paper_item"] or "", f"{len(all_rows)} runs: " + ", ".join(f"{count} {word}" for word, count in status.items())]
+    lines = [report.get("paper_item") or "", f"{len(all_rows)} runs: " + ", ".join(f"{count} {word}" for word, count in status.items())]
+    present = {(row["setting"], row["M"], row["method"]) for row in all_rows if row["status"] != "missing"}
+    if not present:
+        return lines
     graph_keys = [key for key in dict.fromkeys(key for group in groups for key in group["graph"])
                   if key != "path" and len({str(group["graph"].get(key)) for group in groups}) > 1]
-    shown, hidden, other_graphs, other_level = [], [], 0, 0
     for name in names:
         head = [*graph_keys, "M", "method", "level", "graphs", "mean", "lo", "hi"]
         head += [f"minus {reference}", "lo", "hi", "verdict"] if reference else []
-        body = [head + (["expected", "difference"] if compare else [])]
+        body = [head + (["expected", "difference"] if expected else [])]
         for group in groups:
             mean = group["mean"][name] or {}
-            stored = expected.get((group["setting"], str(group["M"] or ""), group["method"], group["level"] or "", name))
+            entry = (group["setting"], str(group["M"] or ""), group["method"], group["level"] or "", name)
+            stored = expected.get(entry)
             if stored and mean:
                 difference = mean["mean"] - float(stored["mean"])
-                (shown if group["shown"] else hidden).append(difference)
-                other_graphs += mean["graphs"] != int(stored["graphs"])
-                other_level += str(group["better_level"]) != stored["better_level"]
-            if not group["shown"]:
+                compared[entry] = (difference, group["shown"], mean["graphs"] != int(stored["graphs"]),
+                                 str(group["better_level"]) != stored["better_level"])
+            if not group["shown"] or (group["setting"], group["M"], group["method"]) not in present:
                 continue
             line = [*(str(group["graph"].get(key, "-")) for key in graph_keys), str(group["M"] or "-"), group["method"],
                     group["level"] or "-", str(mean.get("graphs", 0)), *(_number(mean.get(k)) for k in ("mean", "lo", "hi"))]
             if reference:
                 d = group["difference"].get(name) or {}
                 line += [_number(d.get("mean"), "+.3f"), _number(d.get("lo"), "+.3f"), _number(d.get("hi"), "+.3f"), d.get("verdict") or "-"]
-            if compare:
+            if expected:
                 line += ["-", "-"] if not (stored and mean) else [_number(float(stored["mean"])), format(difference, "+.1e")]
             body.append(line)
         lines += ["", name] + _lines(body)
-        if config["report"].get("pool"):
-            pool = config["report"]["pool"]
+        if report.get("pool"):
+            pool = report["pool"]
             lines += ["", f"{name}: mean of the cell means by {pool['by']}"] + _lines(_pooled(groups, name, pool, reference))
+    return lines
+
+
+def table(config, runs, *, compare: bool = False) -> str:
+    """Return the tables of `config` as text, from the run files in `runs`.
+
+    One table per entry of `reports`. A table starts with its `paper_item` and
+    the count of its runs. It has one block per metric and one line per cell
+    and method with a run file; a method with two levels is shown at its better
+    level. With `report.pool` a second block per metric has the means of the
+    cell means. `compare=True` adds the mean of `configs/expected/<config>.csv`
+    and the difference to it; the last line gives the largest difference,
+    separately for the levels not shown. An expected mean that several tables
+    show is counted once."""
+    config = load(config)
+    expected, compared, lines = _expected(config) if compare else {}, {}, []
+    for report in config["reports"]:
+        lines += ([""] if lines else []) + _table(config, report, runs, expected, compared)
     if compare:
-        largest = f"{max(map(abs, shown), default=0):.1e}"
+        shown = [abs(difference) for difference, is_shown, _, _ in compared.values() if is_shown]
+        hidden = [abs(difference) for difference, is_shown, _, _ in compared.values() if not is_shown]
+        largest = f"{max(shown, default=0):.1e}"
         if hidden:
-            largest += f" in the lines above and {max(map(abs, hidden)):.1e} at the levels not shown"
-        lines += ["", f"{len(shown) + len(hidden)} means compared with the expected means: largest absolute difference "
-                      f"{largest}; {other_graphs} with another number of graphs; {other_level} with another better level"]
+            largest += f" in the lines above and {max(hidden):.1e} at the levels not shown"
+        lines += ["", f"{len(compared)} means compared with the expected means: largest absolute difference {largest}; "
+                      f"{sum(other for _, _, other, _ in compared.values())} with another number of graphs; "
+                      f"{sum(other for _, _, _, other in compared.values())} with another better level"]
     return "\n".join(lines)

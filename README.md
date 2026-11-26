@@ -11,7 +11,7 @@ ITPD (Iterative Temporal Parent Discovery) is a constraint-based algorithm for c
 - `src/itpd/simulation/`: the generators of the simulated graphs and data, with data shape (M, T, N).
 - `src/itpd/external/`: one wrapper script per external baseline (PCMCI, DF-PC, DYNOTEARS and CD-NOD); the files in `requirements/` pin the external tools.
 - `src/itpd/experiments/`: the command line `python -m itpd.experiments`. `runner.py` runs the methods of a configuration, `aggregate.py` builds the table of means, and `ablations.py` runs Algorithm 1 with single-line changes for the ablation tables.
-- `configs/`: 22 YAML files for the paper's experiments and `configs/expected/` for expected means. See `configs/README.md` for status and what is not reproduced.
+- `configs/`: 19 YAML files for the paper's experiments and `configs/expected/` for expected means. See `configs/README.md` for status and what is not reproduced.
 - `examples/`: `examples/fit_simulated_data.py` fits ITPD on simulated data, and `examples/oracle_exact_recovery.py` recovers a random graph with the d-separation oracle.
 - `tests/`: the package tests, including `tests/test_reference_runs.py` for comparing runs with stored runs of the paper's experiments.
 - `data/gene_networks/`: the data for the two tables on simulated gene regulatory networks; see `data/gene_networks/README.md`.
@@ -37,9 +37,9 @@ python examples/fit_simulated_data.py
 This fits ITPD on 500 observations of 5 series over 8 time steps in a few seconds and prints F1 and CI test counts. In Python, call `ITPD().fit(V)` on an array `V` of shape (M, T, N) and read `adjacency_`.
 
 ```bash
-python -m itpd.experiments run configs/frontier_tests.yaml --out out/frontier_tests --methods ITPD
-python -m itpd.experiments table configs/frontier_tests.yaml --runs out/frontier_tests --compare
+python -m itpd.experiments run configs/main_setting.yaml --out out/main_setting --methods ITPD --M 500
+python -m itpd.experiments table configs/main_setting.yaml --runs out/main_setting --compare
 python -m pytest -q
 ```
 
-The first command runs the 40 ITPD runs in about 2 minutes. The second command prints each mean next to its expected mean (`largest absolute difference 0.0e+00`). The third command runs 185 tests in about one minute (`python -m pytest -q -m slow` runs 7 more tests on stored runs). See `configs/README.md` for all configurations.
+The first command makes the 80 runs of ITPD with 500 observations in about 5 minutes. The second command prints the tables of the main setting with each mean next to its expected mean. It ends with `largest absolute difference 0.0e+00`. The third command runs 192 tests in about one minute. `python -m pytest -q -m slow` runs 7 more tests on stored runs. See `configs/README.md` for all configurations.

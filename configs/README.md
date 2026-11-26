@@ -1,15 +1,12 @@
 # Configurations
 
-Each YAML file in `configs/` describes the runs behind one table, one figure or one statement of the paper, named on its first line. `configs/expected/` holds the expected means. The method ITPD is the class `ITPD` with the constants of the paper (alpha = 0.01, gamma = 0.2, kappa = 50).
+Each YAML file in `configs/` describes the runs behind one table, one figure or one statement of the paper. `main_setting.yaml` describes the two tables and two figures of the main setting from the same runs. `configs/expected/` has the expected means. The method ITPD is the class `ITPD` with the constants of the paper (alpha = 0.01, gamma = 0.2, kappa = 50).
 
 | Config | Reproduces | Checked against stored runs | Full run |
 |---|---|---|---|
 | `oracle_exact_recovery.yaml` | Table: unique CI tests per candidate and conditioning set sizes under the exact oracle | 205 | about 13 h |
 | `oracle_all_settings.yaml` | Text: exact recovery in all 32 exact-oracle settings | 40 | more than 82 h |
-| `main_setting_f1.yaml` | Table: mean F1 in the main finite data setting | 294 | about 5.2 h |
-| `main_setting_tests.yaml` | Table: unique CI tests per candidate and conditioning set sizes in the main finite data setting | 256 | about 2.2 h |
-| `frontier_seconds.yaml` | Figure: mean F1 against wall-clock time in the main setting (Pareto frontier) | 104 | about 66 min |
-| `frontier_tests.yaml` | Figure: mean F1 against unique CI tests per candidate in the main setting | 216 | about 66 min |
+| `main_setting.yaml` | Main finite data setting. Tables: mean F1; unique CI tests per candidate and conditioning set sizes. Figures: mean F1 against wall-clock time (Pareto frontier); mean F1 against unique CI tests per candidate | 672 | about 5.2 h |
 | `lag.yaml` | Figure: mean F1 on common targets against the true lag on stationary and nonstationary graphs | 1110 | about 1.5 h |
 | `redrawn_edges.yaml` | Figure: mean F1 against the share of edges redrawn at each time step | 376 | about 8.9 h |
 | `sample_size.yaml` | Figure: mean F1 on all targets against the number of observations | 487 | more than 3.5 h |
@@ -29,11 +26,11 @@ Each YAML file in `configs/` describes the runs behind one table, one figure or 
 
 - Checked against stored runs: N runs were rerun from this code. Their true positives, false positives, false negatives, CI test counts and conditioning set sizes equal the stored runs of the paper's experiments.
 - The other runs of each config were not rerun because of run time. Full run is the rough time for all runs of the config with the package methods on one core.
-- 475 of the 477 completely rerun cell means equal the expected means. The other two appear under "Not reproduced by this repository".
+- 479 of the 481 completely rerun cell means equal the expected means. The other two appear under "Not reproduced by this repository".
 
 ## Not reproduced by this repository
 
-1. Wall-clock seconds in `frontier_seconds.yaml`, `runtime_itpd_iamb.yaml` and `scaling_time.yaml` depend on the machine and its load. These three configs were checked on their edges and CI test counts only.
+1. Wall-clock seconds depend on the machine and its load, and they have no expected means. This concerns the figure of mean F1 against wall-clock time in `main_setting.yaml`, `runtime_itpd_iamb.yaml` and `scaling_time.yaml`. Their runs were checked on edges and CI test counts.
 2. The external baselines (PCMCI, DF-PC, DYNOTEARS and CD-NOD) need their own tools, wrapped in `src/itpd/external/` and pinned in `requirements/`. 50 of these runs were rerun with the tools installed separately, and all 50 equal their stored runs.
 3. For gene-network data, the repository has only the first 200 observations of data set 0 for each of the two networks. The other data sets and larger M require simulation with GeneNetWeaver (`data/gene_networks/simulate.py`).
 4. One appendix table on the exactness and results of each version of the algorithm has no config. Every other table or figure with results has a config.
@@ -43,11 +40,12 @@ In `sample_size.yaml`, 29 of the 480 reruns with M = 50 and M = 100 differ from 
 ## Rerun a configuration
 
 ```bash
-python -m itpd.experiments run configs/frontier_tests.yaml --out out/frontier_tests --methods ITPD
-python -m itpd.experiments table configs/frontier_tests.yaml --runs out/frontier_tests --compare
+python -m itpd.experiments run configs/main_setting.yaml --out out/main_setting --methods ITPD --M 500
+python -m itpd.experiments table configs/main_setting.yaml --runs out/main_setting --compare
 ```
 
 - `run` writes one result file per run into `--out` and skips finished runs. An interrupted run restarts with the same command.
 - `--graphs` (such as `0-2`), `--methods` (such as `ITPD,IAMB`) and `--M` (such as `200,500`) select a subset.
-- `table --compare` prints each mean next to its expected mean and shows a method with two levels (alpha and corrected) at its better level. A mean matches the paper only when all graphs of the cell ran. The last line gives the largest difference in the lines shown and the largest difference at the levels not shown.
+- `table --compare` prints one table per table or figure of the config, with each mean next to its expected mean. It shows a method with two levels (alpha and corrected) at its better level. A method has a line only where it has a run file. A mean matches the paper only when all graphs of the cell ran.
+- The last line gives the largest difference in the lines shown and the largest difference at the levels not shown.
 - Each external tool uses its own Python interpreter. See the top of the files in `requirements/`.
